@@ -41,6 +41,14 @@ public sealed class ToolbarHost
         };
     }
 
+    /// <summary>Navigates the Blazor router (e.g. "/settings") from native code such as the tray menu.</summary>
+    public void NavigateTo(string path)
+    {
+        if (_core == null) return;
+        var escaped = System.Text.Json.JsonSerializer.Serialize(path);
+        _ = _core.ExecuteScriptAsync($"window.Blazor && Blazor.navigateTo({escaped})");
+    }
+
     /// <summary>Toggles a CSS class on &lt;body&gt; (e.g. "dock-bottom"), now or once the page has loaded.</summary>
     public void SetBodyClass(string className, bool enabled)
     {

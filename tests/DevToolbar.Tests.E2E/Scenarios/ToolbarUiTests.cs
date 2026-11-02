@@ -215,6 +215,44 @@ public class ToolbarUiTests : PageTest
         await Expect(Page.Locator(".settings-back")).ToContainTextAsync("Back to Toolbar");
     }
 
+    [Test]
+    public async Task SettingsPage_QuitButton_AsksForConfirmation()
+    {
+        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
+        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
+
+        await Page.GetByTestId("settings-quit").ClickAsync();
+
+        await Expect(Page.GetByTestId("settings-quit-confirm")).ToBeVisibleAsync();
+        await Expect(Page.GetByTestId("settings-quit-status")).ToHaveCountAsync(0);
+    }
+
+    [Test]
+    public async Task SettingsPage_QuitCancel_RestoresQuitButton()
+    {
+        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
+        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
+
+        await Page.GetByTestId("settings-quit").ClickAsync();
+        await Page.GetByTestId("settings-quit-cancel").ClickAsync();
+
+        await Expect(Page.GetByTestId("settings-quit")).ToBeVisibleAsync();
+        await Expect(Page.GetByTestId("settings-quit-confirm")).ToHaveCountAsync(0);
+    }
+
+    [Test]
+    public async Task SettingsPage_QuitConfirm_RequestsApplicationExit()
+    {
+        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
+        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
+
+        await Page.GetByTestId("settings-quit").ClickAsync();
+        await Page.GetByTestId("settings-quit-confirm").ClickAsync();
+
+        // The web host cannot close the browser; the mock native service records the request.
+        await Expect(Page.GetByTestId("settings-quit-status")).ToContainTextAsync("Closing DevToolbar");
+    }
+
     // --- Git Quick Sync Tests ---
 
     [Test]
