@@ -71,6 +71,10 @@ public sealed class ToolbarWindow : Window
         };
         Content = _webView;
 
+        // Diagnostics: one line per press, to tell whether a click reached this window at all.
+        PreviewMouseDown += (_, e) => Program.Log(
+            $"Mouse {e.ChangedButton} down at {e.GetPosition(this)} on {e.OriginalSource?.GetType().Name}");
+
         SourceInitialized += OnSourceInitialized;
         Deactivated += OnDeactivated;
         LocationChanged += (_, _) => _dismiss.RequestDismiss(PopupDismissReason.HostMoved);

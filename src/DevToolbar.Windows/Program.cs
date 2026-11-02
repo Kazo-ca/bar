@@ -11,6 +11,7 @@ using DevToolbar.Plugins.WorkItems;
 using DevToolbar.UI.Services;
 using DevToolbar.Windows.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DevToolbar.Windows;
 
@@ -66,6 +67,7 @@ public static class Program
     {
         var services = new ServiceCollection();
         services.AddWpfBlazorWebView();
+        services.AddLogging(logging => logging.AddProvider(new FileLoggerProvider()));
 #if DEBUG
         services.AddBlazorWebViewDeveloperTools();
 #endif

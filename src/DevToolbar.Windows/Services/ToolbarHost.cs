@@ -25,6 +25,16 @@ public sealed class ToolbarHost
     {
         _core = core;
         core.Settings.IsStatusBarEnabled = false;
+        core.ProcessFailed += (_, e) => Program.Log($"WebView2 process failed: {e.ProcessFailedKind} ({e.Reason}), exit {e.ExitCode}");
+        // Page-side errors (unhandled JS errors, Blazor failures) are forwarded through the console.
+        _ = core.CallDevToolsProtocolMethodAsync("Runtime.enable", "{}");
+        core.GetDevToolsProtocolEventReceiver("Runtime.exceptionThrown").DevToolsProtocolEventReceived +=
+            (_, e) => Program.Log($"JS exception: {e.ParameterObjectAsJson}");
+        core.GetDevToolsProtocolEventReceiver("Runtime.consoleAPICalled").DevToolsProtocolEventReceived += (_, e) =>
+        {
+            if (e.ParameterObjectAsJson.Contains("\"type\":\"error\"") || e.ParameterObjectAsJson.Contains("\"type\":\"warning\""))
+                Program.Log($"JS console: {e.ParameterObjectAsJson}");
+        };
         core.NavigationCompleted += (_, _) =>
         {
             if (_pendingBodyClassScript != null) _ = _core.ExecuteScriptAsync(_pendingBodyClassScript);
