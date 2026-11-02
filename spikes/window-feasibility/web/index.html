@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevToolbar — faisabilité des fenêtres</title>
+  <style>
+    :root { color-scheme: light; font: 14px "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; pointer-events: none; }
+    body.opaque { background: #d6e0e9; }
+    button, input { font: inherit; }
+    button { min-height: 32px; border: 1px solid #7b91a6; border-radius: 12px; background: #fff; color: #143653; cursor: pointer; }
+    button:hover { background: #deeffe; }
+    button:active { background: #badcff; }
+    :focus-visible { outline: 3px solid #b34300; outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    #toolbar { position: absolute; inset: 0 0 auto; width: 960px; height: 66px; }
+    .surface { position: absolute; top: 4px; height: 58px; border-radius: 28px; background: #e9f4ff; border: 1px solid #829bb3; pointer-events: auto; }
+    /* This CSS silhouette is only rendering/DOM hit testing, never a native input mask. */
+    #organic { left: 4px; width: 380px; clip-path: polygon(0 0, 176px 0, 176px 24px, 200px 24px, 200px 0, 100% 0, 100% 100%, 0 100%); }
+    #tools { left: 396px; width: 560px; }
+    /* A decorative shadow has no DOM target. Its native input behavior is a test case. */
+    #shadow { position: absolute; left: 30px; top: 57px; width: 325px; height: 6px; border-radius: 50%; background: #0004; filter: blur(2px); pointer-events: none; }
+    body.no-shadow #shadow { display: none; }
+    #counter { position: absolute; left: 20px; top: 11px; width: 136px; }
+    #menu-trigger { position: absolute; left: 216px; top: 11px; width: 94px; }
+    #drag { position: absolute; left: 16px; top: 11px; width: 125px; cursor: move; touch-action: none; }
+    #caption { position: absolute; left: 157px; top: 20px; color: #244761; font-size: 12px; white-space: nowrap; }
+    #quit { position: absolute; right: 16px; top: 11px; width: 78px; }
+    #menu { position: absolute; left: 300px; top: 78px; width: 320px; height: 260px; padding: 14px 18px; border: 1px solid #829bb3; border-radius: 24px; background: #f2f8ff; color: #143653; pointer-events: auto; display: grid; grid-template-rows: 26px 28px 14px 28px minmax(0, 1fr) 14px; gap: 4px; }
+    body.popup #toolbar { display: none; }
+    body.popup #menu { left: 0; top: 0; }
+    #menu-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    #menu-title { font-size: 14px; margin: 0; }
+    #close-menu { min-height: 26px; width: 30px; }
+    #menu-action { min-height: 28px; }
+    #check-label { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
+    #field-label { display: block; font-size: 12px; }
+    #search { width: 100%; height: 28px; border: 1px solid #7b91a6; border-radius: 7px; padding: 3px 7px; color: #143653; background: white; }
+    #items { min-height: 0; overflow: auto; margin: 0; padding: 3px; border: 1px solid #9fb2c4; border-radius: 8px; background: white; list-style: none; }
+    #items li { margin: 0; }
+    #items button { width: 100%; min-height: 26px; padding: 2px 6px; text-align: left; border: 0; border-radius: 5px; }
+    #menu-status { display: block; font-size: 11px; white-space: nowrap; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <main id="toolbar" aria-label="Barre de test">
+    <div id="shadow" aria-hidden="true"></div>
+    <div class="surface" id="organic">
+      <button id="counter" type="button">Clics : <span id="count">0</span></button>
+      <button id="menu-trigger" type="button" aria-controls="menu" aria-expanded="false">Menu</button>
+    </div>
+    <div class="surface" id="tools">
+      <button id="drag" type="button" aria-label="Poignée de déplacement">↔ Déplacer</button>
+      <span id="caption"></span>
+      <button id="quit" type="button">Fermer</button>
+    </div>
+  </main>
+  <section id="menu" aria-labelledby="menu-title" hidden>
+    <div id="menu-header">
+      <h1 id="menu-title">Menu web de test</h1>
+      <button id="close-menu" type="button" aria-label="Fermer le menu">×</button>
+    </div>
+    <div id="action-row"><button id="menu-action" type="button">Action : <span id="action-count">0</span></button>
+    <label id="check-label"><input id="check" type="checkbox"> Case</label></div>
+    <label id="field-label" for="search">Saisie, sélection et menu contextuel</label>
+    <input id="search" type="text" value="Texte de faisabilité" autocomplete="off">
+    <ul id="items" aria-label="Liste défilante"></ul>
+    <output id="menu-status" aria-live="polite">Échap ferme le menu.</output>
+  </section>
+  <script>
+    (() => {
+      'use strict';
+      // These are replaced by the local host before NavigateToString.
+      const role = '__ROLE__';
+      const opaque = __OPAQUE__;
+      const noShadow = __NO_SHADOW__;
+      if (!['single', 'bar', 'popup'].includes(role)) throw new Error('Unknown spike role');
+      document.body.classList.add(role);
+      document.body.classList.toggle('opaque', opaque);
+      document.body.classList.toggle('no-shadow', noShadow);
+      const byId = id => document.getElementById(id);
+      const send = message => window.chrome?.webview?.postMessage(JSON.stringify(message));
+      const menu = byId('menu');
+      const trigger = byId('menu-trigger');
+      let menuOpen = false;
+      let count = 0;
+      let actions = 0;
+      byId('caption').textContent = `${role} · ${opaque ? 'témoin opaque' : noShadow ? 'sans ombre' : 'fond transparent'}`;
+      for (let index = 1; index <= 30; index++) {
+        const item = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.id = `item-${index}`;
+        button.textContent = `Élément ${String(index).padStart(2, '0')}`;
+        button.addEventListener('click', () => { byId('menu-status').textContent = `Élément ${index} activé`; });
+        item.append(button);
+        byId('items').append(item);
+      }
+      window.spike = {
+        // Closing after an outside click must not steal focus. Escape can request
+        // restoration explicitly via the optional second argument or focusTrigger().
+        setMenu(open, restoreFocus = false) {
+          menuOpen = Boolean(open);
+          trigger.setAttribute('aria-expanded', String(menuOpen));
+          menu.hidden = role === 'bar' || !menuOpen;
+          if (menuOpen && role !== 'bar') byId('menu-action').focus({ preventScroll: true });
+          if (!menuOpen && restoreFocus && role !== 'popup') this.focusTrigger();
+          const rect = menu.getBoundingClientRect();
+          send({ action: 'event', eventType: 'menu-state', role, menuOpen, noShadow, focus: document.activeElement.id,
+            count, actions, checked: byId('check').checked, textLength: byId('search').value.length,
+            viewport: { width: innerWidth, height: innerHeight }, devicePixelRatio,
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            clientHeight: menu.clientHeight, scrollHeight: menu.scrollHeight });
+        },
+        focusTrigger() { trigger.focus({ preventScroll: true }); },
+        reportLayout() { send({ action: 'event', eventType: 'layout', role, noShadow,
+          viewport: { width: innerWidth, height: innerHeight }, devicePixelRatio, menuOpen }); },
+        getState() {
+          return { role, opaque, noShadow, menuOpen, count, actions, checked: byId('check').checked, text: byId('search').value, scrollTop: byId('items').scrollTop };
+        }
+      };
+      byId('counter').addEventListener('click', () => { byId('count').textContent = String(++count); });
+      trigger.addEventListener('click', () => send({ action: menuOpen ? 'close-menu' : 'open-menu', source: 'trigger' }));
+      byId('close-menu').addEventListener('click', () => send({ action: 'close-menu', source: 'button' }));
+      byId('menu-action').addEventListener('click', () => { byId('action-count').textContent = String(++actions); });
+      byId('quit').addEventListener('click', () => send({ action: 'quit' }));
+      document.addEventListener('pointerdown', event => {
+        if (menuOpen && role !== 'popup' && !menu.contains(event.target) && !trigger.contains(event.target))
+          send({ action: 'close-menu', source: 'outside-dom' });
+      });
+      byId('drag').addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        send({ action: 'drag' });
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          send({ action: 'escape' });
+        }
+        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && event.target.closest('#items')) {
+          event.preventDefault();
+          const buttons = [...byId('items').querySelectorAll('button')];
+          const current = buttons.indexOf(document.activeElement);
+          const delta = event.key === 'ArrowDown' ? 1 : -1;
+          buttons[(current + delta + buttons.length) % buttons.length].focus();
+        }
+      });
+      for (const eventType of ['pointerdown', 'pointerup', 'click', 'dblclick', 'contextmenu', 'wheel', 'focusin', 'focusout', 'keydown', 'input', 'change']) {
+        document.addEventListener(eventType, event => {
+          send({ action: 'event', eventType, id: event.target.id || event.target.tagName, button: event.button, detail: event.detail, x: event.clientX, y: event.clientY, deltaY: event.deltaY, key: event.key, role, timestamp: new Date().toISOString() });
+        }, { capture: true, passive: eventType === 'wheel' });
+      }
+      byId('items').addEventListener('scroll', () => send({ action: 'event', eventType: 'scroll', id: 'items', scrollTop: byId('items').scrollTop, role, timestamp: new Date().toISOString() }));
+      window.spike.setMenu(role === 'popup');
+      window.addEventListener('resize', () => window.spike.reportLayout());
+      send({ action: 'ready', role, opaque, noShadow, viewport: { width: innerWidth, height: innerHeight }, devicePixelRatio });
+    })();
+  </script>
+</body>
+</html>

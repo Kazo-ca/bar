@@ -1,0 +1,51 @@
+@using DevToolbar.UI.Services
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* Bridges document-level outside click / Escape to PopupDismissService. Renders nothing. *@
+
+@code {
+    [Parameter, EditorRequired] public PopupDismissService Service { get; set; } = default!;
+
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<PopupDismissListener>? _self;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/DevToolbar.UI/js/popup-dismiss.js");
+            _self = DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("register", _self);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException)
+        {
+            // Prerendering or a host without JS: popups still close via their own buttons.
+        }
+    }
+
+    [JSInvokable]
+    public void OnDismiss(string reason, string? sourceRoot)
+    {
+        if (Enum.TryParse<PopupDismissReason>(reason, out var parsed))
+            Service.RequestDismiss(parsed, sourceRoot);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module != null)
+            {
+                await _module.InvokeVoidAsync("unregister");
+                await _module.DisposeAsync();
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException or ObjectDisposedException)
+        {
+        }
+        _self?.Dispose();
+    }
+}

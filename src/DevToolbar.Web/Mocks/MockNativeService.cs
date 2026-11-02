@@ -34,4 +34,13 @@ public class MockNativeService : INativeService
     {
         Console.WriteLine("[MockNative] Restored from tray");
     }
+
+    /// <summary>Number of exit requests received (a browser tab cannot be closed by the server).</summary>
+    public int ExitRequestCount { get; private set; }
+
+    public void ExitApplication()
+    {
+        ExitRequestCount++;
+        Console.WriteLine("[MockNative] Exit requested");
+    }
 }

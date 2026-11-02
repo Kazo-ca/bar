@@ -1,0 +1,78 @@
+{
+  "utc": "2026-11-01T03:17:08.1214741+00:00",
+  "sdk": "10.0.402",
+  "files": [
+    {
+      "path": "Microsoft.Web.WebView2.Core.dll",
+      "sha256": "4A4EFDF712CEEA4050EB2252EC2A9136CDCF32B9BFBB3AD58D79396F36E9665D"
+    },
+    {
+      "path": "Microsoft.Web.WebView2.Core.xml",
+      "sha256": "6F49076302322377F2932E599375AEDBD58F17CFC9AB189193DE0201D2BEDD0A"
+    },
+    {
+      "path": "Microsoft.Web.WebView2.WinForms.dll",
+      "sha256": "5C3A41F67EE3B9D4CF16CE812827A4433DF1069CDC36604E098B9BA3D2C9A0DC"
+    },
+    {
+      "path": "Microsoft.Web.WebView2.WinForms.xml",
+      "sha256": "4B40E49AEC5DBDA597224F997D57A16645DDC2EB00F31A6329204D1853A2245A"
+    },
+    {
+      "path": "Microsoft.Web.WebView2.Wpf.dll",
+      "sha256": "06AEBE0B8B47A6AFF208C0780BD276CDF9361400202F555900397A5D878E8CAF"
+    },
+    {
+      "path": "Microsoft.Web.WebView2.Wpf.xml",
+      "sha256": "8932FE759BB7AFD1E0DE73682A9577D782048A68B252408E127CF767FC348BE4"
+    },
+    {
+      "path": "Microsoft.Windows.SDK.NET.dll",
+      "sha256": "0EC371D93798852E36461C8ADDDBEADCE0F963A04752F0B64E54FE19C1C834A7"
+    },
+    {
+      "path": "Probe.deps.json",
+      "sha256": "5BF9EECADC0FED8E40565EAF49BAD91EA54D8DB313DC57CF02CC791F340CCAD0"
+    },
+    {
+      "path": "Probe.dll",
+      "sha256": "73476C1BAE5CDE0EDEA0B84901C957F4F1628FA5564E08ABAE2D12BDB8851757"
+    },
+    {
+      "path": "Probe.exe",
+      "sha256": "CABD5E686FE4125B7C722B5B961643AAC73A6FC78B0E2BD7054DE2C0FA8B6B82"
+    },
+    {
+      "path": "Probe.pdb",
+      "sha256": "9523984D6942E0CBCFCDCDEF7848C73672354A9ED48C98925661B0B028C012AA"
+    },
+    {
+      "path": "Probe.runtimeconfig.json",
+      "sha256": "96BC2946DFF8790400D652EC7F8DE7BB043E954980D59470C112788B68A1FBD3"
+    },
+    {
+      "path": "WinRT.Runtime.dll",
+      "sha256": "BCF3A14E8712A90837FC5C0D8C8A24696AF2BD7F74E9767597EC81EDEDFB23DB"
+    },
+    {
+      "path": "runtimes\\win-arm64\\native\\WebView2Loader.dll",
+      "sha256": "1785C10EEAF9EBF1BD7647F12196E6946D68CE517BF7BABABBFAD8FAF6951456"
+    },
+    {
+      "path": "runtimes\\win-x64\\native\\WebView2Loader.dll",
+      "sha256": "1970AE5E398666304483203DAE64F8BC3327811114AE38BB3484ECBCE1386B41"
+    },
+    {
+      "path": "runtimes\\win-x86\\native\\WebView2Loader.dll",
+      "sha256": "1064AB1C2CDC0746B100F021514D591043DA7CC1583B450DD071D291080C53EF"
+    },
+    {
+      "path": "web\\atlas.json",
+      "sha256": "02416C3F06552C97C52EDB7EED63B0B30BF7CA69A7B0EF59B7AF3803DE169B32"
+    },
+    {
+      "path": "web\\index.html",
+      "sha256": "35CBFC850B76D3769E94D3D57593CE779EF9669BD192AF0EE8771A5C6C72CDCD"
+    }
+  ]
+}

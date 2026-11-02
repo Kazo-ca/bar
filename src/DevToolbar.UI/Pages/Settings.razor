@@ -6,6 +6,7 @@
 @inject IPluginLoader PluginLoader
 @inject IGlobalSettingsService GlobalSettingsService
 @inject IWindowService WindowService
+@inject INativeService NativeService
 
 <PageTitle>DevToolbar - Settings</PageTitle>
 
@@ -224,10 +225,34 @@
                 </div>
             </div>
         </section>
+
+        <section class="settings-section settings-app-section" data-testid="settings-app-section">
+            <h3>Application</h3>
+            <p class="settings-description">Close the toolbar completely. On Windows you can also use the DevToolbar icon in the notification area.</p>
+            @if (_confirmQuit)
+            {
+                <div class="settings-quit-confirm">
+                    <span class="settings-quit-question">Quit DevToolbar?</span>
+                    <button class="settings-btn settings-btn-danger" data-testid="settings-quit-confirm" @onclick="QuitApplication">Quit</button>
+                    <button class="settings-btn" data-testid="settings-quit-cancel" @onclick="() => _confirmQuit = false">Cancel</button>
+                </div>
+            }
+            else
+            {
+                <button class="settings-btn settings-btn-danger" data-testid="settings-quit" @onclick="() => _confirmQuit = true">⏻ Quit DevToolbar</button>
+            }
+            @if (_quitRequested)
+            {
+                <p class="settings-description" data-testid="settings-quit-status">Closing DevToolbar…</p>
+            }
+        </section>
     </div>
 </div>
 
 @code {
+    private bool _confirmQuit;
+    private bool _quitRequested;
+
     private ProjectConfig? _activeProject;
     private IReadOnlyList<ProjectConfig>? _projects;
     private IReadOnlyList<IPlugin> _allPlugins = Array.Empty<IPlugin>();
@@ -283,6 +308,13 @@
 
         await SettingsService.SetActiveProjectAsync(projectId);
         _activeProject = SettingsService.GetActiveProject();
+    }
+
+    private void QuitApplication()
+    {
+        _confirmQuit = false;
+        _quitRequested = true;
+        NativeService.ExitApplication();
     }
 
     // --- Toolbar Behavior settings ---
