@@ -732,4 +732,47 @@ public class ToolbarUiTests : PageTest
         Assert.That(pullText, Does.Contain("Pull"), "Pull button should say Pull");
         Assert.That(pushText, Does.Contain("Push"), "Push button should say Push");
     }
+
+    // ── Popup dismissal (shared by Web, MAUI and WPF hosts) ──
+
+    private async Task OpenProjectDropdown()
+    {
+        await NavigateAndWait();
+        await Page.Locator(".project-selector-trigger").ClickAsync();
+        await Expect(Page.Locator(".project-dropdown")).ToBeVisibleAsync(new() { Timeout = 3000 });
+    }
+
+    [Test]
+    public async Task ProjectDropdown_ShouldCloseOnOutsideClick()
+    {
+        await OpenProjectDropdown();
+        await Page.Locator(".system-timer-display").ClickAsync();
+        await Expect(Page.Locator(".project-dropdown")).ToHaveCountAsync(0, new() { Timeout = 3000 });
+    }
+
+    [Test]
+    public async Task ProjectDropdown_ShouldCloseOnEscapeAndRefocusTrigger()
+    {
+        await OpenProjectDropdown();
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(Page.Locator(".project-dropdown")).ToHaveCountAsync(0, new() { Timeout = 3000 });
+        await Expect(Page.Locator(".project-selector-trigger")).ToBeFocusedAsync(new() { Timeout = 3000 });
+    }
+
+    [Test]
+    public async Task ProjectDropdown_ShouldCloseWhenAnotherPopupOpens()
+    {
+        await OpenProjectDropdown();
+        await Page.Locator(".test-dropdown-wrapper .system-btn").ClickAsync();
+        await Expect(Page.Locator(".test-dropdown-panel")).ToBeVisibleAsync(new() { Timeout = 3000 });
+        await Expect(Page.Locator(".project-dropdown")).ToHaveCountAsync(0, new() { Timeout = 3000 });
+    }
+
+    [Test]
+    public async Task ProjectDropdown_ClickInsideShouldKeepItOpen()
+    {
+        await OpenProjectDropdown();
+        await Page.Locator(".project-dropdown").ClickAsync(new() { Position = new() { X = 4, Y = 4 } });
+        await Expect(Page.Locator(".project-dropdown")).ToBeVisibleAsync();
+    }
 }

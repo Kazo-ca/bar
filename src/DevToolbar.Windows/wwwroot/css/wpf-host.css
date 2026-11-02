@@ -1,0 +1,62 @@
+/* ==========================================================================
+   WPF host overrides (DevToolbar.Windows only).
+
+   The window is a WPF layered window: any pixel with alpha > 0 receives
+   mouse input, alpha 0 passes through to the application below.
+   Outer shadows paint semi-transparent pixels outside the visible shapes,
+   which would swallow clicks/wheel there (spike: P5 shadow failure).
+   So this host removes every outer shadow; CSS shapes stay the single
+   source of truth for both rendering and hit-testing.
+   ========================================================================== */
+
+html, body {
+    background: transparent !important;
+    overflow: hidden;
+}
+
+/* No outer shadow anywhere: it would capture input around the shapes. */
+*, *::before, *::after {
+    box-shadow: none !important;
+}
+
+/* Inset highlights stay inside the shape, so they are safe to keep. */
+.toolbar-shell {
+    box-shadow: var(--shadow-inner) !important;
+}
+
+/* Replacement focus indicator for controls that used a box-shadow ring. */
+:focus-visible {
+    outline: 2px solid rgba(var(--accent-color-rgb, 0, 120, 212), 0.6);
+    outline-offset: 1px;
+}
+
+/* Small gap so the pill's anti-aliased edge is not cut by the window edge. */
+.toolbar-shell {
+    margin-top: 2px;
+}
+
+/* ── Docked to the bottom edge: toolbar sits at the window bottom and
+      menus open upward (the window extends above the reserved strip). ── */
+body.dock-bottom .toolbar-shell {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 2px;
+    margin: 0 auto;
+}
+
+body.dock-bottom .project-dropdown {
+    top: auto;
+    bottom: calc(100% + 12px);
+}
+
+body.dock-bottom .test-dropdown-panel {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+#blazor-error-ui {
+    display: none;
+}

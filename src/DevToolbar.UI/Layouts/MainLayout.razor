@@ -11,7 +11,9 @@
 @inject ITimeTrackingService TimeTrackingService
 @inject ThemeService ThemeService
 @inject IGlobalSettingsService GlobalSettingsService
+@inject IServiceProvider Services
 
+<CascadingValue Value="_dismiss" IsFixed="true">
 <div class="toolbar-shell" style="@ThemeService.GetCssVariables()">
     @* ── Zone 1: Project Selector (z-index: 20) ── *@
     <div class="module-project">
@@ -60,8 +62,13 @@
 <TimeReport IsVisible="@_showTimeReport" OnClose="CloseTimeReport" />
 <TerminalOutput @ref="_terminalOutput" IsVisible="@_showTerminal" OnClose="CloseTerminal" />
 <ToastContainer />
+</CascadingValue>
+<PopupDismissListener Service="_dismiss" />
 
 @code {
+    // Hosts may register a singleton so native events (window deactivation, move)
+    // can close popups; otherwise a page-local instance is used.
+    private PopupDismissService _dismiss = default!;
     private List<ActionConfig> _actions = new();
     private IReadOnlyList<IPlugin>? _visiblePlugins;
     private bool _showTimeReport;
@@ -71,6 +78,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _dismiss = Services.GetService(typeof(PopupDismissService)) as PopupDismissService ?? new PopupDismissService();
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
 
         var project = SettingsService.GetActiveProject();

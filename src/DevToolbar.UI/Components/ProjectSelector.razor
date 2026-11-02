@@ -1,10 +1,11 @@
 @using DevToolbar.Core.Interfaces
 @using DevToolbar.Core.Models
 @inject ISettingsService SettingsService
+@using DevToolbar.UI.Services
 @implements IDisposable
 
-<div class="project-selector @(_dropdownOpen ? "open" : "")">
-    <button class="project-selector-trigger" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="Switch project"
+<div class="project-selector @(_dropdownOpen ? "open" : "")" data-popup-root="project-selector">
+    <button @ref="_trigger" class="project-selector-trigger" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="Switch project"
             aria-haspopup="true" aria-expanded="@_dropdownOpen">
         <span class="project-icon">
             <svg class="github-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
@@ -34,9 +35,13 @@
     private IReadOnlyList<ProjectConfig>? _projects;
     private ProjectConfig? _activeProject;
     private bool _dropdownOpen;
+    private ElementReference _trigger;
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
         _projects = await SettingsService.GetProjectsAsync();
         _activeProject = SettingsService.GetActiveProject();
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
@@ -61,8 +66,24 @@
         _dropdownOpen = false;
     }
 
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!_dropdownOpen || !request.AppliesTo("project-selector")) return;
+        _ = InvokeAsync(async () =>
+        {
+            _dropdownOpen = false;
+            StateHasChanged();
+            // Only Escape returns focus to the trigger; deactivation must not steal focus back.
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
     public void Dispose()
     {
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
     }
 }
