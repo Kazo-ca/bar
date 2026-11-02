@@ -91,6 +91,7 @@ public static class Program
         services.AddSingleton<WpfAppBarService>();
         services.AddSingleton<IDockingService>(sp => sp.GetRequiredService<WpfAppBarService>());
         services.AddSingleton<IWindowRegionService, NoOpWindowRegionService>();
+        services.AddSingleton<IWindowDragService, WpfWindowDragService>();
 
         // Plugins — the work item / time / CI providers are still the placeholder
         // implementations used by the MAUI host (not real services yet).

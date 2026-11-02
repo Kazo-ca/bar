@@ -2068,4 +2068,44 @@ body {
 .settings-quit-question {
     color: var(--text-primary, #fff);
     margin-right: 4px;
+
+/* ==========================================================================
+   Drag handle — right end of the pill, revealed on hover (desktop hosts)
+   ========================================================================== */
+.toolbar-drag-handle {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    width: 18px;
+    height: 36px;
+    margin-left: 4px;
+    margin-right: 2px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.15s ease;
+    touch-action: none;
+}
+
+.toolbar-drag-handle span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(40, 45, 55, 0.7);
+}
+
+.toolbar-shell:hover .toolbar-drag-handle,
+.toolbar-drag-handle:focus-visible {
+    opacity: 1;
+}
+
+.toolbar-drag-handle:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.toolbar-drag-handle:active {
+    cursor: grabbing;
 }
