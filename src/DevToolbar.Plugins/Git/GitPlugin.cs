@@ -3,12 +3,13 @@ namespace DevToolbar.Plugins.Git;
 using DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Rendering;
 
 /// <summary>
 /// Plugin showing Git branch status with Quick Sync (Pull/Push) for the active project.
+/// A project can declare several repositories; the toolbar shows a selector and
+/// Pull/Push run inside the selected repository folder.
 /// </summary>
-public class GitPlugin : IPlugin
+public class GitPlugin : IConfigurablePlugin
 {
     private readonly IProcessService _processService;
     private readonly INotificationService _notificationService;
@@ -17,10 +18,12 @@ public class GitPlugin : IPlugin
     public string Name => "Git Tools";
     public string Icon => "git";
     public bool IsEnabled { get; set; } = true;
+    public Type SettingsComponentType => typeof(GitSettingsPanel);
     public event Action? OnStateChanged;
 
-    private string _currentBranch = "main";
-    private bool _isDirty = false;
+    private ProjectConfig _project = new();
+    private string? _selectedRepositoryPath;
+    private bool _isDirty;
     private string _syncStatus = string.Empty;
 
     public GitPlugin(IProcessService processService, INotificationService notificationService)
@@ -29,96 +32,81 @@ public class GitPlugin : IPlugin
         _notificationService = notificationService;
     }
 
+    /// <summary>Repositories available for the active project.</summary>
+    public IReadOnlyList<GitRepository> Repositories => GitRepositoryCatalog.Resolve(_project);
+
+    /// <summary>The repository Pull/Push act on (falls back to the first one).</summary>
+    public GitRepository? SelectedRepository =>
+        Repositories.FirstOrDefault(r => _selectedRepositoryPath != null && GitRepositoryCatalog.SamePath(r.Path, _selectedRepositoryPath))
+        ?? Repositories.FirstOrDefault();
+
     public Task OnProjectChangedAsync(PluginContext context)
     {
-        _currentBranch = context.Project.DefaultBranch;
+        _project = context.Project;
+        _selectedRepositoryPath = Repositories.FirstOrDefault()?.Path;
         _isDirty = false;
         _syncStatus = string.Empty;
         return Task.CompletedTask;
     }
 
+    /// <summary>Selects the repository used by the toolbar buttons.</summary>
+    public void SelectRepository(string path)
+    {
+        _selectedRepositoryPath = path;
+        _syncStatus = string.Empty;
+        OnStateChanged?.Invoke();
+    }
+
+    /// <summary>Branch shown for the selected repository.</summary>
+    public string CurrentBranch => SelectedRepository is { } repository
+        ? GitRepositoryCatalog.EffectiveBranch(repository, _project)
+        : _project.DefaultBranch;
+
+    /// <summary>Whether the working copy has local changes.</summary>
+    public bool IsDirty => _isDirty;
+
+    /// <summary>Last Pull/Push status message.</summary>
+    public string SyncStatus => _syncStatus;
+
+    /// <summary>
+    /// Renders <see cref="GitToolbarView"/>, which subscribes to <see cref="OnStateChanged"/>
+    /// so the Git module refreshes itself whatever the hosting layout does.
+    /// </summary>
     public RenderFragment? Render() => builder =>
     {
-        builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "class", "plugin-git");
+        builder.OpenComponent<GitToolbarView>(0);
+        builder.AddComponentParameter(1, nameof(GitToolbarView.Plugin), this);
+        builder.CloseComponent();
+    };
 
-        // Branch info row
-        builder.OpenElement(2, "div");
-        builder.AddAttribute(3, "class", "git-info");
+    /// <summary>Runs <c>git pull</c> inside the selected repository.</summary>
+    public Task PullAsync() => RunSyncAsync("pull", "Pull");
 
-        builder.OpenElement(4, "span");
-        builder.AddAttribute(5, "class", "git-branch");
-        builder.AddContent(6, $"⎇ {_currentBranch}");
-        builder.CloseElement();
+    /// <summary>Runs <c>git push</c> inside the selected repository.</summary>
+    public Task PushAsync() => RunSyncAsync("push", "Push");
 
-        builder.OpenElement(7, "span");
-        builder.AddAttribute(8, "class", _isDirty ? "git-status dirty" : "git-status clean");
-        builder.AddContent(9, _isDirty ? "● Modified" : "✓ Clean");
-        builder.CloseElement();
-
-        builder.CloseElement(); // git-info
-
-        // Quick Sync buttons row
-        builder.OpenElement(10, "div");
-        builder.AddAttribute(11, "class", "git-sync");
-
-        builder.OpenElement(12, "button");
-        builder.AddAttribute(13, "class", "git-btn git-btn-pull");
-        builder.AddAttribute(14, "title", "Pull latest changes");
-        builder.AddAttribute(15, "onclick", EventCallback.Factory.Create(this, async () =>
+    private async Task RunSyncAsync(string subCommand, string verb)
+    {
+        var repository = SelectedRepository;
+        if (repository == null)
         {
-            try
-            {
-                _syncStatus = "Pulling...";
-                OnStateChanged?.Invoke();
-                await _processService.StartProcessAsync("git", "pull");
-                _syncStatus = "✓ Pull complete";
-                _notificationService.ShowSuccess("Pull completed successfully", "Git Sync");
-            }
-            catch (Exception ex)
-            {
-                _syncStatus = $"✗ Pull failed: {ex.Message}";
-                _notificationService.ShowError($"Pull failed: {ex.Message}", "Git Sync");
-            }
-            OnStateChanged?.Invoke();
-        }));
-        builder.AddContent(16, "⬇ Pull");
-        builder.CloseElement();
-
-        builder.OpenElement(17, "button");
-        builder.AddAttribute(18, "class", "git-btn git-btn-push");
-        builder.AddAttribute(19, "title", "Push local changes");
-        builder.AddAttribute(20, "onclick", EventCallback.Factory.Create(this, async () =>
-        {
-            try
-            {
-                _syncStatus = "Pushing...";
-                OnStateChanged?.Invoke();
-                await _processService.StartProcessAsync("git", "push");
-                _syncStatus = "✓ Push complete";
-                _notificationService.ShowSuccess("Push completed successfully", "Git Sync");
-            }
-            catch (Exception ex)
-            {
-                _syncStatus = $"✗ Push failed: {ex.Message}";
-                _notificationService.ShowError($"Push failed: {ex.Message}", "Git Sync");
-            }
-            OnStateChanged?.Invoke();
-        }));
-        builder.AddContent(21, "⬆ Push");
-        builder.CloseElement();
-
-        builder.CloseElement(); // git-sync
-
-        // Sync status message
-        if (!string.IsNullOrEmpty(_syncStatus))
-        {
-            builder.OpenElement(22, "div");
-            builder.AddAttribute(23, "class", "git-sync-status");
-            builder.AddContent(24, _syncStatus);
-            builder.CloseElement();
+            _notificationService.ShowWarning("No Git repository configured for this project.", "Git Sync");
+            return;
         }
 
-        builder.CloseElement(); // plugin-git
-    };
+        try
+        {
+            _syncStatus = $"{verb}ing {repository.Name}...";
+            OnStateChanged?.Invoke();
+            await _processService.StartProcessAsync("git", GitRepositoryCatalog.BuildArguments(repository, subCommand));
+            _syncStatus = $"✓ {verb} complete";
+            _notificationService.ShowSuccess($"{verb} completed for {repository.Name}", "Git Sync");
+        }
+        catch (Exception ex)
+        {
+            _syncStatus = $"✗ {verb} failed: {ex.Message}";
+            _notificationService.ShowError($"{verb} failed for {repository.Name}: {ex.Message}", "Git Sync");
+        }
+        OnStateChanged?.Invoke();
+    }
 }

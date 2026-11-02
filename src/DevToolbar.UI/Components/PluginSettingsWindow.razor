@@ -1,0 +1,134 @@
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.Core.Models
+@inject ISettingsService SettingsService
+@inject IPluginLoader PluginLoader
+@inject INotificationService NotificationService
+
+@if (IsVisible && _project != null)
+{
+    <div class="plugin-settings-overlay" @onclick="CloseAsync">
+        <div class="plugin-settings-window" role="dialog" aria-modal="true" aria-labelledby="plugin-settings-title"
+             tabindex="-1" @onclick:stopPropagation="true" @onkeydown="OnKeyDown">
+            <header class="plugin-settings-header">
+                <h3 id="plugin-settings-title">🧩 Plugin configuration</h3>
+                <span class="plugin-settings-project">@_project.Name</span>
+                <button type="button" class="plugin-settings-close" title="Close" aria-label="Close" @onclick="CloseAsync">✕</button>
+            </header>
+
+            <div class="plugin-settings-body">
+                <nav class="plugin-settings-nav" aria-label="Plugins">
+                    @foreach (var plugin in _plugins)
+                    {
+                        var pluginId = plugin.UniqueId;
+                        var isEnabled = _project.EnabledPlugins.Contains(pluginId);
+                        <button type="button" data-plugin-id="@pluginId"
+                                class="plugin-settings-nav-item @(pluginId == _selectedId ? "selected" : "")"
+                                aria-current="@(pluginId == _selectedId ? "page" : null)"
+                                @onclick="() => Select(pluginId)">
+                            <span class="plugin-settings-dot @(isEnabled ? "on" : "off")" title="@(isEnabled ? "Enabled" : "Disabled")"></span>
+                            <span class="plugin-settings-nav-name">@plugin.Name</span>
+                        </button>
+                    }
+                </nav>
+
+                <section class="plugin-settings-pane">
+                    @if (SelectedPlugin is { } selected)
+                    {
+                        var selectedEnabled = _project.EnabledPlugins.Contains(selected.UniqueId);
+                        <div class="plugin-settings-pane-header">
+                            <div>
+                                <h4>@selected.Name</h4>
+                                <span class="settings-plugin-id">@selected.UniqueId</span>
+                            </div>
+                            <label class="plugin-settings-enable">
+                                <span>Enabled for this project</span>
+                                <span class="settings-toggle">
+                                    <input type="checkbox" class="plugin-settings-enable-checkbox" checked="@selectedEnabled"
+                                           @onchange="@(e => ToggleAsync(selected.UniqueId, e.Value is true))" />
+                                    <span class="settings-toggle-slider"></span>
+                                </span>
+                            </label>
+                        </div>
+
+                        @if (selected is IConfigurablePlugin configurable)
+                        {
+                            <DynamicComponent @key="selected.UniqueId" Type="configurable.SettingsComponentType" Parameters="SettingsParameters" />
+                        }
+                        else
+                        {
+                            <p class="plugin-settings-hint plugin-settings-none">This plugin has no additional settings yet.</p>
+                        }
+                    }
+                </section>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Whether the window is shown.</summary>
+    [Parameter] public bool IsVisible { get; set; }
+
+    /// <summary>Plugin selected when the window opens (first plugin when null).</summary>
+    [Parameter] public string? InitialPluginId { get; set; }
+
+    /// <summary>Raised when the user closes the window.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>Raised after the project configuration was changed and saved.</summary>
+    [Parameter] public EventCallback<ProjectConfig> OnProjectChanged { get; set; }
+
+    private IReadOnlyList<IPlugin> _plugins = Array.Empty<IPlugin>();
+    private ProjectConfig? _project;
+    private string? _selectedId;
+    private bool _wasVisible;
+
+    private IPlugin? SelectedPlugin => _plugins.FirstOrDefault(p => p.UniqueId == _selectedId);
+
+    private IDictionary<string, object> SettingsParameters => new Dictionary<string, object>
+    {
+        ["Project"] = _project!,
+        ["OnProjectChanged"] = EventCallback.Factory.Create<ProjectConfig>(this, SaveAsync),
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible && !_wasVisible)
+        {
+            _plugins = PluginLoader.GetPlugins();
+            _project = SettingsService.GetActiveProject();
+            _selectedId = _plugins.Any(p => p.UniqueId == InitialPluginId)
+                ? InitialPluginId
+                : _plugins.FirstOrDefault()?.UniqueId;
+        }
+        _wasVisible = IsVisible;
+    }
+
+    private void Select(string pluginId) => _selectedId = pluginId;
+
+    private async Task ToggleAsync(string pluginId, bool enabled)
+    {
+        if (_project == null) return;
+
+        var others = _project.EnabledPlugins.Where(id => id != pluginId);
+        _project.EnabledPlugins = enabled ? [.. others, pluginId] : others.ToList();
+        await SaveAsync(_project);
+    }
+
+    private async Task SaveAsync(ProjectConfig project)
+    {
+        try
+        {
+            await SettingsService.SaveProjectAsync(project);
+            await OnProjectChanged.InvokeAsync(project);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Could not save plugin settings: {ex.Message}", "Settings");
+        }
+    }
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+}

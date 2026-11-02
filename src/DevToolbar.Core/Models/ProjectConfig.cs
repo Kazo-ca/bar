@@ -33,4 +33,11 @@ public class ProjectConfig
 
     [JsonPropertyName("repositoryUrl")]
     public string RepositoryUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Git repositories managed by the Git plugin. When empty, the plugin falls back
+    /// to a single repository at <see cref="Path"/>.
+    /// </summary>
+    [JsonPropertyName("gitRepositories")]
+    public List<GitRepository> GitRepositories { get; set; } = new();
 }
