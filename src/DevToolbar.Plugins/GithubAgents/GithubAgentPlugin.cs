@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 /// Plugin for monitoring GitHub Actions / CI/CD sessions.
 /// Supports background polling for session updates (US7.1).
 /// </summary>
-public class GithubAgentPlugin : IPlugin
+public class GithubAgentPlugin : IPlugin, IPluginIndicator
 {
     private readonly ICiCdService _ciCdService;
     private readonly INotificationService _notificationService;
@@ -19,6 +19,16 @@ public class GithubAgentPlugin : IPlugin
     public string Icon => "🔄";
     public bool IsEnabled { get; set; } = true;
     public event Action? OnStateChanged;
+
+    // IPluginIndicator — global CI/CD status icon + unread badge (US7.1)
+    public string? IndicatorText => null;
+    public string? IndicatorTooltip => BadgeCount > 0 ? $"CI/CD: {BadgeCount} unread" : "CI/CD Status";
+    public int BadgeCount => _ciCdService.GetUnreadCount(_currentProjectId);
+    public string? StatusLevel =>
+        _sessions.Any(s => s.Status == CiCdStatus.Completed && s.Conclusion == "failure") ? "failure"
+        : _sessions.Any(s => s.Status == CiCdStatus.InProgress) ? "running"
+        : _sessions.Any(s => s.Status == CiCdStatus.Completed) ? "success"
+        : null;
 
     private string _currentProjectId = string.Empty;
     private IReadOnlyList<CiCdSession> _sessions = Array.Empty<CiCdSession>();

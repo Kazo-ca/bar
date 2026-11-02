@@ -1,0 +1,111 @@
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.UI.Services
+@implements IDisposable
+@inject IWindowRegionService RegionService
+
+@*
+    Compact toolbar trigger + dropdown panel that hosts a plugin's full Render() output.
+    The trigger content is supplied by the caller (ChildContent) so the same popover
+    serves the plugin indicators (Work Items, CI/CD) and the system timer (Time Tracker).
+    Closes on outside click, Escape (focus back to the trigger) and, in desktop hosts,
+    when the window is deactivated or moved — through the shared PopupDismissService.
+*@
+
+<div class="plugin-popover @(IsOpen ? "open" : "") @CssClass" data-plugin-id="@Plugin.UniqueId" data-popup-root="@RootName">
+    <button @ref="_trigger" class="plugin-popover-trigger @TriggerClass"
+            @onclick="Toggle"
+            title="@Title"
+            aria-label="@Title"
+            aria-haspopup="dialog"
+            aria-expanded="@(IsOpen ? "true" : "false")">
+        @ChildContent
+    </button>
+
+    @if (IsOpen)
+    {
+        <div class="plugin-popover-panel" role="dialog" aria-label="@Plugin.Name">
+            <div class="plugin-popover-header">
+                <span class="plugin-popover-title">@Plugin.Name</span>
+                <button class="plugin-popover-close" @onclick="CloseAsync" aria-label="Close">✕</button>
+            </div>
+            <div class="plugin-popover-body">
+                @if (Plugin.Render() is { } fragment)
+                {
+                    @fragment
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Approximate height (CSS px) the window region must grow to while the panel is open.</summary>
+    private const int ExpandedRegionHeight = 360;
+
+    [Parameter, EditorRequired]
+    public IPlugin Plugin { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? CssClass { get; set; }
+
+    [Parameter]
+    public string? TriggerClass { get; set; }
+
+    public bool IsOpen { get; private set; }
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    private ElementReference _trigger;
+    private string RootName => $"plugin-{Plugin.UniqueId}";
+
+    protected override void OnInitialized()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!IsOpen || !request.AppliesTo(RootName)) return;
+        _ = InvokeAsync(async () =>
+        {
+            await CloseAsync();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    private async Task Toggle()
+    {
+        if (IsOpen)
+        {
+            await CloseAsync();
+            return;
+        }
+
+        IsOpen = true;
+        RegionService.ExpandRegion(ExpandedRegionHeight);
+    }
+
+    /// <summary>Close the popover (no-op when already closed).</summary>
+    public async Task CloseAsync()
+    {
+        if (!IsOpen) return;
+        IsOpen = false;
+        RegionService.CollapseRegion();
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
+    }
+}

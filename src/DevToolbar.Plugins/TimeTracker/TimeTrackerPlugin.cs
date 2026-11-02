@@ -56,9 +56,10 @@ public class TimeTrackerPlugin : IPlugin
 
     public Task OnProjectChangedAsync(PluginContext context)
     {
+        // The work item is NOT reset here: WorkItemsPlugin publishes the new project's active
+        // item during the same project switch (possibly before this handler runs), so clearing
+        // it would drop the link and time entries would be saved without a WorkItemId (US5.3).
         _currentProjectId = context.Project.Id;
-        _activeWorkItemId = null;
-        _activeWorkItemTitle = null;
         return Task.CompletedTask;
     }
 

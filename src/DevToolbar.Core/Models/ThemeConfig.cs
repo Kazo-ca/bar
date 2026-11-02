@@ -12,4 +12,10 @@ public class ThemeConfig
 
     [JsonPropertyName("fontFamily")]
     public string FontFamily { get; set; } = "'Segoe UI', sans-serif";
+
+    /// <summary>
+    /// Optional custom CSS injected into the toolbar after the theme variables (US3.2).
+    /// </summary>
+    [JsonPropertyName("customCss")]
+    public string? CustomCss { get; set; }
 }

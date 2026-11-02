@@ -6,7 +6,8 @@
 @inject IJSRuntime JSRuntime
 
 <div class="time-report-overlay @(_isVisible ? "visible" : "")" @onclick="Close">
-    <div class="time-report-modal" @onclick:stopPropagation="true">
+    <div class="time-report-modal" @onclick:stopPropagation="true"
+         role="dialog" aria-label="Time Report" tabindex="-1" @ref="_modalRef" @onkeydown="OnKeyDown">
         <header class="time-report-header">
             <h3>📊 Time Report</h3>
             <button class="time-report-close" @onclick="Close">✕</button>
@@ -184,13 +185,41 @@
     private List<TimeEntry>? _crossProjectEntries;
     private Dictionary<string, string> _projectNames = new();
     private TimeSpan _totalDuration;
+    private ElementReference _modalRef;
+    private bool _focusPending;
 
     protected override async Task OnParametersSetAsync()
     {
+        var wasVisible = _isVisible;
         _isVisible = IsVisible;
         if (_isVisible)
         {
+            _focusPending = !wasVisible;
             await LoadEntries();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending || !_isVisible) return;
+
+        _focusPending = false;
+        try
+        {
+            // Focus the dialog so Escape closes it.
+            await _modalRef.FocusAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            // Element detached between render and focus — nothing to do.
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await Close();
         }
     }
 
@@ -246,13 +275,17 @@
     {
         if (_entries == null || _entries.Count == 0) return;
 
+        // US5.4: export contains everything needed for a timesheet / invoice.
         var csv = new System.Text.StringBuilder();
-        csv.AppendLine("Date,Start Time,Duration,Work Item");
+        csv.AppendLine("Project,Date,Start Time,End Time,Duration,Work Item,Description");
         foreach (var entry in _entries)
         {
+            var project = EscapeCsvField(_projectNames.GetValueOrDefault(entry.ProjectId, entry.ProjectId));
+            var end = entry.EndTime?.ToString("HH:mm") ?? "running";
             var duration = FormatDuration(entry.Duration);
             var workItem = EscapeCsvField(entry.WorkItemId ?? "");
-            csv.AppendLine($"{entry.StartTime:yyyy-MM-dd},{entry.StartTime:HH:mm},{duration},{workItem}");
+            var description = EscapeCsvField(entry.Description ?? "");
+            csv.AppendLine($"{project},{entry.StartTime:yyyy-MM-dd},{entry.StartTime:HH:mm},{end},{duration},{workItem},{description}");
         }
 
         var safePeriod = _period.Replace(" ", "-").Replace("/", "-");
@@ -262,7 +295,12 @@
 
     private static string EscapeCsvField(string field)
     {
-        if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
+        // Prevent spreadsheet formula injection from free-text fields (e.g. "=HYPERLINK(...)").
+        if (field.Length > 0 && "=+-@".Contains(field[0]))
+        {
+            field = "'" + field;
+        }
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
         {
             return $"\"{field.Replace("\"", "\"\"")}\"";
         }

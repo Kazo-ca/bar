@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 /// Supports dropdown search/select to change active item (US5.2).
 /// Publishes ActiveWorkItemChangedEvent for TimeTracker integration (US5.3).
 /// </summary>
-public class WorkItemsPlugin : IPlugin
+public class WorkItemsPlugin : IPlugin, IPluginIndicator
 {
     private readonly IWorkItemProvider _provider;
     private readonly EventAggregator _eventAggregator;
@@ -21,6 +21,12 @@ public class WorkItemsPlugin : IPlugin
     public string Icon => "📋";
     public bool IsEnabled { get; set; } = true;
     public event Action? OnStateChanged;
+
+    // IPluginIndicator — compact "#ID" pill in the toolbar, full panel in a popover (US5.2)
+    public string? IndicatorText => _activeItem != null ? $"#{_activeItem.Id}" : null;
+    public string? IndicatorTooltip => _activeItem != null ? $"#{_activeItem.Id} - {_activeItem.Title}" : "No active work item";
+    public int BadgeCount => 0;
+    public string? StatusLevel => null;
 
     private WorkItem? _activeItem;
     private IReadOnlyList<WorkItem> _recentItems = Array.Empty<WorkItem>();

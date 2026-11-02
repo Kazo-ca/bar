@@ -4,16 +4,41 @@ using DevToolbar.Core.Models;
 namespace DevToolbar.Web.Mocks;
 
 /// <summary>
-/// Mock IWindowService for web testing — returns empty data.
+/// Mock IWindowService for web testing — returns a fixed set of sample windows
+/// so the "Show Active Windows" taskbar module can be exercised in the browser.
 /// </summary>
 public class MockWindowService : IWindowService
 {
+    private readonly object _lock = new();
+    private nint _activeHwnd = 101;
+
+    private static readonly (nint Hwnd, string Title, string Process)[] SampleWindows =
+    {
+        (101, "MyWebAPI - Microsoft Visual Studio", "devenv"),
+        (102, "Postman", "Postman"),
+        (103, "localhost:5280 - Google Chrome", "chrome"),
+    };
+
     public Task<List<WindowInfo>> GetOpenWindowsOnMonitorAsync(int monitorIndex)
-        => Task.FromResult(new List<WindowInfo>());
+    {
+        lock (_lock)
+        {
+            var windows = SampleWindows
+                .Select(w => new WindowInfo { Hwnd = w.Hwnd, Title = w.Title, ProcessName = w.Process, IsActive = w.Hwnd == _activeHwnd })
+                .ToList();
+            return Task.FromResult(windows);
+        }
+    }
 
     public void ActivateWindow(nint hWnd)
     {
-        // No-op in web context
+        lock (_lock)
+        {
+            if (SampleWindows.Any(w => w.Hwnd == hWnd))
+            {
+                _activeHwnd = hWnd;
+            }
+        }
     }
 
     public List<MonitorInfo> GetMonitors()
