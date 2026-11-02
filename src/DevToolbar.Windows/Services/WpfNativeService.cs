@@ -18,6 +18,16 @@ public sealed class WpfNativeService(ToolbarHost host) : INativeService
 
     public void RestoreFromTray() => OnUi(w => { w.Show(); w.Activate(); });
 
+    /// <summary>Shuts the WPF application down; the window's Closed handler undocks and the tray icon is disposed.</summary>
+    public void ExitApplication()
+    {
+        var app = System.Windows.Application.Current;
+        if (app == null) return;
+        Program.Log("Exit requested from the UI.");
+        // Deferred so the Blazor click handler that asked for it completes first.
+        app.Dispatcher.BeginInvoke(() => app.Shutdown());
+    }
+
     private void OnUi(Action<System.Windows.Window> action)
     {
         var window = host.Window;

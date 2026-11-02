@@ -18,6 +18,12 @@ public interface INativeService
     /// <summary>Restore the window from the system tray.</summary>
     void RestoreFromTray();
 
+    /// <summary>
+    /// Quit the whole application (close the toolbar, remove the tray icon, release docking).
+    /// Called from the Settings page "Quit DevToolbar" action.
+    /// </summary>
+    void ExitApplication();
+
     /// <summary>Get whether the user session is locked.</summary>
     bool IsSessionLocked { get; }
 

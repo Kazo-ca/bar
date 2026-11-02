@@ -75,6 +75,7 @@ public static class Program
         // Host window bridge (HWND, dismissal of popups on native events).
         services.AddSingleton<ToolbarHost>();
         services.AddSingleton<PopupDismissService>();
+        services.AddSingleton<TrayIconService>();
 
         // Native services shared with the MAUI host (linked sources).
         services.AddSingleton<IProcessService, WindowsProcessService>();
@@ -118,6 +119,10 @@ public static class Program
         };
         var window = new ToolbarWindow(provider);
         app.MainWindow = window;
+        // Tray icon: show / hide / quit even when the toolbar is hidden or transparent.
+        var tray = provider.GetRequiredService<TrayIconService>();
+        window.SourceInitialized += (_, _) => tray.Show();
+        app.Exit += (_, _) => tray.Dispose();
         var code = app.Run(window);
         Log($"Exited with code {code}.");
         return code;
