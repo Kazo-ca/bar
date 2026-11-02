@@ -253,7 +253,7 @@ public class FeatureSpecTests : PageTest
         await Page.Locator(".git-btn-pull").ClickAsync();
 
         await Expect(Page.Locator(".git-sync-status")).ToHaveTextAsync("✓ Pull complete", new() { Timeout = 5000 });
-        await Expect(Toast("Pull completed successfully")).ToBeVisibleAsync();
+        await Expect(Toast("Pull completed")).ToBeVisibleAsync();
     }
 
     [Test]

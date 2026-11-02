@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Shared rendering and measurement atlas. Never a native input region or mask.",
+  "units": "CSS pixels / WPF device-independent pixels before DPI conversion",
+  "singleViewport": { "width": 960, "height": 500 },
+  "barViewport": { "width": 960, "height": 66 },
+  "popupViewport": { "width": 320, "height": 260 },
+  "popupAnchorInSingle": { "x": 300, "y": 78 },
+  "surfaces": {
+    "organic": { "x": 4, "y": 4, "width": 380, "height": 58, "radius": 28 },
+    "notch": { "x": 180, "y": 4, "width": 24, "height": 24 },
+    "tools": { "x": 396, "y": 4, "width": 560, "height": 58, "radius": 28 },
+    "groupGap": { "x": 384, "y": 4, "width": 12, "height": 58 },
+    "shadow": { "x": 30, "y": 57, "width": 325, "height": 6, "blur": 2, "decorative": true },
+    "menu": { "x": 300, "y": 78, "width": 320, "height": 260, "radius": 24 }
+  },
+  "points": [
+    { "id": "P1", "single": { "x": 760, "y": 200 }, "expectation": "Underlying app: empty area inside single window, outside both split windows" },
+    { "id": "P2", "single": { "x": 5, "y": 5 }, "bar": { "x": 5, "y": 5 }, "expectation": "Underlying app: transparent toolbar corner" },
+    { "id": "P3", "single": { "x": 192, "y": 14 }, "bar": { "x": 192, "y": 14 }, "expectation": "Underlying app: 24x24 transparent notch" },
+    { "id": "P4", "single": { "x": 390, "y": 33 }, "bar": { "x": 390, "y": 33 }, "expectation": "Underlying app: 12px group gap" },
+    { "id": "P5", "single": { "x": 160, "y": 64 }, "bar": { "x": 160, "y": 64 }, "expectation": "Underlying app: decorative shadow outside silhouette, even if alpha is nonzero" },
+    { "id": "P6", "single": { "x": 301, "y": 79 }, "popup": { "x": 1, "y": 1 }, "menuMustBeOpen": true, "expectation": "Underlying app: transparent menu corner" },
+    { "id": "P7", "single": { "x": 450, "y": 71 }, "expectation": "Underlying app: vertical gap between bar and popup" },
+    { "id": "P8", "single": { "x": -20, "y": -20 }, "expectation": "Underlying app: outside every spike window; retain same screen coordinate in split mode" },
+    { "id": "C1", "single": { "x": 92, "y": 32 }, "bar": { "x": 92, "y": 32 }, "expectation": "Toolbar counter increments once; no event in underlying app" },
+    { "id": "C2", "single": { "x": 360, "y": 141 }, "popup": { "x": 60, "y": 63 }, "menuMustBeOpen": true, "expectation": "Menu action counter increments once; no event in underlying app" }
+  ],
+  "edgeSamples": {
+    "method": "Sample 1, 2 and 4 physical pixels on each side of an observed silhouette edge after DPI conversion. Record antialiasing separately.",
+    "warning": "Pixel alpha zero and decorative nonzero-alpha shadow are different cases. CSS pointer-events does not guarantee native click-through."
+  }
+}

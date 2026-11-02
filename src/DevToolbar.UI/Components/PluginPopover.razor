@@ -1,19 +1,18 @@
 @using DevToolbar.Core.Interfaces
 @using DevToolbar.UI.Services
-@using Microsoft.JSInterop
-@implements IAsyncDisposable
+@implements IDisposable
 @inject IWindowRegionService RegionService
-@inject IJSRuntime JS
 
 @*
     Compact toolbar trigger + dropdown panel that hosts a plugin's full Render() output.
     The trigger content is supplied by the caller (ChildContent) so the same popover
     serves the plugin indicators (Work Items, CI/CD) and the system timer (Time Tracker).
-    Closes on outside click and on Escape.
+    Closes on outside click, Escape (focus back to the trigger) and, in desktop hosts,
+    when the window is deactivated or moved — through the shared PopupDismissService.
 *@
 
-<div class="plugin-popover @(IsOpen ? "open" : "") @CssClass" data-plugin-id="@Plugin.UniqueId" @ref="_root">
-    <button class="plugin-popover-trigger @TriggerClass"
+<div class="plugin-popover @(IsOpen ? "open" : "") @CssClass" data-plugin-id="@Plugin.UniqueId" data-popup-root="@RootName">
+    <button @ref="_trigger" class="plugin-popover-trigger @TriggerClass"
             @onclick="Toggle"
             title="@Title"
             aria-label="@Title"
@@ -60,13 +59,27 @@
 
     public bool IsOpen { get; private set; }
 
-    private ElementReference _root;
-    private DismissListener? _dismiss;
-    private bool _attachPending;
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    private ElementReference _trigger;
+    private string RootName => $"plugin-{Plugin.UniqueId}";
 
     protected override void OnInitialized()
     {
-        _dismiss = new DismissListener(JS, () => InvokeAsync(CloseAsync));
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!IsOpen || !request.AppliesTo(RootName)) return;
+        _ = InvokeAsync(async () =>
+        {
+            await CloseAsync();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
     }
 
     private async Task Toggle()
@@ -78,7 +91,6 @@
         }
 
         IsOpen = true;
-        _attachPending = true;
         RegionService.ExpandRegion(ExpandedRegionHeight);
     }
 
@@ -88,21 +100,12 @@
         if (!IsOpen) return;
         IsOpen = false;
         RegionService.CollapseRegion();
-        if (_dismiss != null) await _dismiss.DetachAsync();
         StateHasChanged();
+        await Task.CompletedTask;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    public void Dispose()
     {
-        if (_attachPending && IsOpen && _dismiss != null)
-        {
-            _attachPending = false;
-            await _dismiss.AttachAsync(_root);
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_dismiss != null) await _dismiss.DisposeAsync();
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
     }
 }

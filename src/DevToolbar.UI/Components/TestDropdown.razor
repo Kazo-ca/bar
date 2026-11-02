@@ -1,9 +1,11 @@
 @using DevToolbar.Core.Interfaces
 
+@using DevToolbar.UI.Services
 @inject IWindowRegionService RegionService
+@implements IDisposable
 
-<div class="test-dropdown-wrapper" style="position: relative;">
-    <button class="system-btn" @onclick="ToggleDropdown" title="Test Dropdown">🧪</button>
+<div class="test-dropdown-wrapper" style="position: relative;" data-popup-root="test-dropdown">
+    <button @ref="_trigger" class="system-btn" @onclick="ToggleDropdown" title="Test Dropdown">🧪</button>
 
     @if (_isOpen)
     {
@@ -25,6 +27,33 @@
 
 @code {
     private bool _isOpen;
+    private ElementReference _trigger;
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!_isOpen || !request.AppliesTo("test-dropdown")) return;
+        _ = InvokeAsync(async () =>
+        {
+            CloseDropdown();
+            StateHasChanged();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
+    }
 
     private void ToggleDropdown()
     {

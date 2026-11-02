@@ -12,7 +12,8 @@ The solution follows a clean architecture with 5 projects:
 | **DevToolbar.UI** | Razor Class Library | Blazor components, layouts, pages, CSS |
 | **DevToolbar.Plugins** | Class Library | Plugin implementations (Git, Work Items, Time Tracker, CI/CD) |
 | **DevToolbar.Web** | Blazor Web App | Test host with mock services for browser testing |
-| **DevToolbar.Maui** | MAUI Blazor Hybrid | Production desktop app (Windows) |
+| **DevToolbar.Maui** | MAUI Blazor Hybrid | Desktop app (Windows), original host |
+| **DevToolbar.Windows** | WPF Blazor Hybrid | Windows desktop host with click-through transparent toolbar (see below) |
 | **DevToolbar.Tests.E2E** | NUnit + Playwright | Automated E2E tests with screenshot capture |
 
 ## Screenshots
@@ -108,6 +109,19 @@ dotnet build DevToolbar.slnx
 dotnet run --project src/DevToolbar.Web
 ```
 Then open `http://localhost:5280` in your browser.
+
+### Run the Windows (WPF) host
+Requires Windows, the .NET 10 SDK and the WebView2 runtime.
+```powershell
+dotnet run --project src/DevToolbar.Windows
+```
+The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF
+`BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through,
+so clicks and the mouse wheel reach the application under the empty areas around the
+pill and menus. To keep that true, `wwwroot/css/wpf-host.css` removes every outer
+`box-shadow` (a shadow is semi-transparent and would capture input). Popups close on an
+outside click, on `Esc` (focus returns to the trigger) and when another application is
+activated, without any invisible overlay. Background: `spikes/window-feasibility/`.
 
 ### Run E2E Tests
 ```bash

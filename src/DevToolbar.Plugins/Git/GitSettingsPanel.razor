@@ -1,0 +1,114 @@
+@namespace DevToolbar.Plugins.Git
+@inherits PluginSettingsComponentBase
+
+<div class="git-settings">
+    <p class="plugin-settings-hint">
+        Repositories shown in the toolbar Git selector for <strong>@Project.Name</strong>.
+        Pull and Push run inside the selected repository folder.
+    </p>
+
+    @if (Project.GitRepositories.Count == 0)
+    {
+        <div class="git-repo-empty">
+            No repository added yet. The toolbar uses the project folder
+            <code>@(string.IsNullOrWhiteSpace(Project.Path) ? "(none)" : Project.Path)</code>.
+        </div>
+    }
+    else
+    {
+        <ul class="git-repo-list" aria-label="Git repositories">
+            @for (var i = 0; i < Project.GitRepositories.Count; i++)
+            {
+                var index = i;
+                var repository = Project.GitRepositories[index];
+                <li class="git-repo-row" @key="repository.Path">
+                    <div class="git-repo-main">
+                        <span class="git-repo-name">📁 @repository.Name</span>
+                        <span class="git-repo-path">@repository.Path</span>
+                        @if (!string.IsNullOrEmpty(repository.RemoteUrl))
+                        {
+                            <span class="git-repo-remote">@repository.RemoteUrl</span>
+                        }
+                    </div>
+                    <span class="git-repo-branch">⎇ @GitRepositoryCatalog.EffectiveBranch(repository, Project)</span>
+                    <div class="git-repo-actions">
+                        <button type="button" class="plugin-settings-icon-btn git-repo-up" title="Move up"
+                                disabled="@(index == 0)" @onclick="() => MoveAsync(index, -1)">▲</button>
+                        <button type="button" class="plugin-settings-icon-btn git-repo-down" title="Move down"
+                                disabled="@(index == Project.GitRepositories.Count - 1)" @onclick="() => MoveAsync(index, 1)">▼</button>
+                        <button type="button" class="plugin-settings-icon-btn git-repo-remove" title="Remove @repository.Name"
+                                aria-label="Remove @repository.Name" @onclick="() => RemoveAsync(repository.Path)">✕</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+
+    <form class="git-repo-form" @onsubmit="AddAsync" @onsubmit:preventDefault="true">
+        <h5>Add a repository</h5>
+        <div class="git-repo-form-grid">
+            <label>
+                <span>Local folder *</span>
+                <input class="git-repo-input-path" placeholder="C:\src\my-repo" @bind="_path" @bind:event="oninput" />
+            </label>
+            <label>
+                <span>Name</span>
+                <input class="git-repo-input-name" placeholder="Folder name by default" @bind="_name" @bind:event="oninput" />
+            </label>
+            <label>
+                <span>Remote URL</span>
+                <input class="git-repo-input-remote" placeholder="https://github.com/org/repo.git" @bind="_remoteUrl" @bind:event="oninput" />
+            </label>
+            <label>
+                <span>Default branch</span>
+                <input class="git-repo-input-branch" placeholder="@Project.DefaultBranch" @bind="_branch" @bind:event="oninput" />
+            </label>
+        </div>
+        @if (_error != null)
+        {
+            <div class="plugin-settings-error" role="alert">@_error</div>
+        }
+        <button type="submit" class="plugin-settings-primary git-repo-add" disabled="@string.IsNullOrWhiteSpace(_path)">＋ Add repository</button>
+    </form>
+</div>
+
+@code {
+    private string _path = string.Empty;
+    private string _name = string.Empty;
+    private string _remoteUrl = string.Empty;
+    private string _branch = string.Empty;
+    private string? _error;
+
+    private async Task AddAsync()
+    {
+        var candidate = GitRepositoryCatalog.Normalize(new GitRepository
+        {
+            Path = _path,
+            Name = _name,
+            RemoteUrl = _remoteUrl,
+            DefaultBranch = _branch,
+        });
+
+        _error = GitRepositoryCatalog.Validate(Project.GitRepositories, candidate);
+        if (_error != null)
+        {
+            return;
+        }
+
+        await SaveAsync(GitRepositoryCatalog.Add(Project.GitRepositories, candidate));
+        _path = _name = _remoteUrl = _branch = string.Empty;
+    }
+
+    private Task RemoveAsync(string path) =>
+        SaveAsync(GitRepositoryCatalog.Remove(Project.GitRepositories, path));
+
+    private Task MoveAsync(int index, int offset) =>
+        SaveAsync(GitRepositoryCatalog.Move(Project.GitRepositories, index, offset));
+
+    private async Task SaveAsync(List<GitRepository> repositories)
+    {
+        _error = null;
+        Project.GitRepositories = repositories;
+        await OnProjectChanged.InvokeAsync(Project);
+    }
+}

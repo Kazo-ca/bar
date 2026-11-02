@@ -11,6 +11,7 @@
 @inject ITimeTrackingService TimeTrackingService
 @inject ThemeService ThemeService
 @inject IGlobalSettingsService GlobalSettingsService
+@inject IServiceProvider Services
 
 @* US3.2: project-provided custom CSS is injected after the base theme variables *@
 @if (ThemeService.GetCustomCss() is { Length: > 0 } customCss)
@@ -18,6 +19,7 @@
     <style id="devtoolbar-custom-css">@((MarkupString)customCss)</style>
 }
 
+<CascadingValue Value="_dismiss" IsFixed="true">
 <div class="toolbar-shell" style="@ThemeService.GetCssVariables()"
      data-interactive="@(_isInteractive ? "true" : "false")"
      @onclick="ReportActivity" @onkeydown="ReportActivity">
@@ -94,14 +96,23 @@
         <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
         <TestDropdown />
     </div>
+
+    @* ── Drag handle (desktop hosts that support moving the window) ── *@
+    <ToolbarDragHandle Drag="_drag" />
 </div>
 
 @* ── Overlays ── *@
 <TimeReport IsVisible="@_showTimeReport" OnClose="CloseTimeReport" />
 <TerminalOutput @ref="_terminalOutput" IsVisible="@_showTerminal" OnClose="CloseTerminal" />
 <ToastContainer />
+</CascadingValue>
+<PopupDismissListener Service="_dismiss" />
 
 @code {
+    // Hosts may register a singleton so native events (window deactivation, move)
+    // can close popups; otherwise a page-local instance is used.
+    private PopupDismissService _dismiss = default!;
+    private IWindowDragService? _drag;
     private List<ActionConfig> _actions = new();
     private IReadOnlyList<IPlugin>? _visiblePlugins;
     private bool _showTimeReport;
@@ -127,6 +138,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _dismiss = Services.GetService(typeof(PopupDismissService)) as PopupDismissService ?? new PopupDismissService();
+        _drag = Services.GetService(typeof(IWindowDragService)) as IWindowDragService;
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
         TimeTrackingService.OnTrackingChanged += OnPluginStateChanged;
 

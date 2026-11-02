@@ -1,0 +1,65 @@
+@namespace DevToolbar.Plugins.Git
+@implements IDisposable
+
+@{
+    var repositories = Plugin.Repositories;
+    var selected = Plugin.SelectedRepository;
+}
+<div class="plugin-git">
+    @if (repositories.Count > 1)
+    {
+        <select class="git-repo-select" title="Active Git repository" aria-label="Active Git repository"
+                @onchange="OnRepositoryChanged">
+            @foreach (var repository in repositories)
+            {
+                <option @key="repository.Path" value="@repository.Path" selected="@(repository == selected)">📁 @repository.Name</option>
+            }
+        </select>
+    }
+
+    <div class="git-info">
+        <span class="git-branch">⎇ @Plugin.CurrentBranch</span>
+        <span class="@(Plugin.IsDirty ? "git-status dirty" : "git-status clean")">@(Plugin.IsDirty ? "● Modified" : "✓ Clean")</span>
+    </div>
+
+    <div class="git-sync">
+        <button class="git-btn git-btn-pull" title="Pull latest changes" @onclick="Plugin.PullAsync">⬇ Pull</button>
+        <button class="git-btn git-btn-push" title="Push local changes" @onclick="Plugin.PushAsync">⬆ Push</button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Plugin.SyncStatus))
+    {
+        <div class="git-sync-status">@Plugin.SyncStatus</div>
+    }
+</div>
+
+@code {
+    /// <summary>The plugin instance whose state is displayed.</summary>
+    [Parameter, EditorRequired]
+    public GitPlugin Plugin { get; set; } = default!;
+
+    private GitPlugin? _subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Plugin)) return;
+        Unsubscribe();
+        Plugin.OnStateChanged += OnPluginStateChanged;
+        _subscribed = Plugin;
+    }
+
+    private void OnRepositoryChanged(ChangeEventArgs e) =>
+        Plugin.SelectRepository(e.Value?.ToString() ?? string.Empty);
+
+    private void OnPluginStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void Unsubscribe()
+    {
+        if (_subscribed != null)
+        {
+            _subscribed.OnStateChanged -= OnPluginStateChanged;
+        }
+    }
+
+    public void Dispose() => Unsubscribe();
+}

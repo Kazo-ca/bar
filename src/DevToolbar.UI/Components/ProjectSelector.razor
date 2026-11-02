@@ -1,13 +1,11 @@
 @using DevToolbar.Core.Interfaces
 @using DevToolbar.Core.Models
-@using DevToolbar.UI.Services
-@using Microsoft.JSInterop
 @inject ISettingsService SettingsService
-@inject IJSRuntime JS
-@implements IAsyncDisposable
+@using DevToolbar.UI.Services
+@implements IDisposable
 
-<div class="project-selector @(_dropdownOpen ? "open" : "")" @ref="_root">
-    <button class="project-selector-trigger" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="Switch project"
+<div class="project-selector @(_dropdownOpen ? "open" : "")" data-popup-root="project-selector">
+    <button @ref="_trigger" class="project-selector-trigger" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="Switch project"
             aria-haspopup="true" aria-expanded="@(_dropdownOpen ? "true" : "false")">
         <span class="project-icon">
             <svg class="github-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
@@ -37,14 +35,13 @@
     private IReadOnlyList<ProjectConfig>? _projects;
     private ProjectConfig? _activeProject;
     private bool _dropdownOpen;
-    private bool _attachPending;
-    private ElementReference _root;
-    private DismissListener? _dismiss;
+    private ElementReference _trigger;
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        // Closes the menu on outside click or Escape.
-        _dismiss = new DismissListener(JS, () => InvokeAsync(CloseDropdownAsync));
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
         _projects = await SettingsService.GetProjectsAsync();
         _activeProject = SettingsService.GetActiveProject();
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
@@ -53,49 +50,40 @@
     private void OnProjectChanged(ProjectConfig project)
     {
         _activeProject = project;
-        _ = InvokeAsync(CloseDropdownAsync);
+        _dropdownOpen = false;
+        InvokeAsync(StateHasChanged);
     }
 
-    private async Task ToggleDropdown()
+    private void ToggleDropdown()
     {
-        if (_dropdownOpen)
-        {
-            await CloseDropdownAsync();
-            return;
-        }
-        _dropdownOpen = true;
-        _attachPending = true;
-    }
-
-    private async Task CloseDropdownAsync()
-    {
-        if (_dropdownOpen)
-        {
-            _dropdownOpen = false;
-            if (_dismiss != null) await _dismiss.DetachAsync();
-        }
-        StateHasChanged();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_attachPending && _dropdownOpen && _dismiss != null)
-        {
-            _attachPending = false;
-            await _dismiss.AttachAsync(_root);
-        }
+        _dropdownOpen = !_dropdownOpen;
     }
 
     private async Task SelectProject(ProjectConfig project)
     {
         await SettingsService.SetActiveProjectAsync(project.Id);
         _activeProject = project;
-        await CloseDropdownAsync();
+        _dropdownOpen = false;
     }
 
-    public async ValueTask DisposeAsync()
+    private void OnDismissRequested(PopupDismissRequest request)
     {
+        if (!_dropdownOpen || !request.AppliesTo("project-selector")) return;
+        _ = InvokeAsync(async () =>
+        {
+            _dropdownOpen = false;
+            StateHasChanged();
+            // Only Escape returns focus to the trigger; deactivation must not steal focus back.
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
-        if (_dismiss != null) await _dismiss.DisposeAsync();
     }
 }

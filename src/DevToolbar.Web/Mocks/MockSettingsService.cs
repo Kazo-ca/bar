@@ -27,6 +27,11 @@ public class MockSettingsService : ISettingsService
                 RepositoryUrl = "https://github.com/example/my-webapi",
                 Theme = new ThemeConfig { AccentColor = "#0078D7" },
                 EnabledPlugins = new List<string> { "git-tools", "work-items", "time-tracker", "github-agents" },
+                GitRepositories = new List<GitRepository>
+                {
+                    new GitRepository { Name = "my-webapi", Path = "/projects/my-webapi", RemoteUrl = "https://github.com/example/my-webapi" },
+                    new GitRepository { Name = "shared-lib", Path = "/projects/shared-lib", RemoteUrl = "https://github.com/example/shared-lib", DefaultBranch = "main" }
+                },
                 Actions = new List<ActionConfig>
                 {
                     new ActionConfig { Label = "Visual Studio", Icon = "🟣", ProcessPath = "devenv.exe", WindowTitleRegex = ".*Visual Studio.*" },

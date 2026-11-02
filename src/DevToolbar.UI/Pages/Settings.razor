@@ -2,10 +2,13 @@
 @using DevToolbar.Core.Interfaces
 @using DevToolbar.Core.Models
 @using DevToolbar.UI.Services
+@using DevToolbar.UI.Components
 @inject ISettingsService SettingsService
 @inject IPluginLoader PluginLoader
 @inject IGlobalSettingsService GlobalSettingsService
 @inject IWindowService WindowService
+@inject INotificationService NotificationService
+@inject INativeService NativeService
 
 <PageTitle>DevToolbar - Settings</PageTitle>
 
@@ -134,14 +137,17 @@
                 </div>
             </section>
 
-            <section class="settings-section">
-                <h3>Enabled Plugins</h3>
+            <section class="settings-section settings-plugins-section">
+                <div class="settings-section-title-row">
+                    <h3>Enabled Plugins</h3>
+                    <button type="button" class="settings-configure-all" @onclick="() => OpenPluginSettings(null)">🧩 Configure plugins…</button>
+                </div>
                 <div class="settings-plugins-list">
                     @foreach (var plugin in _allPlugins)
                     {
                         var pluginId = plugin.UniqueId;
                         var isEnabled = _activeProject.EnabledPlugins.Contains(pluginId);
-                        <div class="settings-plugin-row">
+                        <div class="settings-plugin-row" data-plugin-id="@pluginId">
                             <label class="settings-toggle">
                                 <input type="checkbox" checked="@isEnabled"
                                        class="settings-plugin-checkbox"
@@ -150,6 +156,8 @@
                             </label>
                             <span class="settings-plugin-name">@plugin.Name</span>
                             <span class="settings-plugin-id">@plugin.UniqueId</span>
+                            <button type="button" class="settings-plugin-configure" title="Configure @plugin.Name"
+                                    @onclick="() => OpenPluginSettings(pluginId)">⚙ Configure</button>
                         </div>
                     }
                 </div>
@@ -224,10 +232,39 @@
                 </div>
             </div>
         </section>
+
+        <section class="settings-section settings-app-section" data-testid="settings-app-section">
+            <h3>Application</h3>
+            <p class="settings-description">Close the toolbar completely. On Windows you can also use the DevToolbar icon in the notification area.</p>
+            @if (_confirmQuit)
+            {
+                <div class="settings-quit-confirm">
+                    <span class="settings-quit-question">Quit DevToolbar?</span>
+                    <button class="settings-btn settings-btn-danger" data-testid="settings-quit-confirm" @onclick="QuitApplication">Quit</button>
+                    <button class="settings-btn" data-testid="settings-quit-cancel" @onclick="() => _confirmQuit = false">Cancel</button>
+                </div>
+            }
+            else
+            {
+                <button class="settings-btn settings-btn-danger" data-testid="settings-quit" @onclick="() => _confirmQuit = true">⏻ Quit DevToolbar</button>
+            }
+            @if (_quitRequested)
+            {
+                <p class="settings-description" data-testid="settings-quit-status">Closing DevToolbar…</p>
+            }
+        </section>
     </div>
 </div>
 
+@* Rendered outside .settings-page: its backdrop-filter would otherwise become the
+   containing block of the fixed overlay and clip the window to the page column. *@
+<PluginSettingsWindow IsVisible="_showPluginSettings" InitialPluginId="@_pluginSettingsId"
+                      OnClose="ClosePluginSettings" OnProjectChanged="OnPluginSettingsChanged" />
+
 @code {
+    private bool _confirmQuit;
+    private bool _quitRequested;
+
     private ProjectConfig? _activeProject;
     private IReadOnlyList<ProjectConfig>? _projects;
     private IReadOnlyList<IPlugin> _allPlugins = Array.Empty<IPlugin>();
@@ -248,20 +285,34 @@
         _monitors = WindowService.GetMonitors();
     }
 
-    private void TogglePlugin(string pluginId, bool enabled)
+    private bool _showPluginSettings;
+    private string? _pluginSettingsId;
+
+    private async Task TogglePlugin(string pluginId, bool enabled)
     {
         if (_activeProject == null) return;
 
-        if (enabled && !_activeProject.EnabledPlugins.Contains(pluginId))
+        var others = _activeProject.EnabledPlugins.Where(id => id != pluginId);
+        _activeProject.EnabledPlugins = enabled ? [.. others, pluginId] : others.ToList();
+        try
         {
-            _activeProject.EnabledPlugins.Add(pluginId);
+            await SettingsService.SaveProjectAsync(_activeProject);
         }
-        else if (!enabled)
+        catch (Exception ex)
         {
-            _activeProject.EnabledPlugins.Remove(pluginId);
+            NotificationService.ShowError($"Could not save plugin settings: {ex.Message}", "Settings");
         }
-        // Note: Changes are applied in-memory. In MAUI, JsonSettingsService persists to disk.
     }
+
+    private void OpenPluginSettings(string? pluginId)
+    {
+        _pluginSettingsId = pluginId;
+        _showPluginSettings = true;
+    }
+
+    private void ClosePluginSettings() => _showPluginSettings = false;
+
+    private void OnPluginSettingsChanged(ProjectConfig project) => _activeProject = project;
 
     private void UpdateAccentColor(string color)
     {
@@ -283,6 +334,13 @@
 
         await SettingsService.SetActiveProjectAsync(projectId);
         _activeProject = SettingsService.GetActiveProject();
+    }
+
+    private void QuitApplication()
+    {
+        _confirmQuit = false;
+        _quitRequested = true;
+        NativeService.ExitApplication();
     }
 
     // --- Toolbar Behavior settings ---
