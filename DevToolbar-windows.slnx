@@ -8,6 +8,7 @@
     <Project Path="src/DevToolbar.Plugins/DevToolbar.Plugins.csproj" />
     <Project Path="src/DevToolbar.UI/DevToolbar.UI.csproj" />
     <Project Path="src/DevToolbar.Web/DevToolbar.Web.csproj" />
+    <Project Path="src/DevToolbar.Windows/DevToolbar.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DevToolbar.Tests.E2E/DevToolbar.Tests.E2E.csproj" />

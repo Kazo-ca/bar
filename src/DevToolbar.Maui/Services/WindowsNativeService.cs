@@ -56,6 +56,11 @@ public class WindowsNativeService : INativeService
         }
     }
 
+    public void ExitApplication()
+    {
+        Application.Current?.Quit();
+    }
+
 #if WINDOWS
     private static void SetWindowTopMost(Window window, bool topMost)
     {

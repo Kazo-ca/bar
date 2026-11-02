@@ -1,0 +1,9 @@
+@* Root component: toolbar at "/" and the settings page at "/settings". *@
+<Router AppAssembly="typeof(DevToolbar.UI.Pages.Home).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+    <NotFound>
+        <DevToolbar.UI.Pages.Home />
+    </NotFound>
+</Router>
