@@ -67,6 +67,7 @@ public sealed class ToolbarWindow : Window
             // Alpha 0: the page background must not paint (and therefore not capture input).
             e.WebView.DefaultBackgroundColor = System.Drawing.Color.Transparent;
             _host.AttachWebView(e.WebView.CoreWebView2);
+            Program.Log($"WebView2 ready: {e.WebView.CoreWebView2.Environment.BrowserVersionString} ({e.WebView.GetType().Name})");
         };
         Content = _webView;
 
@@ -84,6 +85,7 @@ public sealed class ToolbarWindow : Window
     private async void OnSourceInitialized(object? sender, EventArgs e)
     {
         var hwnd = new WindowInteropHelper(this).Handle;
+        Program.Log($"Window created, HWND=0x{hwnd:X}.");
         _host.Attach(this, hwnd);
         _services.GetRequiredService<WindowsWindowService>().SetOwnWindowHandle(hwnd);
 
@@ -102,7 +104,7 @@ public sealed class ToolbarWindow : Window
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[DevToolbar] Docking settings not applied: {ex}");
+            Program.Log($"Docking settings not applied: {ex}");
         }
     }
 

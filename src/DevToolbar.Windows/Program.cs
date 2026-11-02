@@ -17,8 +17,52 @@ namespace DevToolbar.Windows;
 /// <summary>WPF entry point: builds the service container and shows the single toolbar window.</summary>
 public static class Program
 {
+    /// <summary>%LOCALAPPDATA%\DevToolbar\logs\windows-host.log — startup and crash diagnostics.</summary>
+    public static readonly string LogPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DevToolbar", "logs", "windows-host.log");
+
+    public static void Log(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+            File.AppendAllText(LogPath, $"{DateTimeOffset.Now:O} [{Environment.ProcessId}] {message}{Environment.NewLine}");
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    private static void Fatal(string where, Exception ex)
+    {
+        Log($"FATAL ({where}): {ex}");
+        MessageBox.Show($"{ex.GetType().Name}: {ex.Message}\n\nDetails: {LogPath}", "DevToolbar — startup error",
+            MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
     [STAThread]
     public static int Main(string[] args)
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Log($"FATAL (AppDomain): {e.ExceptionObject}");
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Log($"Unobserved task exception: {e.Exception}");
+            e.SetObserved();
+        };
+
+        try
+        {
+            Log($"Starting. OS={Environment.OSVersion}, CLR={Environment.Version}, base={AppContext.BaseDirectory}");
+            return Run();
+        }
+        catch (Exception ex)
+        {
+            Fatal("Main", ex);
+            return 1;
+        }
+    }
+
+    private static int Run()
     {
         var services = new ServiceCollection();
         services.AddWpfBlazorWebView();
@@ -64,8 +108,16 @@ public static class Program
         using var provider = services.BuildServiceProvider();
 
         var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+        app.DispatcherUnhandledException += (_, e) =>
+        {
+            Fatal("UI thread", e.Exception);
+            e.Handled = true;
+            app.Shutdown(1);
+        };
         var window = new ToolbarWindow(provider);
         app.MainWindow = window;
-        return app.Run(window);
+        var code = app.Run(window);
+        Log($"Exited with code {code}.");
+        return code;
     }
 }
