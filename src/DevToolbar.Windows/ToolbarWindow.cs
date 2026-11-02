@@ -77,7 +77,11 @@ public sealed class ToolbarWindow : Window
 
         SourceInitialized += OnSourceInitialized;
         Deactivated += OnDeactivated;
-        LocationChanged += (_, _) => _dismiss.RequestDismiss(PopupDismissReason.HostMoved);
+        LocationChanged += (_, _) =>
+        {
+            // Our own resize (component asked for more room) is not a user move.
+            if (!_host.IsAdjustingSurface) _dismiss.RequestDismiss(PopupDismissReason.HostMoved);
+        };
         DpiChanged += (_, _) => _dismiss.RequestDismiss(PopupDismissReason.HostMoved);
         Closed += async (_, _) =>
         {
@@ -97,6 +101,9 @@ public sealed class ToolbarWindow : Window
         var work = SystemParameters.WorkArea;
         Left = work.Left + (work.Width - Width) / 2;
         Top = work.Top;
+
+        // Components may now ask for more room (e.g. the Settings page).
+        _services.GetRequiredService<WpfHostSurfaceService>().Attach(this);
 
         try
         {
