@@ -12,5 +12,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DevToolbar.Tests.E2E/DevToolbar.Tests.E2E.csproj" />
+    <Project Path="tests/DevToolbar.Tests.Unit/DevToolbar.Tests.Unit.csproj" />
   </Folder>
 </Solution>

@@ -61,6 +61,8 @@ public class JsonSettingsService : ISettingsService
                         project.Actions = local.Actions;
                     if (!string.IsNullOrEmpty(local.Theme.AccentColor))
                         project.Theme = local.Theme;
+                    if (local.GitRepositories.Count > 0)
+                        project.GitRepositories = local.GitRepositories;
                 }
             }
         }
