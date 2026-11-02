@@ -11,7 +11,18 @@
 
 html, body {
     background: transparent !important;
+    height: 100%;
+}
+
+/* Scrollbars off on the viewport only. Do NOT put overflow on <body>: when <html>
+   also has overflow set, body's overflow is no longer propagated to the viewport
+   and body clips its absolutely positioned dropdowns to the toolbar height. */
+html {
     overflow: hidden;
+}
+
+body {
+    overflow: visible;
 }
 
 /* No outer shadow anywhere: it would capture input around the shapes. */
