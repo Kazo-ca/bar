@@ -1,0 +1,34 @@
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.Core.Models
+@implements IDisposable
+@inject IServiceProvider Services
+
+@*
+    Declares a known surface size to the host while rendered, without measuring
+    (e.g. a fixed-size dialog). Renders nothing. No-op on hosts without IHostSurfaceService.
+*@
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public double Width { get; set; }
+    [Parameter, EditorRequired] public double Height { get; set; }
+
+    private IHostSurfaceService? _surface;
+    private string? _requestedId;
+
+    protected override void OnInitialized() =>
+        _surface = Services.GetService(typeof(IHostSurfaceService)) as IHostSurfaceService;
+
+    protected override void OnParametersSet()
+    {
+        if (_surface == null) return;
+        if (_requestedId != null && _requestedId != Id) _surface.ReleaseSize(_requestedId);
+        _surface.RequestSize(Id, new SurfaceSize(Width, Height));
+        _requestedId = Id;
+    }
+
+    public void Dispose()
+    {
+        if (_requestedId != null) _surface?.ReleaseSize(_requestedId);
+    }
+}

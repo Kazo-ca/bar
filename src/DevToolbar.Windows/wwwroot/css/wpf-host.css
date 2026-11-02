@@ -71,3 +71,24 @@ body.dock-bottom .test-dropdown-panel {
 #blazor-error-ui {
     display: none;
 }
+
+/* ── Settings page: the window cannot scroll (html overflow hidden), so the page
+      scrolls itself. The host grows the window toward the page's height first
+      (HostSizedRegion → IHostSurfaceService); 100vh is the fallback if the
+      sizing script is not running. ── */
+.settings-page {
+    min-height: 0;
+    height: 100vh;
+    max-height: var(--host-max-height, 100vh);
+}
+
+.settings-page::-webkit-scrollbar {
+    width: 10px;
+}
+
+.settings-page::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}

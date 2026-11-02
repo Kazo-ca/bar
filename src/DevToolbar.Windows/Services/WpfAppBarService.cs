@@ -61,7 +61,7 @@ public sealed class WpfAppBarService : IDockingService
         SHAppBarMessage(ABM_SETPOS, ref abd);
 
         // Place the (taller) window so the toolbar strip covers the reserved rect.
-        var (width, height) = SurfaceSize(scale);
+        var (width, height) = SurfacePixels(scale);
         int x = abd.rc.left + (abd.rc.right - abd.rc.left - width) / 2;
         int y = edge == DockEdge.Top ? abd.rc.top : abd.rc.bottom - height;
         _host.SetBodyClass("dock-bottom", edge == DockEdge.Bottom);
@@ -81,7 +81,7 @@ public sealed class WpfAppBarService : IDockingService
         var hwnd = RequireHwnd();
         Undock();
         var monitor = GetMonitor(monitorIndex);
-        var (width, height) = SurfaceSize(GetDpi(hwnd) / 96.0);
+        var (width, height) = SurfacePixels(GetDpi(hwnd) / 96.0);
         int x = monitor.Bounds.Left + (monitor.Bounds.Width - width) / 2;
         int y = edge == DockEdge.Top ? monitor.Bounds.Top : monitor.Bounds.Bottom - height;
         _host.SetBodyClass("dock-bottom", edge == DockEdge.Bottom);
@@ -111,8 +111,9 @@ public sealed class WpfAppBarService : IDockingService
         }
     }
 
-    private static (int Width, int Height) SurfaceSize(double scale) =>
-        ((int)Math.Round(ToolbarWindow.SurfaceWidth * scale), (int)Math.Round(ToolbarWindow.SurfaceHeight * scale));
+    // Current surface (base size, or larger while a component asked for more room).
+    private (int Width, int Height) SurfacePixels(double scale) =>
+        ((int)Math.Round(_host.Surface.Width * scale), (int)Math.Round(_host.Surface.Height * scale));
 
     private MonitorInfo GetMonitor(int index)
     {

@@ -2626,3 +2626,22 @@ body {
 .toolbar-drag-handle:active {
     cursor: grabbing;
 }
+
+/* ==========================================================================
+   Host-sized regions (HostSizedRegion): the region declares the size it needs
+   to the host; whatever the window cannot give scrolls here instead of being cut.
+   --host-max-height is set by js/host-surface.js (room left in the window).
+   ========================================================================== */
+.host-sized {
+    max-height: var(--host-max-height, none);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+/* flow-root: children's margins count in the measured height. */
+.host-sized-content {
+    display: flow-root;
+}

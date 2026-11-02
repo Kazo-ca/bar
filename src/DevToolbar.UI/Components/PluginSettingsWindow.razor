@@ -6,6 +6,8 @@
 
 @if (IsVisible && _project != null)
 {
+    @* Dialog is min(600px, 90vh) tall: 667px of window lets it reach its full 600px. *@
+    <HostSizeRequest Id="plugin-settings-window" Width="892" Height="667" />
     <div class="plugin-settings-overlay" @onclick="CloseAsync">
         <div class="plugin-settings-window" role="dialog" aria-modal="true" aria-labelledby="plugin-settings-title"
              tabindex="-1" @onclick:stopPropagation="true" @onkeydown="OnKeyDown">

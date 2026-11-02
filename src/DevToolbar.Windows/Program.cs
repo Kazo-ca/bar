@@ -92,6 +92,9 @@ public static class Program
         services.AddSingleton<IDockingService>(sp => sp.GetRequiredService<WpfAppBarService>());
         services.AddSingleton<IWindowRegionService, NoOpWindowRegionService>();
         services.AddSingleton<IWindowDragService, WpfWindowDragService>();
+        // Two-way sizing: components declare the room they need, the window grows within the work area.
+        services.AddSingleton<WpfHostSurfaceService>();
+        services.AddSingleton<IHostSurfaceService>(sp => sp.GetRequiredService<WpfHostSurfaceService>());
 
         // Plugins — the work item / time / CI providers are still the placeholder
         // implementations used by the MAUI host (not real services yet).
