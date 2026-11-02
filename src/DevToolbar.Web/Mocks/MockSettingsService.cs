@@ -60,11 +60,18 @@ public class MockSettingsService : ISettingsService
                 ProjectType = "Infrastructure",
                 DefaultBranch = "release/1.0",
                 RepositoryUrl = "https://dev.azure.com/example/devops-pipeline",
-                Theme = new ThemeConfig { AccentColor = "#E53935" },
+                Theme = new ThemeConfig
+                {
+                    AccentColor = "#E53935",
+                    // US3.2: custom CSS from the project config is injected into the toolbar
+                    CustomCss = ".toolbar-shell { --devops-custom-css: applied; }"
+                },
                 EnabledPlugins = new List<string> { "git-tools", "github-agents" },
                 Actions = new List<ActionConfig>
                 {
-                    new ActionConfig { Label = "Azure Portal", Icon = "☁️", ProcessPath = "https://portal.azure.com", WindowTitleRegex = ".*Azure.*" }
+                    new ActionConfig { Label = "Azure Portal", Icon = "☁️", ProcessPath = "https://portal.azure.com", WindowTitleRegex = ".*Azure.*" },
+                    // US4.1: invalid path to demonstrate the error toast
+                    new ActionConfig { Label = "Legacy Tool", Icon = "🧰", ProcessPath = "C:/missing/legacy-tool.exe" }
                 }
             }
         };

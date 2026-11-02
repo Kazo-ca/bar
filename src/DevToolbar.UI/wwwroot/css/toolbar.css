@@ -63,7 +63,7 @@ body {
     align-items: center;
     height: var(--toolbar-height);
     width: fit-content;
-    max-width: 960px;
+    max-width: 1200px;
     font-family: var(--font-family);
     border-radius: var(--radius-pill);
     background: var(--glass-bg);
@@ -342,6 +342,151 @@ body {
 .system-settings {
     font-size: 1.15em;
 }
+
+/* ==========================================================================
+   Plugin popovers — compact indicators in the system pill (Work Items, CI/CD)
+   and the timer, each opening the plugin's full panel below the toolbar.
+   ========================================================================== */
+.plugin-popover {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.plugin-popover-trigger {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 32px;
+    padding: 0 8px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-pill, 999px);
+    color: inherit;
+    font-family: var(--font-family);
+    font-size: 0.85em;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s ease;
+}
+
+.plugin-popover-trigger:hover,
+.plugin-popover.open > .plugin-popover-trigger {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.plugin-popover-trigger:focus-visible,
+.project-selector-trigger:focus-visible,
+.system-btn:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+.system-timer-popover .system-timer-display {
+    cursor: pointer;
+}
+
+.system-indicator-text {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.system-indicator.status-success .system-indicator-icon { filter: drop-shadow(0 0 3px rgba(76, 175, 80, 0.9)); }
+.system-indicator.status-failure .system-indicator-icon { filter: drop-shadow(0 0 3px rgba(229, 57, 53, 0.95)); }
+.system-indicator.status-running .system-indicator-icon { animation: pulse 2s ease-in-out infinite; }
+
+.system-indicator-badge {
+    position: absolute;
+    top: 0;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.72em;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+}
+
+.system-indicator.status-success .system-indicator-badge { background: #43a047; }
+
+.plugin-popover-panel {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    min-width: 280px;
+    max-width: 360px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: rgba(40, 45, 55, 0.95);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    padding: 10px 12px 12px;
+    color: rgba(255, 255, 255, 0.88);
+    z-index: 100;
+    animation: dropdown-appear 0.2s ease;
+    white-space: normal;
+    outline: none;
+}
+
+.plugin-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.plugin-popover-title {
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.plugin-popover-close {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    font-size: 0.9em;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+}
+
+.plugin-popover-close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+.plugin-popover-body { font-size: 0.85em; }
+.plugin-popover-body a { color: #8ab4f8; }
+.plugin-popover-body .plugin-workitems,
+.plugin-popover-body .plugin-timetracker,
+.plugin-popover-body .plugin-cicd {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.plugin-popover-body .workitem-active,
+.plugin-popover-body .timer-controls,
+.plugin-popover-body .cicd-header { flex-wrap: wrap; }
+.plugin-popover-body .workitem-recent,
+.plugin-popover-body .cicd-sessions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+.plugin-popover-body .workitem-dropdown { position: static; margin-top: 4px; }
+.plugin-popover-body .workitem-entry,
+.plugin-popover-body .cicd-session { font-size: 0.95em; }
+.plugin-popover-body .cicd-session { cursor: pointer; padding: 4px 10px; }
+.plugin-popover-body .cicd-session-name { flex: 1; }
+.plugin-popover-body .timer-duration { color: #fff; font-size: 1.3em; }
+.plugin-popover-body .timer-today { border-left: none; padding-left: 0; }
+
+.time-report-modal:focus { outline: none; }
 
 /* ==========================================================================
    Git Plugin — Inside module-git

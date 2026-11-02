@@ -76,8 +76,8 @@ public class ToolbarUiTests : PageTest
         await Page.GotoAsync(BaseUrl, new() { WaitUntil = WaitUntilState.Load });
         // The SSR-rendered content includes .toolbar-shell immediately
         await Expect(Page.Locator(".toolbar-shell")).ToBeVisibleAsync(new() { Timeout = 30000 });
-        // Wait for interactive mode by checking that the project selector trigger is functional
-        await Expect(Page.Locator(".project-selector-trigger")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        // Wait for the interactive (SignalR) render: clicks on prerendered HTML are lost
+        await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToBeVisibleAsync(new() { Timeout = 30000 });
         // Ensure MyWebAPI is the active project (may have been changed by other test classes)
         var projectName = await Page.Locator(".project-name").TextContentAsync();
         if (projectName?.Trim() != "MyWebAPI")
@@ -186,7 +186,8 @@ public class ToolbarUiTests : PageTest
         await NavigateAndWait();
         await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
-        await Expect(Page.Locator(".settings-plugin-row")).ToHaveCountAsync(4);
+        // Scope to the plugin list: the Toolbar Behavior section reuses the same row style.
+        await Expect(Page.Locator(".settings-plugins-list .settings-plugin-row")).ToHaveCountAsync(4);
     }
 
     [Test]
@@ -467,7 +468,8 @@ public class ToolbarUiTests : PageTest
         await NavigateAndWait();
         await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
-        await Expect(Page.Locator(".settings-toggle")).ToHaveCountAsync(4);
+        // Scope to the plugin list: the Toolbar Behavior section also has toggle switches.
+        await Expect(Page.Locator(".settings-plugins-list .settings-toggle")).ToHaveCountAsync(4);
     }
 
     [Test]

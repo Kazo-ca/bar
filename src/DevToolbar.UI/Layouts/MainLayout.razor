@@ -12,7 +12,15 @@
 @inject ThemeService ThemeService
 @inject IGlobalSettingsService GlobalSettingsService
 
-<div class="toolbar-shell" style="@ThemeService.GetCssVariables()">
+@* US3.2: project-provided custom CSS is injected after the base theme variables *@
+@if (ThemeService.GetCustomCss() is { Length: > 0 } customCss)
+{
+    <style id="devtoolbar-custom-css">@((MarkupString)customCss)</style>
+}
+
+<div class="toolbar-shell" style="@ThemeService.GetCssVariables()"
+     data-interactive="@(_isInteractive ? "true" : "false")"
+     @onclick="ReportActivity" @onkeydown="ReportActivity">
     @* ── Zone 1: Project Selector (z-index: 20) ── *@
     <div class="module-project">
         <ProjectSelector />
@@ -21,7 +29,7 @@
     @* ── Zone 2: Git Module — overlaps under Project (z-index: 10) ── *@
     <div class="module-git">
         @{
-            var gitPlugin = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == "git-tools");
+            var gitPlugin = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == GitPluginId);
         }
         @if (gitPlugin?.IsEnabled == true && gitPlugin.Render() is { } gitFragment)
         {
@@ -39,17 +47,49 @@
     @* ── Zone 3b: Taskbar — Open Windows (conditional) ── *@
     <TaskbarModule />
 
-    @* ── Zone 4: System — Timer + Settings (z-index: 20) ── *@
+    @* ── Zone 4: System — Plugin indicators + Timer + Settings (z-index: 20) ── *@
     <div class="module-system">
+        @foreach (var plugin in IndicatorPlugins)
+        {
+            var indicator = (IPluginIndicator)plugin;
+            <PluginPopover Plugin="plugin" Title="@(indicator.IndicatorTooltip ?? plugin.Name)"
+                           TriggerClass="@($"system-indicator {(indicator.StatusLevel is { } level ? "status-" + level : "")}")">
+                <span class="system-indicator-icon">@plugin.Icon</span>
+                @if (!string.IsNullOrEmpty(indicator.IndicatorText))
+                {
+                    <span class="system-indicator-text">@indicator.IndicatorText</span>
+                }
+                @if (indicator.BadgeCount > 0)
+                {
+                    <span class="system-indicator-badge">@indicator.BadgeCount</span>
+                }
+            </PluginPopover>
+        }
         @{
             var activeEntry = TimeTrackingService.GetActive();
             var isRunning = activeEntry != null && activeEntry.ProjectId == _currentProjectId;
             var displayTime = isRunning ? activeEntry!.Duration : TimeTrackingService.GetTodayTotal(_currentProjectId);
+            var timerTitle = isRunning ? "Timer running" : "Today's total";
+            var timeTracker = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == TimeTrackerPluginId && p.IsEnabled);
         }
-        <span class="system-timer-display @(isRunning ? "running" : "")" title="@(isRunning ? "Timer running" : "Today's total")">
-            <span class="system-timer-icon">⏱</span>
-            <span class="system-timer-value">@FormatTime(displayTime)</span>
-        </span>
+        @if (timeTracker != null)
+        {
+            @* US5.3: the timer opens the Time Tracker panel (Start/Stop, linked work item, idle info) *@
+            <PluginPopover Plugin="timeTracker" Title="@($"{timerTitle} — click for Time Tracker")"
+                           CssClass="system-timer-popover">
+                <span class="system-timer-display @(isRunning ? "running" : "")">
+                    <span class="system-timer-icon">⏱</span>
+                    <span class="system-timer-value">@FormatTime(displayTime)</span>
+                </span>
+            </PluginPopover>
+        }
+        else
+        {
+            <span class="system-timer-display @(isRunning ? "running" : "")" title="@timerTitle">
+                <span class="system-timer-icon">⏱</span>
+                <span class="system-timer-value">@FormatTime(displayTime)</span>
+            </span>
+        }
         <button class="system-btn" @onclick="ToggleTimeReport" title="Time Report">📊</button>
         <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
         <TestDropdown />
@@ -68,10 +108,38 @@
     private bool _showTerminal;
     private TerminalOutput? _terminalOutput;
     private string _currentProjectId = "";
+    private bool _isInteractive;
+    private IReadOnlyList<IPlugin> _subscribedPlugins = Array.Empty<IPlugin>();
+    private System.Threading.Timer? _clockTimer;
+
+    private const string GitPluginId = "git-tools";
+    private const string TimeTrackerPluginId = "time-tracker";
+    private static readonly TimeSpan ClockInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Visible plugins shown as compact indicators in the system zone (Work Items, CI/CD...).
+    /// Git has its own module and the Time Tracker is opened from the timer display.
+    /// </summary>
+    private IEnumerable<IPlugin> IndicatorPlugins =>
+        (_visiblePlugins ?? Array.Empty<IPlugin>())
+            .Where(p => p.IsEnabled && p is IPluginIndicator
+                        && p.UniqueId != GitPluginId && p.UniqueId != TimeTrackerPluginId);
 
     protected override async Task OnInitializedAsync()
     {
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
+        TimeTrackingService.OnTrackingChanged += OnPluginStateChanged;
+
+        // Plugins render through RenderFragments whose handlers belong to the plugin, not to
+        // this component, so we re-render whenever a plugin reports a state change.
+        _subscribedPlugins = PluginLoader.GetPlugins();
+        foreach (var plugin in _subscribedPlugins)
+        {
+            plugin.OnStateChanged += OnPluginStateChanged;
+        }
+
+        // Keeps the running timer display live (US5.3).
+        _clockTimer = new System.Threading.Timer(_ => OnClockTick(), null, ClockInterval, ClockInterval);
 
         var project = SettingsService.GetActiveProject();
         if (project != null)
@@ -85,7 +153,29 @@
         if (firstRender)
         {
             ThemeService.OnThemeChanged += OnThemeChanged;
+            // Prerendered HTML is inert until the interactive render; expose the switch
+            // so automation (Playwright) knows when clicks will be handled.
+            _isInteractive = true;
+            StateHasChanged();
         }
+    }
+
+    private void OnPluginStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnClockTick()
+    {
+        if (TimeTrackingService.GetActive() != null)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ReportActivity()
+    {
+        TimeTrackingService.ReportActivity();
     }
 
     private void OnThemeChanged()
@@ -173,6 +263,12 @@
     {
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
         ThemeService.OnThemeChanged -= OnThemeChanged;
+        TimeTrackingService.OnTrackingChanged -= OnPluginStateChanged;
+        foreach (var plugin in _subscribedPlugins)
+        {
+            plugin.OnStateChanged -= OnPluginStateChanged;
+        }
+        _clockTimer?.Dispose();
     }
 
     private static string FormatTime(TimeSpan ts) =>
