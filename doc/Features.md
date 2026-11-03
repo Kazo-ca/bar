@@ -38,7 +38,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | Configuration | **Un seul fichier de configuration par utilisateur**, qui contient tous les projets et dépôts. Pas de niveaux Global / Type / Projet, pas de `template.json`. | 3 nov. 2026 |
 | Données sensibles | Les jetons ne vont **pas** dans le JSON en clair. On offre **deux options** : le coffre du système (Gestionnaire d'identification Windows) ou un fichier chiffré localement. | 3 nov. 2026 |
 | Authentification | On suit la méthode **recommandée par chaque fournisseur** (OAuth en général). Le PAT reste possible pour démarrer. | 3 nov. 2026 |
-| Projet et dépôt | On crée un projet et on l'associe à un dépôt et à son dossier local. | 3 nov. 2026 |
+| Projet et dépôt | On crée un projet et on l'associe à un dépôt et à son dossier local. Le modèle permet plusieurs dépôts par projet, mais la gestion de plusieurs dépôts est un **ajout pour plus tard** : la priorité est le cas un projet = un dépôt. | 3 nov. 2026 |
 | Stockage | Fichiers JSON dans `%APPDATA%\DevToolbar` pour l'instant. Chaque fichier porte une propriété de **version de schéma** et doit pouvoir être migré (vers un autre format ou une base plus tard). SQLite n'est plus requis. | 3 nov. 2026 |
 | Work items | Configurables **par dépôt** : Azure DevOps (cloud) et GitHub Issues. Authentification par PAT pour commencer. | 3 nov. 2026 |
 | Suivi GitHub (F7) | Configurable **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux. | 3 nov. 2026 |
@@ -51,7 +51,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 
 ## Questions ouvertes
 
-1. **Un ou plusieurs dépôts par projet** : le code actuel permet plusieurs dépôts par projet (PR #4). On garde ça, ou un seul dépôt par projet ?
+Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 
 ## Vue d'ensemble
 
@@ -381,7 +381,8 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Afin de** ne pas commiter dans la mauvaise branche.
 
 **Critères d'acceptation :**
-- [x] Un projet peut contenir plusieurs dépôts ; on en sélectionne un dans le panneau Git.
+- [ ] À la création d'un projet, on l'associe à un dépôt et à son dossier local (cas principal).
+- [x] *(Ajout pour plus tard, déjà amorcé par la PR #4)* Un projet peut contenir plusieurs dépôts ; on en sélectionne un dans le panneau Git.
 - [x] Boutons Pull et Push sur le dépôt sélectionné (CLI `git`).
 - [x] Les dépôts se gèrent dans la fenêtre de configuration du plugin.
 - [ ] Chaque dépôt est relié à un dossier local, choisi à la configuration.
