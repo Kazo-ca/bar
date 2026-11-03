@@ -38,6 +38,6 @@ public class ProjectConfig
     /// Git repositories managed by the Git plugin. When empty, the plugin falls back
     /// to a single repository at <see cref="Path"/>.
     /// </summary>
-    [JsonPropertyName("gitRepositories")]
+    [JsonPropertyName("repositories")]
     public List<GitRepository> GitRepositories { get; set; } = new();
 }

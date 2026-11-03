@@ -191,8 +191,8 @@ public class ScreenshotTests : PageTest
     {
         await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
-        // Wait for config hierarchy to be visible (avoid ScrollIntoViewIfNeeded due to SSR DOM replacement)
-        await Expect(Page.Locator(".settings-config-hierarchy")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        // Wait for the configuration file section (avoid ScrollIntoViewIfNeeded due to SSR DOM replacement)
+        await Expect(Page.Locator("[data-testid='settings-config-section']")).ToBeVisibleAsync(new() { Timeout = 5000 });
         await Page.ScreenshotAsync(new() { Path = ScreenshotPath("10-settings-config-hierarchy"), FullPage = true });
         Assert.That(File.Exists(ScreenshotPath("10-settings-config-hierarchy")), Is.True);
     }

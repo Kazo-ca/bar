@@ -3,7 +3,7 @@ namespace DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
 
 /// <summary>
-/// Manages hierarchical configuration (global, template, project-local).
+/// Projects of the user configuration and the active project.
 /// </summary>
 public interface ISettingsService
 {
@@ -18,6 +18,12 @@ public interface ISettingsService
 
     /// <summary>Save changes to a project configuration (US8.3).</summary>
     Task SaveProjectAsync(ProjectConfig project);
+
+    /// <summary>
+    /// Where the configuration lives, shown in Settings (for example the path of
+    /// <c>config.json</c>). Null when the host keeps it in memory.
+    /// </summary>
+    string? ConfigurationLocation => null;
 
     /// <summary>Event fired when the active project changes.</summary>
     event Action<ProjectConfig>? OnActiveProjectChanged;

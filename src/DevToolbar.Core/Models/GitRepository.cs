@@ -13,7 +13,7 @@ public sealed record GitRepository
     public string Name { get; init; } = string.Empty;
 
     /// <summary>Local working-copy folder (where git commands run).</summary>
-    [JsonPropertyName("path")]
+    [JsonPropertyName("localPath")]
     public string Path { get; init; } = string.Empty;
 
     /// <summary>Optional remote URL (https or ssh).</summary>

@@ -1833,66 +1833,12 @@ body {
 }
 
 /* ==========================================================================
-   Config Hierarchy (US2.2)
+   Settings descriptions and configuration file (US2.3)
    ========================================================================== */
 .settings-description {
     font-size: 0.85em;
     color: var(--text-muted, #888);
     margin-bottom: 12px;
-}
-
-.settings-config-hierarchy {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.config-level {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    background: rgba(45, 45, 45, 0.6);
-    border-radius: 8px;
-    border-left: 3px solid var(--accent-color, #0078D4);
-}
-
-.config-level-badge {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75em;
-    font-weight: bold;
-    color: white;
-    flex-shrink: 0;
-}
-
-.config-level-1 { background: #E53935; }
-.config-level-2 { background: #FB8C00; }
-.config-level-3 { background: #43A047; }
-
-.config-level-name {
-    font-weight: 600;
-    min-width: 140px;
-    font-size: 0.85em;
-}
-
-.config-level-desc {
-    flex: 1;
-    font-size: 0.8em;
-    color: var(--text-muted, #888);
-}
-
-.config-level-path {
-    font-family: monospace;
-    font-size: 0.75em;
-    color: var(--text-muted, #666);
-    background: rgba(17, 17, 17, 0.7);
-    padding: 2px 6px;
-    border-radius: 3px;
 }
 
 /* ==========================================================================

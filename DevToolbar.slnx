@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DevToolbar.Core/DevToolbar.Core.csproj" />
+    <Project Path="src/DevToolbar.Infrastructure/DevToolbar.Infrastructure.csproj" />
     <Project Path="src/DevToolbar.Maui/DevToolbar.Maui.csproj" />
     <Project Path="src/DevToolbar.Plugins/DevToolbar.Plugins.csproj" />
     <Project Path="src/DevToolbar.UI/DevToolbar.UI.csproj" />

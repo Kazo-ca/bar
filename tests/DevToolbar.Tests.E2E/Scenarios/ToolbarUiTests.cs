@@ -567,42 +567,18 @@ public class ToolbarUiTests : PageTest
         await Expect(Page.Locator(".time-report-group-key", new() { HasText = "MyWebAPI" })).ToBeVisibleAsync(new() { Timeout = 5000 });
     }
 
-    // --- US2.2: Config Hierarchy in Settings ---
+    // --- US2.3: single user configuration file shown in Settings ---
 
     [Test]
-    public async Task SettingsPage_ShouldShowConfigHierarchy()
+    public async Task SettingsPage_ShouldShowSingleConfigurationFile()
     {
         await NavigateAndWait();
         await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
 
-        // Should show Configuration Hierarchy section
-        await Expect(Page.Locator("text=Configuration Hierarchy")).ToBeVisibleAsync();
-        await Expect(Page.Locator(".config-level")).ToHaveCountAsync(3);
-    }
-
-    [Test]
-    public async Task SettingsPage_ConfigHierarchy_ShouldShowDevtoolbarJson()
-    {
-        await NavigateAndWait();
-        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
-        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
-
-        // Should show .devtoolbar.json as highest priority
-        await Expect(Page.Locator(".config-level-name", new() { HasText = ".devtoolbar.json" })).ToBeVisibleAsync();
-        // Should show project-specific path
-        await Expect(Page.Locator(".config-level-path", new() { HasText = "/projects/my-webapi/.devtoolbar.json" })).ToBeVisibleAsync();
-    }
-
-    [Test]
-    public async Task SettingsPage_ConfigHierarchy_ShouldShowTemplateConfig()
-    {
-        await NavigateAndWait();
-        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
-        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
-
-        await Expect(Page.Locator(".config-level-name", new() { HasText = "Template Config" })).ToBeVisibleAsync();
-        await Expect(Page.Locator(".config-level-path", new() { HasText = "template-webapi.json" })).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid='settings-config-section']")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid='settings-config-path']")).ToContainTextAsync("config.json");
+        await Expect(Page.Locator("text=Configuration Hierarchy")).ToHaveCountAsync(0);
     }
 
     // ==============================================================

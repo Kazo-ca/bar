@@ -1,6 +1,8 @@
 using System.Windows;
 using DevToolbar.Core.Events;
 using DevToolbar.Core.Interfaces;
+using DevToolbar.Infrastructure.Configuration;
+using DevToolbar.Infrastructure.Storage;
 using DevToolbar.Maui.Platforms.Windows.Services;
 using DevToolbar.Maui.Services;
 using DevToolbar.Plugins.Git;
@@ -80,9 +82,14 @@ public static class Program
         // Native services shared with the MAUI host (linked sources).
         services.AddSingleton<IProcessService, WindowsProcessService>();
         services.AddSingleton<IFileSystemService, WindowsFileSystemService>();
-        services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<IScriptService, WindowsScriptService>();
-        services.AddSingleton<IGlobalSettingsService, JsonGlobalSettingsService>();
+
+        // Single per-user configuration file and versioned JSON data in %APPDATA%\DevToolbar (US2.3, US2.5, US8.3).
+        services.AddSingleton(AppDataPaths.ForCurrentUser());
+        services.AddSingleton<UserConfigurationStore>();
+        services.AddSingleton<ISettingsService, UserConfigSettingsService>();
+        services.AddSingleton<IGlobalSettingsService, UserConfigGlobalSettingsService>();
+        services.AddSingleton<IStorageService, JsonStorageService>();
         services.AddSingleton<WindowsWindowService>();
         services.AddSingleton<IWindowService>(sp => sp.GetRequiredService<WindowsWindowService>());
 
