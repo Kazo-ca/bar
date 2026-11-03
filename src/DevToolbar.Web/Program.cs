@@ -45,9 +45,6 @@ builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddSingleton<EventAggregator>();
 
-// US3.5: debug-only toolbar features also in a Release build run in Development (E2E).
-builder.Services.AddSingleton(new DebugFeatures(builder.Environment.IsDevelopment()));
-
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

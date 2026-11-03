@@ -1,7 +1,6 @@
 namespace DevToolbar.Tests.Unit.Ui;
 
 using DevToolbar.UI.Components;
-using DevToolbar.UI.Services;
 
 [TestFixture]
 public class ActionOverflowTests
@@ -27,12 +26,5 @@ public class ActionOverflowTests
         // 38 ("…") + 120 + 6 = 164: the wide one fits, the next does not.
         Assert.That(ActionOverflow.Fit(3, 200, Width), Is.EqualTo(new ActionOverflow.Layout(1, 2)));
         Assert.That(ActionOverflow.Fit(3, 150, Width), Is.EqualTo(new ActionOverflow.Layout(0, 3)));
-    }
-
-    [Test]
-    public void DebugFeatures_FollowTheBuild_OrTheHost()
-    {
-        Assert.That(new DebugFeatures(enabledByHost: true).Enabled, Is.True);
-        Assert.That(new DebugFeatures().Enabled, Is.EqualTo(DebugFeatures.IsDebugBuild));
     }
 }

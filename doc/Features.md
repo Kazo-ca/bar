@@ -68,7 +68,7 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.2 | Couleur d'accent et police par projet | ✅ |
 | US3.3 | Thèmes proposés à l'utilisateur | 🟡 |
 | US3.4 | Vue compacte et débordement | ✅ 🔍 |
-| US3.5 | Fonctions de debug masquées en Release | ✅ |
+| US3.5 | Fonctions de debug masquées en Release | ⬜ |
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | 🟡 |
 | US4.3 | Bouton script et sortie terminal | 🟡 |
@@ -332,15 +332,15 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] La toolbar n'est jamais plus large que la fenêtre (960 px dans l'hôte WPF). Quand les actions ne tiennent pas dans la place laissée par les autres zones, un bouton « … » ouvre un menu avec les actions masquées (`ActionDeck`, `ActionOverflow`, `action-overflow.js`). Le menu se ferme par un clic extérieur ou `Échap`, et s'ouvre vers le haut si la toolbar est ancrée en bas.
 
 ## US3.5 Fonctions de debug masquées en Release
-**État :** ✅ Fait
+**État :** ⬜ À faire
 
 **En tant qu'** utilisateur final
 **Je veux** ne pas voir les outils de développement de la toolbar
 **Afin d'** avoir une interface propre.
 
 **Critères d'acceptation :**
-- [x] Le bouton 🧪 « Test Dropdown » n'est rendu que dans une build `Debug` (`#if DEBUG`) ou en environnement de développement (hôte Web en `Development`).
-- [x] Toute future fonction de debug suit la même règle : elle vérifie `DebugFeatures.Enabled` (`src/DevToolbar.UI/Services/DebugFeatures.cs`).
+- [ ] Le bouton 🧪 « Test Dropdown » n'est rendu que dans une build `Debug` (`#if DEBUG`) ou en environnement de développement.
+- [ ] Toute future fonction de debug suit la même règle.
 
 ---
 
