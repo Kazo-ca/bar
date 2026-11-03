@@ -11,6 +11,7 @@
     (IHostSurfaceService), which grows its window as far as the screen allows;
     whatever still does not fit scrolls inside the region (class "host-sized").
     Hosts without the service: plain CSS scrolling, no JS.
+    Regions laid out from the window bottom (panels opening upward) add data-host-anchor="bottom".
 *@
 <div @ref="_outer" class="host-sized @Class" data-host-size-id="@Id" @attributes="AdditionalAttributes">
     <div @ref="_inner" class="host-sized-content">@ChildContent</div>

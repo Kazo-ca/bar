@@ -2551,6 +2551,7 @@ body {
     .git-repo-row {
         flex-wrap: wrap;
     }
+}
 
 /* --- Settings: Application section (quit) --- */
 .settings-btn {
@@ -2585,6 +2586,7 @@ body {
 .settings-quit-question {
     color: var(--text-primary, #fff);
     margin-right: 4px;
+}
 
 /* ==========================================================================
    Drag handle — right end of the pill, revealed on hover (desktop hosts)
