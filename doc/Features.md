@@ -44,15 +44,14 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | Suivi GitHub (F7) | Configurable **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux. | 3 nov. 2026 |
 | Git | État lu dans le dossier local du dépôt avec **LibGit2Sharp** (pas de la configuration). | 3 nov. 2026 |
 | Maquette | `doc/Toolbar-desing-exemple.png` est une **ligne directrice** : les éléments restent les mêmes, les thèmes proposés à l'utilisateur changent le style. | 3 nov. 2026 |
-| Fonctions de debug | Visibles uniquement dans une build `Debug` (`#if DEBUG` ou `IsDevelopment`). | 3 nov. 2026 |
+| Fonctions de debug | Visibles uniquement dans une build `Debug` (`#if DEBUG` ou `IsDevelopment`). Seul le bouton 🧪 « Test Dropdown » est concerné. Les modes d'ancrage, l'écran cible, la hauteur, les fenêtres actives et le remplacement de la barre des tâches sont des fonctions normales. | 3 nov. 2026 |
 | Plugins tiers | Pas de chargement de DLL externes pour l'instant, mais le système de plugins doit rester ouvert pour que n'importe qui puisse en écrire un. | 3 nov. 2026 |
 | Intégration continue | Pas maintenant ; obligatoire pour la version finale. | 3 nov. 2026 |
 | Fermer la toolbar | Fermer la fenêtre **quitte l'application** (pas de réduction dans la zone de notification). | 3 nov. 2026 |
 
 ## Questions ouvertes
 
-1. **Fonctions de placement et de barre des tâches** : pour chacune (modes d'ancrage, écran cible, hauteur, poignée, fenêtres actives, remplacement de la barre des tâches), dire si c'est une fonction normale ou de debug.
-2. **Un ou plusieurs dépôts par projet** : le code actuel permet plusieurs dépôts par projet (PR #4). On garde ça, ou un seul dépôt par projet ?
+1. **Un ou plusieurs dépôts par projet** : le code actuel permet plusieurs dépôts par projet (PR #4). On garde ça, ou un seul dépôt par projet ?
 
 ## Vue d'ensemble
 
@@ -86,7 +85,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | US8.2 | Zone de notification | ✅ 🔍 |
 | US8.3 | Stockage local JSON | 🟡 |
 | US8.4 | Position et ancrage de la toolbar | ✅ 🔍 |
-| US8.5 | Barre des tâches et fenêtres actives | 🟡 voir question 1 |
+| US8.5 | Barre des tâches et fenêtres actives | 🟡 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
 | US9.2 | Hôte MAUI gelé | 🧊 |
 
@@ -531,17 +530,22 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 **État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC
 
 **Critères d'acceptation :**
-- [x] Modes dans Paramètres : ancrée en haut, ancrée en bas (réserve la place comme une barre Windows), flottante, superposée (`Overlay`, en haut sans réserver de place).
+- [x] Modes dans Paramètres (fonctions normales, pas de debug) : ancrée en haut, ancrée en bas (réserve la place comme une barre Windows), flottante, superposée (`Overlay`, en haut sans réserver de place).
 - [x] Choix de l'écran cible.
 - [x] Poignée à droite de la pilule pour déplacer la toolbar flottante ; elle reste à l'écran.
 - [x] L'hôte et Blazor négocient la taille de la fenêtre pour que menus et Paramètres tiennent (`SurfaceSizeNegotiator`).
 
 ## US8.5 Barre des tâches et fenêtres actives
-**État :** 🟡 Code présent, statut à confirmer (question 1)
+**État :** 🟡 Partiel
+
+**En tant qu'** utilisateur
+**Je veux** voir mes fenêtres ouvertes dans la toolbar et pouvoir l'utiliser à la place de la barre des tâches Windows
+**Afin de** passer d'une fenêtre à l'autre sans quitter la toolbar.
 
 **Critères d'acceptation :**
-- [x] Réglages « Afficher les fenêtres actives » et « Remplacer la barre des tâches » dans Paramètres.
-- [ ] Décider s'il s'agit de fonctions normales ou de debug, puis compléter cette US.
+- [x] Réglage « Afficher les fenêtres actives » : un bouton par fenêtre ouverte (icône et titre) ; un clic active la fenêtre.
+- [x] Réglage « Mode remplacement de la barre des tâches » présent dans Paramètres.
+- [ ] Le mode remplacement a un effet réel (aujourd'hui l'interrupteur est enregistré mais rien ne l'utilise). Comportement exact à préciser.
 
 ---
 
