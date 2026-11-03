@@ -27,6 +27,7 @@ builder.Services.AddSingleton<IGlobalSettingsService, MockGlobalSettingsService>
 builder.Services.AddSingleton<IWindowRegionService, MockWindowRegionService>();
 
 // Register plugins
+builder.Services.AddSingleton<IGitService, MockGitService>();
 builder.Services.AddSingleton<IPlugin, GitPlugin>();
 builder.Services.AddSingleton<IWorkItemProvider, MockWorkItemProvider>();
 builder.Services.AddSingleton<IPlugin, WorkItemsPlugin>();

@@ -53,6 +53,23 @@ public class UserConfigServicesTests
     }
 
     [Test]
+    public async Task AddProject_SavesAndActivatesIt_AndRejectsDuplicateIds()
+    {
+        using var temp = new TempDirectory();
+        var service = new UserConfigSettingsService(await StoreWithTwoProjectsAsync(temp));
+        ProjectConfig? notified = null;
+        service.OnActiveProjectChanged += p => notified = p;
+
+        await service.AddProjectAsync(new ProjectConfig { Id = "c", Name = "C" });
+
+        Assert.That(notified?.Id, Is.EqualTo("c"));
+        var reloaded = new UserConfigSettingsService(new UserConfigurationStore(temp.Paths));
+        Assert.That(reloaded.GetActiveProject()?.Id, Is.EqualTo("c"));
+        Assert.That((await reloaded.GetProjectsAsync()).Select(p => p.Id), Is.EqualTo(new[] { "a", "b", "c" }));
+        Assert.ThrowsAsync<ArgumentException>(() => service.AddProjectAsync(new ProjectConfig { Id = "A" }));
+    }
+
+    [Test]
     public async Task GlobalSettings_UpdateIsPersistedInSettingsSection_AndRaisesEvent()
     {
         using var temp = new TempDirectory();

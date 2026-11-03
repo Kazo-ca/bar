@@ -201,6 +201,14 @@
                     }
                 }
             </div>
+            @if (_showNewProject)
+            {
+                <NewProjectForm OnCreated="OnProjectCreated" OnCancel="() => _showNewProject = false" />
+            }
+            else
+            {
+                <button class="settings-btn" data-testid="settings-new-project" @onclick="() => _showNewProject = true">＋ New project</button>
+            }
         </section>
 
         <section class="settings-section" data-testid="settings-config-section">
@@ -305,6 +313,15 @@
         if (_activeProject == null) return;
         _activeProject.Theme.FontFamily = fontFamily;
         ThemeService.SetTheme(_activeProject.Theme);
+    }
+
+    private bool _showNewProject;
+
+    private async Task OnProjectCreated(ProjectConfig project)
+    {
+        _showNewProject = false;
+        _projects = await SettingsService.GetProjectsAsync();
+        _activeProject = SettingsService.GetActiveProject();
     }
 
     private async Task SwitchProject(string projectId)

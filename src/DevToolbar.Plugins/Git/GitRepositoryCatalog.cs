@@ -1,5 +1,6 @@
 namespace DevToolbar.Plugins.Git;
 
+using DevToolbar.Core.Configuration;
 using DevToolbar.Core.Models;
 
 /// <summary>
@@ -9,7 +10,6 @@ using DevToolbar.Core.Models;
 public static class GitRepositoryCatalog
 {
     private const int MaxNameLength = 60;
-    private static readonly char[] ForbiddenPathChars = ['"', '\r', '\n', '\0'];
 
     /// <summary>
     /// Repositories the plugin works with: the configured list, or an implicit
@@ -73,7 +73,7 @@ public static class GitRepositoryCatalog
 
         if (string.IsNullOrWhiteSpace(candidate.Path))
             return "The local folder is required.";
-        if (candidate.Path.IndexOfAny(ForbiddenPathChars) >= 0)
+        if (candidate.Path.IndexOfAny(RepositoryPaths.ForbiddenChars) >= 0)
             return "The local folder contains invalid characters.";
         if (candidate.Name.Length > MaxNameLength)
             return $"The name must be {MaxNameLength} characters or fewer.";
@@ -113,31 +113,10 @@ public static class GitRepositoryCatalog
         return list;
     }
 
-    /// <summary>Arguments to run a git sub-command inside the repository folder.</summary>
-    /// <remarks>
-    /// A trailing separator gets a "." appended: on Windows a <c>\"</c> sequence would
-    /// otherwise escape the closing quote.
-    /// </remarks>
-    public static string BuildArguments(GitRepository repository, string subCommand)
-    {
-        var path = repository.Path.Trim();
-        if (path.EndsWith('\\') || path.EndsWith('/'))
-            path += ".";
-        return $"-C \"{path}\" {subCommand}";
-    }
-
     /// <summary>Case-insensitive path comparison that ignores trailing separators.</summary>
-    public static bool SamePath(string a, string b) =>
-        string.Equals(TrimSeparators(a), TrimSeparators(b), StringComparison.OrdinalIgnoreCase);
+    public static bool SamePath(string a, string b) => RepositoryPaths.SamePath(a, b);
 
-    private static string TrimSeparators(string path) => path.Trim().TrimEnd('/', '\\');
-
-    private static string NameFromPath(string path)
-    {
-        var trimmed = TrimSeparators(path);
-        var lastSeparator = trimmed.LastIndexOfAny(['/', '\\']);
-        return lastSeparator >= 0 ? trimmed[(lastSeparator + 1)..] : trimmed;
-    }
+    private static string NameFromPath(string path) => RepositoryPaths.NameFromPath(path);
 
     private static bool IsValidRemote(string url)
     {

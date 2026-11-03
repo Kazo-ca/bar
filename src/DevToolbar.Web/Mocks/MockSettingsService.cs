@@ -102,6 +102,16 @@ public class MockSettingsService : ISettingsService
         return Task.CompletedTask;
     }
 
+    public Task AddProjectAsync(ProjectConfig project)
+    {
+        if (_projects.Any(p => string.Equals(p.Id, project.Id, StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException($"A project with id '{project.Id}' already exists.", nameof(project));
+        _projects.Add(project);
+        _activeProject = project;
+        OnActiveProjectChanged?.Invoke(project);
+        return Task.CompletedTask;
+    }
+
     public Task SaveProjectAsync(ProjectConfig project)
     {
         var index = _projects.FindIndex(p => p.Id == project.Id);

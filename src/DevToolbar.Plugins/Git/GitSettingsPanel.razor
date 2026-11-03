@@ -1,5 +1,6 @@
 @namespace DevToolbar.Plugins.Git
 @inherits PluginSettingsComponentBase
+@inject IServiceProvider Services
 
 <div class="git-settings">
     <p class="plugin-settings-hint">
@@ -49,7 +50,13 @@
         <div class="git-repo-form-grid">
             <label>
                 <span>Local folder *</span>
-                <input class="git-repo-input-path" placeholder="C:\src\my-repo" @bind="_path" @bind:event="oninput" />
+                <span class="git-repo-folder">
+                    <input class="git-repo-input-path" placeholder="C:\src\my-repo" @bind="_path" @bind:event="oninput" />
+                    @if (_folderPicker != null)
+                    {
+                        <button type="button" class="plugin-settings-icon-btn git-repo-browse" title="Choose the folder" @onclick="BrowseAsync">📂</button>
+                    }
+                </span>
             </label>
             <label>
                 <span>Name</span>
@@ -78,6 +85,17 @@
     private string _remoteUrl = string.Empty;
     private string _branch = string.Empty;
     private string? _error;
+    private DevToolbar.Core.Interfaces.IFolderPickerService? _folderPicker;
+
+    protected override void OnInitialized() =>
+        _folderPicker = Services.GetService(typeof(DevToolbar.Core.Interfaces.IFolderPickerService)) as DevToolbar.Core.Interfaces.IFolderPickerService;
+
+    private async Task BrowseAsync()
+    {
+        var folder = await _folderPicker!.PickFolderAsync(string.IsNullOrWhiteSpace(_path) ? null : _path);
+        if (!string.IsNullOrEmpty(folder))
+            _path = folder;
+    }
 
     private async Task AddAsync()
     {

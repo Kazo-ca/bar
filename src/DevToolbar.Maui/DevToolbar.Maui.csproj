@@ -42,6 +42,7 @@
     <ProjectReference Include="..\DevToolbar.Core\DevToolbar.Core.csproj" />
     <ProjectReference Include="..\DevToolbar.UI\DevToolbar.UI.csproj" />
     <ProjectReference Include="..\DevToolbar.Plugins\DevToolbar.Plugins.csproj" />
+    <ProjectReference Include="..\DevToolbar.Infrastructure\DevToolbar.Infrastructure.csproj" />
   </ItemGroup>
 
 	<ItemGroup>

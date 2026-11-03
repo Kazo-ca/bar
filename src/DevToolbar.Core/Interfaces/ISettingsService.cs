@@ -20,6 +20,13 @@ public interface ISettingsService
     Task SaveProjectAsync(ProjectConfig project);
 
     /// <summary>
+    /// Adds a new project (see <c>ProjectFactory</c>) and makes it the active project.
+    /// </summary>
+    /// <exception cref="ArgumentException">A project with the same id already exists.</exception>
+    Task AddProjectAsync(ProjectConfig project) =>
+        throw new NotSupportedException("This host cannot create projects.");
+
+    /// <summary>
     /// Where the configuration lives, shown in Settings (for example the path of
     /// <c>config.json</c>). Null when the host keeps it in memory.
     /// </summary>

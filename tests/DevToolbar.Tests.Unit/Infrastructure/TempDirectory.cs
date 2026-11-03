@@ -24,7 +24,7 @@ internal sealed class TempDirectory : IDisposable
     }
 
     public string[] Backups() => Directory.Exists(Paths.BackupDirectory)
-        ? Directory.GetFiles(Paths.BackupDirectory).Select(Path.GetFileName).ToArray()!
+        ? Directory.GetFiles(Paths.BackupDirectory).Select(p => Path.GetFileName(p)).ToArray()
         : [];
 
     public void Dispose()

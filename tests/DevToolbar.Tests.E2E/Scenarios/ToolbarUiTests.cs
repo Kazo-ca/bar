@@ -581,6 +581,25 @@ public class ToolbarUiTests : PageTest
         await Expect(Page.Locator("text=Configuration Hierarchy")).ToHaveCountAsync(0);
     }
 
+    // --- US5.1: a project is created linked to a repository folder ---
+
+    [Test]
+    public async Task SettingsPage_NewProjectForm_ValidatesTheFolder()
+    {
+        await NavigateAndWait();
+        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
+        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
+
+        await Page.Locator("[data-testid='settings-new-project']").ClickAsync();
+        await Expect(Page.Locator("[data-testid='new-project-form']")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid='new-project-create']")).ToBeDisabledAsync();
+
+        await Page.Locator("[data-testid='new-project-path']").FillAsync("C:\\bad\"folder");
+        await Page.Locator("[data-testid='new-project-create']").ClickAsync();
+
+        await Expect(Page.Locator("[data-testid='new-project-error']")).ToContainTextAsync("invalid characters");
+    }
+
     // ==============================================================
     // MAUI Desktop Preview Chrome Tests
     // ==============================================================

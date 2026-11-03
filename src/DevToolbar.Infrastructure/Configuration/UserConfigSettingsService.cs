@@ -38,6 +38,21 @@ public sealed class UserConfigSettingsService : ISettingsService
         OnActiveProjectChanged?.Invoke(project);
     }
 
+    public async Task AddProjectAsync(ProjectConfig project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentException.ThrowIfNullOrWhiteSpace(project.Id);
+        if (_store.Current.Projects.Any(p => string.Equals(p.Id, project.Id, StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException($"A project with id '{project.Id}' already exists.", nameof(project));
+
+        await _store.UpdateAsync(c =>
+        {
+            c.Projects = [.. c.Projects, project];
+            c.ActiveProjectId = project.Id;
+        });
+        OnActiveProjectChanged?.Invoke(project);
+    }
+
     public Task SaveProjectAsync(ProjectConfig project)
     {
         ArgumentNullException.ThrowIfNull(project);
