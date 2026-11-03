@@ -23,7 +23,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 
 | Terme | Sens dans ce document |
 |---|---|
-| **Projet** | Un contexte de travail sélectionnable dans la toolbar (pilule de gauche). Il regroupe un ou plusieurs dépôts, des actions et un thème. |
+| **Projet** | Un contexte de travail sélectionnable dans la toolbar (pilule de gauche). On le crée puis on l'associe à un dépôt et à son dossier local. Il porte aussi des actions et un thème. |
 | **Dépôt** | Un dépôt Git configuré dans un projet. Chaque dépôt est **relié à un dossier local**. Les fournisseurs (work items, CI/CD, sessions d'agents) se configurent par dépôt. |
 | **Hôte** | L'exécutable qui affiche l'interface Blazor : WPF (principal), Web (tests), MAUI (gelé). |
 | **Plugin** | Un module qui ajoute un indicateur et un panneau à la toolbar (Git, Work Items, Temps, CI/CD). |
@@ -36,7 +36,9 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 |---|---|---|
 | Hôte Windows | WPF (`src/DevToolbar.Windows`) est la voie principale. MAUI est **gelé** : il reste dans la solution mais ne reçoit plus de nouvelles fonctions. | 2 et 3 nov. 2026 |
 | Configuration | **Un seul fichier de configuration par utilisateur**, qui contient tous les projets et dépôts. Pas de niveaux Global / Type / Projet, pas de `template.json`. | 3 nov. 2026 |
-| Données sensibles | Les jetons (PAT, etc.) ne vont **pas** dans le JSON en clair. Stockage sécurisé (coffre ou chiffrement local) **à décider ensemble**. | 3 nov. 2026 |
+| Données sensibles | Les jetons ne vont **pas** dans le JSON en clair. On offre **deux options** : le coffre du système (Gestionnaire d'identification Windows) ou un fichier chiffré localement. | 3 nov. 2026 |
+| Authentification | On suit la méthode **recommandée par chaque fournisseur** (OAuth en général). Le PAT reste possible pour démarrer. | 3 nov. 2026 |
+| Projet et dépôt | On crée un projet et on l'associe à un dépôt et à son dossier local. | 3 nov. 2026 |
 | Stockage | Fichiers JSON dans `%APPDATA%\DevToolbar` pour l'instant. Chaque fichier porte une propriété de **version de schéma** et doit pouvoir être migré (vers un autre format ou une base plus tard). SQLite n'est plus requis. | 3 nov. 2026 |
 | Work items | Configurables **par dépôt** : Azure DevOps (cloud) et GitHub Issues. Authentification par PAT pour commencer. | 3 nov. 2026 |
 | Suivi GitHub (F7) | Configurable **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux. | 3 nov. 2026 |
@@ -49,10 +51,8 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 
 ## Questions ouvertes
 
-1. **Stockage des secrets** : coffre (Windows Credential Manager, Azure Key Vault…) ou fichier chiffré localement (DPAPI) ? À décider ensemble.
-2. **Gestionnaire d'identification** au-delà du PAT : GitHub App, extension Azure DevOps, OAuth… Lequel en premier ?
-3. **Modes `Floating` et `Overlay`, liste des fenêtres actives, remplacement de la barre des tâches** : ces fonctions existent dans le code et dans Paramètres. Fonctions normales à garder et documenter, ou fonctions de debug à masquer en Release ?
-4. **Projet et dépôt** : un projet garde-t-il un sens s'il ne contient qu'un dépôt, ou la toolbar doit-elle se sélectionner directement par dépôt ?
+1. **Fonctions de placement et de barre des tâches** : pour chacune (modes d'ancrage, écran cible, hauteur, poignée, fenêtres actives, remplacement de la barre des tâches), dire si c'est une fonction normale ou de debug.
+2. **Un ou plusieurs dépôts par projet** : le code actuel permet plusieurs dépôts par projet (PR #4). On garde ça, ou un seul dépôt par projet ?
 
 ## Vue d'ensemble
 
@@ -86,7 +86,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | US8.2 | Zone de notification | ✅ 🔍 |
 | US8.3 | Stockage local JSON | 🟡 |
 | US8.4 | Position et ancrage de la toolbar | ✅ 🔍 |
-| US8.5 | Barre des tâches et fenêtres actives | 🟡 voir question 3 |
+| US8.5 | Barre des tâches et fenêtres actives | 🟡 voir question 1 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
 | US9.2 | Hôte MAUI gelé | 🧊 |
 
@@ -241,7 +241,7 @@ Exemple de forme visée (les noms exacts seront fixés à l'implémentation) :
 ```
 
 ## US2.4 Stockage sécurisé des secrets
-**État :** ⬜ À faire, choix technique ouvert (question 1)
+**État :** ⬜ À faire
 
 **En tant qu'** utilisateur
 **Je veux** que mes jetons d'accès soient stockés de façon chiffrée
@@ -249,9 +249,9 @@ Exemple de forme visée (les noms exacts seront fixés à l'implémentation) :
 
 **Critères d'acceptation :**
 - [ ] La configuration ne contient qu'une référence (`secretRef`) vers le secret.
-- [ ] Le secret est stocké dans un coffre ou chiffré localement (solution à choisir).
-- [ ] Les PAT GitHub et Azure DevOps sont saisis dans Paramètres et ne sont jamais réaffichés en clair.
-- [ ] Une note d'architecture prévoit d'autres modes d'authentification (GitHub App, extension Azure DevOps, OAuth).
+- [ ] L'utilisateur choisit où sont stockés ses secrets : Gestionnaire d'identification Windows, ou fichier chiffré localement (DPAPI).
+- [ ] Chaque fournisseur utilise la méthode d'authentification qu'il recommande (OAuth pour GitHub et Azure DevOps) ; le PAT reste possible pour démarrer.
+- [ ] Les jetons saisis dans Paramètres ne sont jamais réaffichés en clair.
 
 ## US2.5 Version de schéma et migration
 **État :** ⬜ À faire
@@ -399,8 +399,9 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Critères d'acceptation :**
 - [x] Affichage « #ID - Titre », recherche et sélection d'un autre ticket.
 - [x] Interface `IWorkItemProvider` commune aux fournisseurs.
-- [ ] Fournisseur **Azure DevOps (cloud)**, authentification par PAT.
-- [ ] Fournisseur **GitHub Issues**, authentification par PAT.
+- [ ] Fournisseur **Azure DevOps (cloud)**.
+- [ ] Fournisseur **GitHub Issues**.
+- [ ] Authentification recommandée par le fournisseur (OAuth), PAT possible pour démarrer (voir US2.4).
 - [ ] Le fournisseur se configure **par dépôt**.
 - [ ] Lien cliquable vers le ticket sur le web.
 
@@ -536,7 +537,7 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 - [x] L'hôte et Blazor négocient la taille de la fenêtre pour que menus et Paramètres tiennent (`SurfaceSizeNegotiator`).
 
 ## US8.5 Barre des tâches et fenêtres actives
-**État :** 🟡 Code présent, statut à confirmer (question 3)
+**État :** 🟡 Code présent, statut à confirmer (question 1)
 
 **Critères d'acceptation :**
 - [x] Réglages « Afficher les fenêtres actives » et « Remplacer la barre des tâches » dans Paramètres.
