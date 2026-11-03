@@ -64,7 +64,16 @@ public class PluginSettingsTests : PageTest
     private async Task OpenToolbarAsync()
     {
         await Page.GotoAsync(BaseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
-        await Expect(Page.Locator(".git-repo-select")).ToBeVisibleAsync(new() { Timeout = 30000 });
+        await Expect(Page.Locator(".git-selector-trigger")).ToBeVisibleAsync(new() { Timeout = 30000 });
+        await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToHaveCountAsync(1, new() { Timeout = 30000 });
+    }
+
+    private async Task<ILocator> OpenGitMenuAsync()
+    {
+        await Page.GetByTestId("git-selector").ClickAsync();
+        var menu = Page.GetByTestId("git-selector-menu");
+        await Expect(menu).ToBeVisibleAsync();
+        return menu;
     }
 
     private async Task OpenGitSettingsAsync()
@@ -80,7 +89,12 @@ public class PluginSettingsTests : PageTest
     {
         await OpenToolbarAsync();
 
-        await Expect(Page.Locator(".git-repo-select option")).ToContainTextAsync(new[] { "my-webapi", "shared-lib" });
+        var menu = await OpenGitMenuAsync();
+        await Expect(menu.Locator(".git-selector-name")).ToHaveTextAsync(new[] { "my-webapi", "shared-lib" });
+        await Expect(Page.GetByTestId("git-repo-name")).ToHaveTextAsync("my-webapi");
+
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(menu).ToHaveCountAsync(0);
     }
 
     [Test]
@@ -89,9 +103,39 @@ public class PluginSettingsTests : PageTest
         await OpenToolbarAsync();
         await Expect(Page.Locator(".git-branch")).ToContainTextAsync("develop");
 
-        await Page.Locator(".git-repo-select").SelectOptionAsync("/projects/shared-lib");
+        var menu = await OpenGitMenuAsync();
+        await menu.Locator(".git-selector-item", new() { HasText = "shared-lib" }).ClickAsync();
 
+        await Expect(Page.GetByTestId("git-repo-name")).ToHaveTextAsync("shared-lib");
         await Expect(Page.Locator(".git-branch")).ToContainTextAsync("main");
+        await Expect(Page.GetByTestId("git-worktree")).ToHaveCountAsync(0);
+
+        // Back to the first repository for the other tests (the web host keeps its state).
+        menu = await OpenGitMenuAsync();
+        await menu.Locator(".git-selector-item", new() { HasText = "my-webapi" }).ClickAsync();
+        await Expect(Page.GetByTestId("git-repo-name")).ToHaveTextAsync("my-webapi");
+    }
+
+    [Test]
+    public async Task GitSelector_WorktreeLinks_SwitchTheModuleToTheWorktree()
+    {
+        await OpenToolbarAsync();
+        // The sample repository has two linked worktrees: the current one is shown.
+        await Expect(Page.GetByTestId("git-worktree")).ToContainTextAsync("my-webapi");
+
+        var menu = await OpenGitMenuAsync();
+        var links = menu.Locator(".git-worktree-link");
+        await Expect(links).ToHaveCountAsync(3);
+        await links.Filter(new() { HasText = "my-webapi-hotfix" }).ClickAsync();
+
+        await Expect(Page.GetByTestId("git-repo-name")).ToHaveTextAsync("my-webapi");
+        await Expect(Page.GetByTestId("git-worktree")).ToContainTextAsync("my-webapi-hotfix");
+        await Expect(Page.Locator(".git-branch")).ToContainTextAsync("hotfix/login-redirect");
+        await Expect(Page.Locator(".git-status")).ToContainTextAsync("2");
+
+        menu = await OpenGitMenuAsync();
+        await menu.Locator(".git-worktree-link", new() { HasText = "(main)" }).ClickAsync();
+        await Expect(Page.Locator(".git-branch")).ToContainTextAsync("develop");
     }
 
     [Test]
@@ -118,7 +162,9 @@ public class PluginSettingsTests : PageTest
         await Expect(added.Locator(".git-repo-branch")).ToContainTextAsync("trunk");
 
         await OpenToolbarAsync();
-        await Expect(Page.Locator(".git-repo-select option", new() { HasText = "e2e-added-repo" })).ToHaveCountAsync(1);
+        var menu = await OpenGitMenuAsync();
+        await Expect(menu.Locator(".git-selector-item", new() { HasText = "e2e-added-repo" })).ToHaveCountAsync(1);
+        await Page.Keyboard.PressAsync("Escape");
 
         await OpenGitSettingsAsync();
         await Page.Locator(".git-repo-row", new() { HasText = "e2e-added-repo" }).Locator(".git-repo-remove").ClickAsync();

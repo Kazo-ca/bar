@@ -168,6 +168,111 @@ public class FeatureSpecTests : PageTest
     }
 
     [Test]
+    public async Task US3_6_GitModule_IsResizedByDraggingItsEdge_AndRightClickResetsTheWidth()
+    {
+        await OpenToolbar();
+        var module = Page.Locator(".module-frame[data-module-id='git-tools']");
+        var start = (await module.BoundingBoxAsync())!;
+        var grip = module.GetByTestId("module-resize-grip");
+        var box = (await grip.BoundingBoxAsync())!;
+
+        try
+        {
+            await Page.Mouse.MoveAsync(box.X + box.Width / 2, box.Y + box.Height / 2);
+            await Page.Mouse.DownAsync();
+            await Page.Mouse.MoveAsync(box.X + 80, box.Y + box.Height / 2, new() { Steps = 5 });
+            await Page.Mouse.UpAsync();
+            await WaitForWidth(module, w => w > start.Width + 60);
+
+            // Saved: still wider after a reload.
+            await OpenToolbar();
+            await WaitForWidth(module, w => w > start.Width + 60);
+
+            await module.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 20, Y = 10 } });
+            var menu = module.GetByTestId("module-menu");
+            await Expect(menu).ToBeVisibleAsync();
+            await menu.GetByTestId("module-reset-width").ClickAsync();
+            await Expect(menu).ToHaveCountAsync(0);
+            await WaitForWidth(module, w => Math.Abs(w - start.Width) < 1);
+        }
+        finally
+        {
+            await ResetToolbarLayout();
+        }
+    }
+
+    [Test]
+    public async Task US3_7_ModulesAreReordered_FromTheirRightClickMenu()
+    {
+        await OpenToolbar();
+        var git = Page.Locator(".module-frame[data-module-id='git-tools']");
+        await Expect(Page.Locator(".toolbar-shell > .module-frame").First).ToHaveAttributeAsync("data-module-id", "git-tools");
+
+        try
+        {
+            await git.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 20, Y = 10 } });
+            await Expect(git.GetByTestId("module-move-left")).ToBeDisabledAsync();
+            await git.GetByTestId("module-move-right").ClickAsync();
+
+            await Expect(Page.Locator(".toolbar-shell > .module-frame").First).ToHaveAttributeAsync("data-module-id", "core.actions");
+            // Not right after the project pill any more: the Git module is a pill of its own.
+            await Expect(git).Not.ToHaveCSSAsync("margin-left", "-18px");
+
+            // System zone: the timer moves before the indicators.
+            var timer = Page.Locator(".module-frame[data-module-id='core.timer']");
+            await timer.ClickAsync(new() { Button = MouseButton.Right });
+            await timer.GetByTestId("module-move-left").ClickAsync();
+            var system = Page.Locator(".module-system > .module-frame");
+            var count = await system.CountAsync();
+            await Expect(system.Nth(count - 2)).ToHaveAttributeAsync("data-module-id", "core.timer");
+
+            // The order is listed (and can be reset) in Settings.
+            await Page.Locator(".system-settings").ClickAsync();
+            var section = Page.GetByTestId("settings-modules-section");
+            await Expect(section.Locator(".settings-module-row").First).ToHaveAttributeAsync("data-module-id", "core.actions");
+            await section.GetByTestId("settings-reset-order").ClickAsync();
+            await Expect(section.Locator(".settings-module-row").First).ToHaveAttributeAsync("data-module-id", "git-tools");
+        }
+        finally
+        {
+            await ResetToolbarLayout();
+        }
+        await OpenToolbar();
+        await Expect(Page.Locator(".toolbar-shell > .module-frame").First).ToHaveAttributeAsync("data-module-id", "git-tools");
+    }
+
+    private static async Task WaitForWidth(ILocator element, Func<float, bool> expected)
+    {
+        float width = 0;
+        for (var i = 0; i < 50; i++)
+        {
+            width = (await element.BoundingBoxAsync())?.Width ?? 0;
+            if (expected(width)) return;
+            await Task.Delay(100);
+        }
+        Assert.Fail($"Unexpected width: {width}px");
+    }
+
+    /// <summary>The web host keeps its settings for the whole run: put the default layout back.</summary>
+    private async Task ResetToolbarLayout()
+    {
+        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
+        var section = Page.GetByTestId("settings-modules-section");
+        await Expect(section).ToBeVisibleAsync(new() { Timeout = 30000 });
+        foreach (var id in new[] { "settings-reset-order", "settings-reset-widths" })
+        {
+            var button = section.GetByTestId(id);
+            // A click before the page is interactive is lost: retry until the reset is applied.
+            for (var attempt = 0; attempt < 20 && await button.IsEnabledAsync(); attempt++)
+            {
+                await button.ClickAsync();
+                await Page.WaitForTimeoutAsync(250);
+            }
+            await Expect(button).ToBeDisabledAsync();
+        }
+    }
+
+    [Test]
     public async Task US3_1_ProjectDropdown_ClosesOnEscape()
     {
         await OpenToolbar();

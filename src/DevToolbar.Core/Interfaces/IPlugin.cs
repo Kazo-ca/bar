@@ -26,6 +26,13 @@ public interface IPlugin
     /// <summary>Returns a RenderFragment to display in the plugin zone.</summary>
     RenderFragment? Render();
 
+    /// <summary>
+    /// How the plugin's module takes room in the toolbar (US3.6). Return
+    /// <see cref="PluginLayout.ResizableWidth"/> to let the user drag its width; right-clicking
+    /// the module then offers "Reset width". Fixed (sized by content) by default.
+    /// </summary>
+    PluginLayout Layout => PluginLayout.Fixed;
+
     /// <summary>Event fired when the plugin's internal state changes and needs re-rendering.</summary>
     event Action? OnStateChanged;
 }

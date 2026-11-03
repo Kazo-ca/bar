@@ -1,0 +1,187 @@
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.Core.Models
+@using DevToolbar.UI.Services
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IWindowRegionService RegionService
+
+@*
+    One toolbar module (US3.6, US3.7). Wraps a zone's content and gives every module the
+    same behaviour:
+    - resizable modules (PluginLayout.Resizable) get a grip on their right edge; dragging it
+      changes the width, which is saved per module;
+    - a right click opens a small menu: "Reset width" (resizable modules), "Move left",
+      "Move right" (inside its zone).
+*@
+<div @ref="_frame" class="module-frame @CssClass @(Layout.Resizable ? "resizable" : "") @(_menuOpen ? "menu-open" : "")"
+     data-module-id="@ModuleId" data-popup-root="@RootName" style="@FrameStyle"
+     @oncontextmenu="OpenMenu" @oncontextmenu:preventDefault="true">
+    @ChildContent
+
+    @if (Layout.Resizable)
+    {
+        <div @ref="_grip" class="module-resize-grip" data-testid="module-resize-grip" role="separator"
+             aria-orientation="vertical" aria-label="@($"Resize {Label}")" aria-valuemin="@Layout.MinWidth"
+             aria-valuemax="@Layout.MaxWidth" aria-valuenow="@Width" tabindex="0" title="Drag to resize — right click to reset"
+             @onkeydown="OnGripKeyDown"></div>
+    }
+
+    @if (_menuOpen)
+    {
+        <div class="module-menu" role="menu" data-testid="module-menu" aria-label="@($"{Label} module")">
+            <div class="module-menu-title">@Label</div>
+            @if (Layout.Resizable)
+            {
+                <button class="module-menu-item" role="menuitem" data-testid="module-reset-width"
+                        disabled="@(SavedWidth == null)" @onclick="ResetWidthAsync">↔ Reset width</button>
+            }
+            <button class="module-menu-item" role="menuitem" data-testid="module-move-left"
+                    disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">◀ Move left</button>
+            <button class="module-menu-item" role="menuitem" data-testid="module-move-right"
+                    disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">Move right ▶</button>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Id used to save the module's width and order (the plugin id for plugins).</summary>
+    [Parameter, EditorRequired] public string ModuleId { get; set; } = string.Empty;
+
+    /// <summary>Name shown in the menu and to screen readers.</summary>
+    [Parameter] public string Label { get; set; } = string.Empty;
+
+    /// <summary>Zone styling (module-git...).</summary>
+    [Parameter] public string? CssClass { get; set; }
+
+    [Parameter] public PluginLayout Layout { get; set; } = PluginLayout.Fixed;
+
+    /// <summary>The module's zone in its current order, used for Move left / right.</summary>
+    [Parameter] public IReadOnlyList<string> Zone { get; set; } = Array.Empty<string>();
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [CascadingParameter] public ToolbarLayoutController? Controller { get; set; }
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    /// <summary>Room (CSS px) the window region needs below the toolbar while the menu is open.</summary>
+    private const int MenuRegionHeight = 160;
+
+    /// <summary>Width change of one arrow key press on the grip.</summary>
+    private const int KeyboardStep = 16;
+
+    private ElementReference _frame;
+    private ElementReference _grip;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ModuleFrame>? _self;
+    private bool _attached;
+    private bool _menuOpen;
+    private PopupDismissService? _dismissSubscribed;
+
+    private string RootName => $"module-{ModuleId}";
+
+    private int? SavedWidth => Controller?.SavedWidth(ModuleId);
+
+    private int Width => Layout.EffectiveWidth(SavedWidth);
+
+    private string? FrameStyle => Layout.Resizable
+        ? $"width: {Width}px; min-width: {Layout.MinWidth}px; max-width: {Layout.MaxWidth}px;"
+        : null;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_dismissSubscribed, Dismiss)) return;
+        if (_dismissSubscribed != null) _dismissSubscribed.DismissRequested -= OnDismissRequested;
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+        _dismissSubscribed = Dismiss;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Layout.Resizable || _attached) return;
+        try
+        {
+            _self ??= DotNetObjectReference.Create(this);
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/DevToolbar.UI/js/module-resize.js");
+            await _module.InvokeVoidAsync("attach", _frame, _grip, _self, Layout.MinWidth, Layout.MaxWidth);
+            _attached = true;
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException)
+        {
+            // Prerendering or a host without JS: the module keeps its saved width.
+        }
+    }
+
+    /// <summary>Called by module-resize.js when the user releases the grip.</summary>
+    [JSInvokable]
+    public async Task OnResized(int width)
+    {
+        if (Controller == null) return;
+        await Controller.SetWidthAsync(ModuleId, Layout, width);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnGripKeyDown(KeyboardEventArgs e)
+    {
+        var step = e.Key switch { "ArrowLeft" => -KeyboardStep, "ArrowRight" => KeyboardStep, _ => 0 };
+        if (step != 0) await OnResized(Width + step);
+    }
+
+    private void OpenMenu(MouseEventArgs e)
+    {
+        if (_menuOpen) return;
+        _menuOpen = true;
+        RegionService.ExpandRegion(MenuRegionHeight);
+    }
+
+    private void CloseMenu()
+    {
+        if (!_menuOpen) return;
+        _menuOpen = false;
+        RegionService.CollapseRegion();
+    }
+
+    private bool CanMove(int offset) => Core.Layout.ToolbarModuleOrder.CanMove(Zone, ModuleId, offset);
+
+    private async Task ResetWidthAsync()
+    {
+        CloseMenu();
+        if (Controller != null) await Controller.ResetWidthAsync(ModuleId);
+    }
+
+    private async Task MoveAsync(int offset)
+    {
+        CloseMenu();
+        if (Controller != null) await Controller.MoveAsync(Zone, ModuleId, offset);
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!_menuOpen || !request.AppliesTo(RootName)) return;
+        _ = InvokeAsync(() =>
+        {
+            CloseMenu();
+            StateHasChanged();
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dismissSubscribed != null) _dismissSubscribed.DismissRequested -= OnDismissRequested;
+        if (_menuOpen) RegionService.CollapseRegion();
+        if (_module != null)
+        {
+            try
+            {
+                if (_attached) await _module.InvokeVoidAsync("detach", _frame);
+                await _module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException or ObjectDisposedException)
+            {
+                // Circuit already gone.
+            }
+        }
+        _self?.Dispose();
+    }
+}

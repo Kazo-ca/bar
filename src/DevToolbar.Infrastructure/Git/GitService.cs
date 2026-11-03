@@ -1,6 +1,7 @@
 namespace DevToolbar.Infrastructure.Git;
 
 using System.Diagnostics;
+using DevToolbar.Core.Git;
 using DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
 using LibGit2Sharp;
@@ -37,6 +38,17 @@ public sealed class GitService : IGitService
 
     public Task<GitStatus> GetStatusAsync(string localPath, CancellationToken cancellationToken = default) =>
         Task.Run(() => ReadStatus(localPath), cancellationToken);
+
+    public async Task<IReadOnlyList<GitWorktree>> GetWorktreesAsync(string localPath, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(localPath, ["worktree", "list", "--porcelain"], cancellationToken);
+        if (!result.Success)
+        {
+            _logger.LogDebug("No worktree list for {Path}: {Error}", localPath, result.Summary);
+            return Array.Empty<GitWorktree>();
+        }
+        return GitWorktreeParser.Parse(result.Output);
+    }
 
     public Task<GitCommandResult> PullAsync(string localPath, CancellationToken cancellationToken = default) =>
         RunAsync(localPath, ["pull"], cancellationToken);

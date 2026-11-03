@@ -136,4 +136,42 @@ public class GitServiceTests
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error, Does.Contain("Could not run git"));
     }
+
+    [Test]
+    public async Task Worktrees_ListsMainThenLinked_FromAnyOfThem()
+    {
+        using var temp = new TempDirectory();
+        var path = InitRepository(Path.Combine(temp.Root, "repo"));
+        var linked = Path.Combine(temp.Root, "repo-hotfix");
+        RunGit(path, "worktree", "add", "-b", "hotfix", linked);
+
+        var fromMain = await new GitService().GetWorktreesAsync(path);
+        var fromLinked = await new GitService().GetWorktreesAsync(linked);
+
+        Assert.That(fromMain, Has.Count.EqualTo(2));
+        Assert.That(fromMain[0].IsMain, Is.True);
+        Assert.That(fromMain[0].Branch, Is.EqualTo("main"));
+        Assert.That(DevToolbar.Core.Configuration.RepositoryPaths.SamePath(fromMain[1].Path, linked), Is.True);
+        Assert.That(fromMain[1].Branch, Is.EqualTo("hotfix"));
+        Assert.That(fromLinked.Select(w => w.Branch), Is.EqualTo(fromMain.Select(w => w.Branch)));
+    }
+
+    [Test]
+    public async Task Worktrees_OfAFolderOutsideRepository_IsEmpty()
+    {
+        using var temp = new TempDirectory();
+
+        Assert.That(await new GitService().GetWorktreesAsync(temp.Root), Is.Empty);
+    }
+
+    private static void RunGit(string directory, params string[] arguments)
+    {
+        var info = new System.Diagnostics.ProcessStartInfo("git") { RedirectStandardError = true, RedirectStandardOutput = true };
+        info.ArgumentList.Add("-C");
+        info.ArgumentList.Add(directory);
+        foreach (var argument in arguments) info.ArgumentList.Add(argument);
+        using var process = System.Diagnostics.Process.Start(info)!;
+        process.WaitForExit();
+        Assert.That(process.ExitCode, Is.EqualTo(0), process.StandardError.ReadToEnd());
+    }
 }
