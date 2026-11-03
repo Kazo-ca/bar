@@ -1,144 +1,105 @@
 # DevToolbar
 
-A modular developer toolbar built with .NET 10 and Blazor, designed to boost productivity by providing quick access to development tools, project switching, and plugin-based extensibility.
+A small always-on-top developer toolbar for Windows, built with .NET 10 and Blazor. It shows the active project and its Git state, quick action buttons, plugin indicators (work items, time tracking, CI/CD) and a settings page.
 
-## Architecture
+This README describes **what the software does today**. The backlog (what it should do, with the status of every user story) is in [doc/Features.md](doc/Features.md), in French.
 
-The solution follows a clean architecture with 5 projects:
+## Current status
+
+| Area | Status |
+|---|---|
+| Windows host (WPF) | Works. Main Windows host. Still to be checked by hand on a PC: click-through, real mouse wheel, plugin configuration window. |
+| Toolbar UI (project switch, actions, menus, settings, time report) | Works in every host. |
+| Process and script actions, Smart Focus | Real in the Windows host. Script output appears when the script ends, not live. |
+| Git plugin | Pull/Push run the real `git` CLI on the configured repositories. The branch shown comes from the configuration, and the clean/dirty indicator is not read from the repository yet. |
+| Work items, time tracking, CI/CD | **Simulated in every host**, including Windows. The UI works on sample data. |
+| Storage | Configuration is stored as JSON in `%APPDATA%\DevToolbar`. Time entries and plugin state are not persisted yet. |
+| MAUI host | Frozen. Kept in the solution, no new features. |
+
+## Projects
 
 | Project | Type | Role |
-|---------|------|------|
-| **DevToolbar.Core** | Class Library | Interfaces, models, events (no UI dependencies) |
-| **DevToolbar.UI** | Razor Class Library | Blazor components, layouts, pages, CSS |
-| **DevToolbar.Plugins** | Class Library | Plugin implementations (Git, Work Items, Time Tracker, CI/CD) |
-| **DevToolbar.Web** | Blazor Web App | Test host with mock services for browser testing |
-| **DevToolbar.Maui** | MAUI Blazor Hybrid | Desktop app (Windows), original host |
-| **DevToolbar.Windows** | WPF Blazor Hybrid | Windows desktop host with click-through transparent toolbar (see below) |
-| **DevToolbar.Tests.E2E** | NUnit + Playwright | Automated E2E tests with screenshot capture |
+|---|---|---|
+| `src/DevToolbar.Core` | Class library | Interfaces, models, events. No UI or native dependency. |
+| `src/DevToolbar.UI` | Razor class library | Blazor components, layout, pages, CSS, JS. |
+| `src/DevToolbar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. |
+| `src/DevToolbar.Windows` | WPF + Blazor Hybrid | **Main Windows host**: transparent, click-through toolbar window. |
+| `src/DevToolbar.Web` | Blazor Web App | Test host with simulated services, used by the Playwright tests. |
+| `src/DevToolbar.Maui` | MAUI Blazor Hybrid | Original Windows host, frozen. |
+| `tests/DevToolbar.Tests.E2E` | NUnit + Playwright | UI tests against the Web host, and screenshot capture. |
+| `tests/DevToolbar.Tests.Unit` | NUnit | Unit tests (Git plugin, host sizing). |
+
+All projects target .NET 10. `spikes/window-feasibility/` keeps the experiment that led to the WPF host.
 
 ## Screenshots
 
-### Main Toolbar
-The toolbar displays all active plugins and quick action buttons for the selected project.
+Captured from the Web host by `ScreenshotTests`, so plugin data is sample data.
 
-![Main Toolbar](doc/screenshots/01-main-toolbar.png)
+| | |
+|---|---|
+| ![Main toolbar](doc/screenshots/01-main-toolbar.png) Main toolbar | ![Pill toolbar](doc/screenshots/11-pill-toolbar-preview.png) Pill layout |
+| ![Git plugin](doc/screenshots/02-git-plugin.png) Git plugin | ![Action deck](doc/screenshots/03-action-deck.png) Quick actions |
+| ![Time report](doc/screenshots/04-time-report-modal.png) Time report | ![Time report by project](doc/screenshots/09-time-report-by-project.png) Time report grouped by project |
+| ![Time report by description](doc/screenshots/12-time-report-by-description.png) Time report grouped by description | ![Terminal output](doc/screenshots/05-terminal-output.png) Script output |
+| ![Settings](doc/screenshots/06-settings-page.png) Settings | ![Settings configuration](doc/screenshots/10-settings-config-hierarchy.png) Settings, configuration section |
+| ![Theme editor](doc/screenshots/13-settings-theme-editor.png) Settings, theme editor | ![Project switch](doc/screenshots/07-project-switch-devops.png) Switching project changes plugins, actions and accent color |
 
-### Git Tools Plugin
-Branch display with clean/dirty status and Pull/Push quick sync buttons.
+The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-desing-exemple.png).
 
-![Git Plugin](doc/screenshots/02-git-plugin.png)
+## Features available today
 
-### Work Items Plugin
-Active work item display with search/select dropdown.
+- **Project switching**: the left pill lists projects; switching updates plugins, actions and accent color.
+- **Git**: several repositories per project, Pull/Push on the selected one, repositories managed in the plugin configuration window.
+- **Quick actions**: launch a program, focus its window if already open (Smart Focus), or run a `pwsh`/`cmd`/`python` script and see its output.
+- **Plugin indicators**: work item, timer and CI/CD status in the system group, each with its own popover (sample data).
+- **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export (sample data).
+- **Theme**: accent color, font and custom CSS per project.
+- **Window placement** (Windows host): docked top, docked bottom, floating or overlay, target monitor, drag handle.
+- **Tray icon** (Windows host): left click shows or hides the toolbar; right click offers Settings and Quit. Closing the toolbar window quits the app.
+- **Popups** close on outside click, on `Esc` (focus returns to the trigger) and when another application is activated.
 
-![Work Items Plugin](doc/screenshots/03-workitems-plugin.png)
-
-### Work Items Search
-Live search with dropdown filtering to find and select work items.
-
-![Work Items Search](doc/screenshots/04-workitems-search.png)
-
-### Time Tracker Plugin
-Start/Stop timer with today's total and idle detection (15 min timeout).
-
-![Time Tracker](doc/screenshots/05-time-tracker-plugin.png)
-
-### CI/CD Status Plugin
-Pipeline status with unread badge and mark-as-read functionality.
-
-![CI/CD Status](doc/screenshots/06-cicd-plugin.png)
-
-### Action Deck
-Configurable quick action buttons for launching processes and scripts.
-
-![Action Deck](doc/screenshots/07-action-deck.png)
-
-### Time Report Modal
-Day/week/month filtering with CSV export.
-
-![Time Report](doc/screenshots/08-time-report-modal.png)
-
-### Terminal Output
-Script execution with real-time terminal output display.
-
-![Terminal Output](doc/screenshots/09-terminal-output.png)
-
-### Settings Page
-Project configuration viewer with plugin toggle switches.
-
-![Settings Page](doc/screenshots/10-settings-page.png)
-
-### Project Switching — DevOps Pipeline
-Switching projects filters visible plugins and updates actions/theme dynamically.
-
-![DevOps Pipeline](doc/screenshots/11-project-switch-devops.png)
-
-### Project Switching — FrontEnd App
-Each project can have different enabled plugins and action buttons.
-
-![FrontEnd App](doc/screenshots/12-project-switch-frontend.png)
-
-## Features
-
-- **Plugin System** — Extensible architecture with `IPlugin` interface
-- **Project Switching** — Dynamic context switching with per-project plugin/action/theme configuration
-- **Git Tools** — Branch status, Pull/Push quick sync
-- **Work Items** — Active item display, dropdown search/select (TFS/GitHub)
-- **Time Tracker** — Start/Stop timer, idle detection, today's total
-- **Time Reports** — Day/week/month filtering, CSV export
-- **CI/CD Status** — Pipeline monitoring, unread badge, mark-as-read
-- **Quick Actions** — Process launch, Smart Focus (focus-or-launch), script execution
-- **Terminal Output** — Script execution with real-time output modal
-- **Dynamic Theming** — Per-project accent colors via CSS variables
-- **Toast Notifications** — Action feedback with auto-dismiss
-- **Settings Page** — Project overview, plugin toggles, action configuration
-
-## Getting Started
+## Getting started
 
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/)
-- PowerShell (for Playwright browser installation)
+- Windows with the WebView2 runtime, for the Windows host
+- PowerShell, to install the Playwright browser
 
 ### Build
 ```bash
 dotnet build DevToolbar.slnx
 ```
+The MAUI and Windows projects only build on Windows (or on Linux with `-p:EnableWindowsTargeting=true` for `DevToolbar.Windows`).
 
-### Run Web Test Host
-```bash
-dotnet run --project src/DevToolbar.Web
-```
-Then open `http://localhost:5280` in your browser.
-
-### Run the Windows (WPF) host
-Requires Windows, the .NET 10 SDK and the WebView2 runtime.
+### Run the Windows host
 ```powershell
 dotnet run --project src/DevToolbar.Windows
 ```
-The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF
-`BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through,
-so clicks and the mouse wheel reach the application under the empty areas around the
-pill and menus. To keep that true, `wwwroot/css/wpf-host.css` removes every outer
-`box-shadow` (a shadow is semi-transparent and would capture input). Popups close on an
-outside click, on `Esc` (focus returns to the trigger) and when another application is
-activated, without any invisible overlay. Background: `spikes/window-feasibility/`.
+The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF `BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through, so clicks and the mouse wheel reach the application under the empty areas around the pill and its menus. To keep that true, `src/DevToolbar.Windows/wwwroot/css/wpf-host.css` removes every outer `box-shadow`. Startup and crash diagnostics go to `%LOCALAPPDATA%\DevToolbar\logs\windows-host.log`.
 
-### Run E2E Tests
+### Run the Web test host
 ```bash
-# Install Playwright browsers (first time only, path may vary by build configuration)
+dotnet run --project src/DevToolbar.Web
+```
+Then open `http://localhost:5028`. All services are simulated; nothing is launched on your machine.
+
+### Run the tests
+```bash
+# First time: install the Playwright browser (the path depends on the build configuration)
 dotnet build tests/DevToolbar.Tests.E2E
 pwsh tests/DevToolbar.Tests.E2E/bin/Debug/net10.0/playwright.ps1 install chromium
 
-# Run tests
+dotnet test tests/DevToolbar.Tests.Unit
 dotnet test tests/DevToolbar.Tests.E2E
 ```
 
-### Capture Documentation Screenshots
+### Refresh the screenshots
 ```bash
 dotnet test tests/DevToolbar.Tests.E2E --filter "FullyQualifiedName~ScreenshotTests"
 ```
-Screenshots are saved to `doc/screenshots/`.
+Screenshots are written to `doc/screenshots/`.
 
 ## Documentation
 
-- [Features & User Stories](doc/Features.md) — Detailed feature specifications
+- [doc/Features.md](doc/Features.md): backlog, decisions, open questions and status of every user story (French).
+- [spikes/window-feasibility/INTEGRATION.md](spikes/window-feasibility/INTEGRATION.md): why the Windows host is WPF, and the manual checks still to run on a PC (French).
