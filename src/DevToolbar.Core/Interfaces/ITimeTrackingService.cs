@@ -3,7 +3,8 @@ namespace DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
 
 /// <summary>
-/// Service for tracking time entries.
+/// Time tracking (US5.3) and the work day (US5.5): timer entries per project and work item,
+/// absences detected from inactivity or session lock, first activity and last lock of the day.
 /// </summary>
 public interface ITimeTrackingService
 {
@@ -13,27 +14,49 @@ public interface ITimeTrackingService
     /// <summary>Stop the current active entry.</summary>
     TimeEntry? Stop();
 
-    /// <summary>Get the currently active time entry, if any.</summary>
+    /// <summary>Get the currently active time entry, if any. Null while the timer is frozen by an absence.</summary>
     TimeEntry? GetActive();
 
-    /// <summary>Get time entries for a project.</summary>
-    Task<IReadOnlyList<TimeEntry>> GetEntriesAsync(string projectId);
+    /// <summary>
+    /// Entries that started at or after <paramref name="from"/>, for one project or all of them.
+    /// Counted absences (meeting, worked, other) are included with <see cref="TimeEntry.AbsenceKind"/> set.
+    /// </summary>
+    Task<IReadOnlyList<TimeEntry>> GetEntriesAsync(DateTime from, string? projectId = null);
 
-    /// <summary>Get total tracked time for a project today.</summary>
+    /// <summary>Get total tracked time for a project today, counted absences included.</summary>
     TimeSpan GetTodayTotal(string projectId);
 
     /// <summary>Event fired when tracking state changes.</summary>
     event Action? OnTrackingChanged;
 
-    /// <summary>Get the idle timeout duration after which tracking pauses automatically (US5.3).</summary>
+    /// <summary>Inactivity delay after which the timer freezes (global rule, or the repository's).</summary>
     TimeSpan IdleTimeout { get; }
 
-    /// <summary>Report user activity (resets the idle timer).</summary>
+    /// <summary>Report user activity in the toolbar (resets the idle timer, ends an idle absence).</summary>
     void ReportActivity();
 
-    /// <summary>Whether the tracker is currently paused due to inactivity.</summary>
+    /// <summary>The user is away (idle or locked) and the timer is frozen.</summary>
     bool IsIdlePaused { get; }
 
-    /// <summary>Event fired when the tracker becomes idle (US5.3 - idle notification).</summary>
+    /// <summary>Event fired when the user goes away (idle or session lock).</summary>
     event Action? OnIdleDetected;
+
+    /// <summary>Since when the user is away; null when present (US5.3).</summary>
+    DateTime? AwaySince => null;
+
+    /// <summary>The work day being recorded (first activity, last lock, entries, absences) (US5.5).</summary>
+    WorkDay? Today => null;
+
+    /// <summary>Absence segments of today not yet confirmed or labelled by the user.</summary>
+    IReadOnlyList<Absence> PendingAbsences => [];
+
+    /// <summary>Label an absence segment (meeting, lunch, worked, other with a text, removed).</summary>
+    Task ClassifyAbsenceAsync(string absenceId, AbsenceKind kind, string? label = null) => Task.CompletedTask;
+
+    /// <summary>Recorded work days between two dates (inclusive), for reports (US5.4).</summary>
+    Task<IReadOnlyList<WorkDay>> GetWorkDaysAsync(DateOnly from, DateOnly to) =>
+        Task.FromResult<IReadOnlyList<WorkDay>>([]);
+
+    /// <summary>The user is back: the segments of the absence that just ended (US5.3).</summary>
+    event Action<IReadOnlyList<Absence>>? OnAbsenceEnded { add { } remove { } }
 }

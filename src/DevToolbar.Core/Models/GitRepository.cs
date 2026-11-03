@@ -31,4 +31,8 @@ public sealed record GitRepository
     /// <summary>GitHub Actions follow-up of this repository (US7.1); null when not followed.</summary>
     [JsonPropertyName("github")]
     public GitHubTracking? GitHub { get; init; }
+
+    /// <summary>Time tracking rules for this repository; null values keep the global ones (US5.3).</summary>
+    [JsonPropertyName("timeTracking")]
+    public TimeTrackingOverrides? TimeTracking { get; init; }
 }

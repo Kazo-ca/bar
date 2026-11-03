@@ -62,9 +62,9 @@ public class MockTimeTrackingService : ITimeTrackingService
 
     public TimeEntry? GetActive() => _activeEntry;
 
-    public Task<IReadOnlyList<TimeEntry>> GetEntriesAsync(string projectId) =>
+    public Task<IReadOnlyList<TimeEntry>> GetEntriesAsync(DateTime from, string? projectId = null) =>
         Task.FromResult<IReadOnlyList<TimeEntry>>(
-            _entries.Where(e => e.ProjectId == projectId).ToList().AsReadOnly());
+            _entries.Where(e => e.StartTime >= from && (projectId == null || e.ProjectId == projectId)).ToList().AsReadOnly());
 
     public TimeSpan GetTodayTotal(string projectId)
     {

@@ -14,8 +14,8 @@ This README describes **what the software does today**. The backlog (what it sho
 | Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). |
 | Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token. Simulated in the Web host. Not yet checked with real tokens on a PC. |
 | CI/CD (GitHub Actions) | Real in the Windows host: workflow runs of each tracked repository are polled in the background (every 60 s by default) and the read state is saved. Agent sessions are not tracked yet (no public GitHub API). Simulated in the Web host. |
-| Time tracking | **Simulated in every host**, including Windows. The UI works on sample data. |
-| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. A JSON `IStorageService` is available for plugin data; GitHub Actions read states use it; time entries do not yet. |
+| Time tracking and work day | Real in the Windows host: the timer freezes on session lock, sleep or keyboard/mouse inactivity (15 min by default, global or per repository), and on return the absence is shown to be labelled (meeting, lunch, worked, other, removed). The lunch window and a daily meeting are recognised automatically. First activity and last lock of each day are recorded. Data in `%APPDATA%\DevToolbar\data\time-yyyy-MM.json`. The Web host uses a simulated sample day. |
+| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. Plugin data (time entries, GitHub Actions read states) goes through a JSON `IStorageService` in `data\`. |
 | Access tokens | Stored outside the configuration, in Windows Credential Manager or a DPAPI-encrypted `secrets.json`, chosen in Settings. The work items and GitHub providers read their token from there. |
 | MAUI host | Frozen. Kept in the solution, no new features. |
 
@@ -60,8 +60,9 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **GitHub Actions**: in the GitHub plugin settings, turn on Actions tracking for a repository. The pill shows the overall state and the number of unread finished runs; opening a run marks it as read.
 - **Quick actions**: launch a program, or focus its window if already open (Smart Focus; when several windows match, a menu lets you pick one). Run a `pwsh`/`cmd`/`python` script and watch its output live, with a Stop button.
 - **Debug tools**: the 🧪 test dropdown only appears in Debug builds.
-- **Plugin indicators**: work item, timer and CI/CD status in the system group, each with its own popover (the timer still uses sample data).
-- **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export (sample data).
+- **Plugin indicators**: work item and CI/CD status in the system group, each with its own popover.
+- **Timer** (Windows host): Start/Stop on the active project and work item; paused while you are away, then resumed. The ⏱ panel shows when you arrived, your last lock, and the absences to label; a badge on the timer counts them. Rules in Settings → *Time tracking*.
+- **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export, plus each work day with its arrival, last lock and absences.
 - **Theme**: accent color, font and custom CSS per project.
 - **Window placement** (Windows host): docked top, docked bottom, floating or overlay, target monitor, drag handle.
 - **Tray icon** (Windows host): left click shows or hides the toolbar; right click offers Settings and Quit. Closing the toolbar window quits the app.

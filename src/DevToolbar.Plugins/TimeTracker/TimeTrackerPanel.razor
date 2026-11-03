@@ -1,0 +1,162 @@
+@using DevToolbar.Core.Interfaces
+@inject ITimeTrackingService TimeService
+
+@*
+    Time Tracker panel (US5.3, US5.5): Start/Stop, linked work item, work day (arrival, last lock)
+    and the absences to label on return (meeting, lunch, worked, other, removed).
+*@
+@{
+    var active = TimeService.GetActive();
+    var isRunning = active != null && active.ProjectId == Plugin.CurrentProjectId;
+    var isAway = TimeService.IsIdlePaused;
+    var today = TimeService.Today;
+    var pending = TimeService.PendingAbsences;
+}
+<div class="plugin-timetracker">
+    <div class="timer-controls">
+        <button class="timer-btn @(isRunning ? "timer-btn-stop" : "timer-btn-start")" @onclick="Plugin.ToggleTimer">
+            @(isRunning ? "⏹ Stop" : "▶ Start")
+        </button>
+        @if (isAway)
+        {
+            <span class="timer-status idle">💤 Away</span>
+        }
+        else
+        {
+            <span class="timer-status @(isRunning ? "running" : "stopped")">@(isRunning ? "⏺ Recording" : "⏸ Stopped")</span>
+        }
+    </div>
+
+    <div class="timer-workitem">
+        @if (!string.IsNullOrEmpty(Plugin.ActiveWorkItemId))
+        {
+            <span class="timer-workitem-label">📋</span>
+            <span class="timer-workitem-id">#@Plugin.ActiveWorkItemId</span>
+            @if (!string.IsNullOrEmpty(Plugin.ActiveWorkItemTitle))
+            {
+                <span class="timer-workitem-title">@Plugin.ActiveWorkItemTitle</span>
+            }
+        }
+        else
+        {
+            <span class="timer-workitem-none">No work item linked</span>
+        }
+    </div>
+
+    <div class="timer-display">
+        <span class="timer-duration">@(isRunning ? TimeFormat.Clock(active!.Duration) : "00:00:00")</span>
+    </div>
+
+    <div class="timer-idle-info">
+        <span class="timer-idle-label">Idle timeout: @((int)TimeService.IdleTimeout.TotalMinutes) min</span>
+    </div>
+
+    <div class="timer-today">
+        <span class="timer-today-label">Today:</span>
+        <span class="timer-today-value">@TimeFormat.Clock(TimeService.GetTodayTotal(Plugin.CurrentProjectId))</span>
+    </div>
+
+    @if (today != null)
+    {
+        <div class="timer-workday" data-testid="workday">
+            <span class="timer-workday-item" title="First activity of the day (session opened or unlocked)">
+                ☀ Arrived <strong data-testid="workday-arrival">@TimeFormat.Time(today.FirstActivity)</strong>
+            </span>
+            <span class="timer-workday-item" title="Last time the session was locked or the toolbar closed">
+                🔒 Last lock <strong data-testid="workday-last-lock">@TimeFormat.Time(today.LastLock)</strong>
+            </span>
+            @if (TimeService.AwaySince is { } since)
+            {
+                <span class="timer-workday-item" data-testid="workday-away">💤 Away since @since.ToString("HH:mm")</span>
+            }
+        </div>
+    }
+
+    @if (pending.Count > 0)
+    {
+        <div class="timer-absences" data-testid="absence-review">
+            @foreach (var group in pending.GroupBy(a => a.GroupId))
+            {
+                var first = group.Min(a => a.Start);
+                var last = group.Max(a => a.End);
+                <div class="timer-absence-group">
+                    <div class="timer-absence-title">
+                        You were away <strong>@TimeFormat.Short(last - first)</strong> (@first.ToString("HH:mm")–@last.ToString("HH:mm"))
+                    </div>
+                    @foreach (var segment in group.OrderBy(a => a.Start))
+                    {
+                        var edit = EditFor(segment);
+                        <div class="timer-absence-row" data-testid="absence-row" data-kind="@segment.Kind">
+                            <span class="timer-absence-range">@segment.Start.ToString("HH:mm")–@segment.End.ToString("HH:mm")</span>
+                            <span class="timer-absence-duration">@TimeFormat.Short(segment.Duration)</span>
+                            <select class="timer-absence-kind" aria-label="What was this absence?"
+                                    value="@edit.Kind" @onchange="e => edit.Kind = Enum.Parse<AbsenceKind>(e.Value?.ToString() ?? nameof(AbsenceKind.Unclassified))">
+                                @if (segment.Kind == AbsenceKind.Unclassified)
+                                {
+                                    <option value="@AbsenceKind.Unclassified">To label…</option>
+                                }
+                                <option value="@AbsenceKind.Meeting">Meeting</option>
+                                <option value="@AbsenceKind.Lunch">Lunch</option>
+                                <option value="@AbsenceKind.Worked">I was working</option>
+                                <option value="@AbsenceKind.Other">Other…</option>
+                                <option value="@AbsenceKind.Removed">Remove (personal)</option>
+                            </select>
+                            @if (edit.Kind is AbsenceKind.Other or AbsenceKind.Meeting)
+                            {
+                                <input class="timer-absence-label" placeholder="@(edit.Kind == AbsenceKind.Meeting ? "Meeting name" : "What was it?")"
+                                       aria-label="Label" maxlength="80" value="@edit.Label" @oninput="e => edit.Label = e.Value?.ToString()" />
+                            }
+                            @if (segment.Kind == AbsenceKind.Lunch)
+                            {
+                                <button class="timer-absence-worked" title="Count this hour as work"
+                                        @onclick="() => SaveAsync(segment.Id, AbsenceKind.Worked, null)">I worked through lunch</button>
+                            }
+                            <button class="timer-absence-save" title="Confirm" disabled="@(edit.Kind == AbsenceKind.Unclassified)"
+                                    @onclick="() => SaveAsync(segment.Id, edit.Kind, edit.Label)">✓</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public TimeTrackerPlugin Plugin { get; set; } = default!;
+
+    private sealed class Edit
+    {
+        public AbsenceKind Kind { get; set; }
+        public string? Label { get; set; }
+    }
+
+    private readonly Dictionary<string, Edit> _edits = new();
+
+    private Edit EditFor(Absence absence)
+    {
+        if (!_edits.TryGetValue(absence.Id, out var edit))
+        {
+            edit = new Edit { Kind = absence.Kind, Label = absence.Label };
+            _edits[absence.Id] = edit;
+        }
+        return edit;
+    }
+
+    private async Task SaveAsync(string id, AbsenceKind kind, string? label)
+    {
+        if (kind == AbsenceKind.Unclassified)
+            return;
+        try
+        {
+            await TimeService.ClassifyAbsenceAsync(id, kind, label);
+            _edits.Remove(id);
+        }
+        catch (KeyNotFoundException)
+        {
+            // The day changed meanwhile: the absence is no longer today's.
+            _edits.Remove(id);
+        }
+        Plugin.NotifyChanged();
+    }
+}

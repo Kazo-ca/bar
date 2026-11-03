@@ -703,9 +703,8 @@ public class ToolbarUiTests : PageTest
         await groupBySelect.SelectOptionAsync("action");
 
         // Should show grouped entries with 🏷 tag headers
-        await Expect(Page.Locator(".time-report-group-key").First).ToBeVisibleAsync(new() { Timeout = 5000 });
-        var firstGroupKey = await Page.Locator(".time-report-group-key").First.TextContentAsync();
-        Assert.That(firstGroupKey, Does.Contain("🏷"), "Description groups should have 🏷 icon prefix");
+        // Wait for the re-render: reading the text at once can still see the previous grouping's header.
+        await Expect(Page.Locator(".time-report-group-key").First).ToContainTextAsync("🏷", new() { Timeout = 5000 });
     }
 
     // ============================================================================
