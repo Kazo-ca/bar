@@ -51,6 +51,10 @@ public class GlobalSettings
     [JsonPropertyName("secretStore")]
     public SecretStoreKind SecretStore { get; set; } = SecretStoreKind.CredentialManager;
 
+    /// <summary>How often GitHub Actions runs are polled, in seconds (US7.1). Minimum 30.</summary>
+    [JsonPropertyName("ciPollingIntervalSeconds")]
+    public int CiPollingIntervalSeconds { get; set; } = 60;
+
     /// <summary>
     /// Inactivity, lunch and daily meeting rules (US5.3, US5.5). A repository can override them
     /// (<see cref="GitRepository.TimeTracking"/>).

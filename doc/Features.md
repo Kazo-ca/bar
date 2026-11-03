@@ -73,17 +73,17 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US4.2 | Smart Focus | 🟡 |
 | US4.3 | Bouton script et sortie terminal | 🟡 |
 | US5.1 | Plugin Git | ✅ 🔍 |
-| US5.2 | Plugin Work Items | 🎭 |
+| US5.2 | Plugin Work Items | 🟡 🔍 |
 | US5.3 | Suivi du temps et inactivité | ✅ 🔍 |
 | US5.4 | Rapports de temps | ✅ 🔍 |
 | US5.5 | Journée de travail (arrivée, dîner, réunion) | ✅ 🔍 |
 | US6.1 | Tests Playwright sur l'hôte Web | ✅ |
 | US6.2 | Intégration continue | ⬜ |
-| US7.1 | Suivi GitHub en arrière-plan | 🎭 |
-| US7.2 | Consultation et « marquer comme lu » | 🎭 |
+| US7.1 | Suivi GitHub en arrière-plan | 🟡 🔍 |
+| US7.2 | Consultation et « marquer comme lu » | ✅ 🔍 |
 | US8.1 | Fenêtre native | ✅ 🔍 |
 | US8.2 | Zone de notification | ✅ 🔍 |
-| US8.3 | Stockage local JSON | 🟡 🔍 |
+| US8.3 | Stockage local JSON | ✅ 🔍 |
 | US8.4 | Position et ancrage de la toolbar | ✅ 🔍 |
 | US8.5 | Barre des tâches et fenêtres actives | 🟡 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
@@ -216,17 +216,17 @@ public interface IProcessService
 - [x] Un seul fichier contient tout : `settings` (réglages globaux) et `projects`. L'ancien `global-settings.json` est fusionné au premier lancement puis déplacé dans `backups\`.
 - [x] Les surcharges par `.devtoolbar.json` dans le dossier du projet sont **retirées** de l'hôte WPF (l'hôte MAUI gelé garde son ancien code).
 - [x] Chaque dépôt déclare son dossier local (`localPath`).
-- [ ] Chaque dépôt déclare son fournisseur de work items et son suivi GitHub (avec les fournisseurs réels, US5.2 et US7.1).
+- [x] Chaque dépôt déclare son fournisseur de work items (`workItems`) et son suivi GitHub (`github`), avec une `secretRef` seulement (US5.2 et US7.1).
 - [x] Aucune donnée sensible n'est écrite dans ce fichier : les jetons vont dans le magasin de secrets (US2.4).
 - [x] Paramètres affiche l'emplacement du fichier (section « Configuration »).
 
-Forme actuelle (schéma 1). Les blocs `workItems`, `github` et `timeTracking` d'un dépôt arriveront avec les fournisseurs et le suivi du temps :
+Forme actuelle (schéma 1). Les blocs `workItems` et `github` d'un dépôt sont lus par les fournisseurs, `timeTracking` par le suivi du temps (US5.3). Ajouter ces blocs optionnels ne change pas la version du schéma :
 
 ```json
 {
   "schemaVersion": 1,
   "activeProjectId": "alpha",
-  "settings": { "toolbarBehavior": 2, "targetMonitorIndex": 0, "toolbarHeight": 56, "secretStore": "CredentialManager" },
+  "settings": { "toolbarBehavior": 2, "targetMonitorIndex": 0, "toolbarHeight": 56, "secretStore": "CredentialManager", "ciPollingIntervalSeconds": 60 },
   "projects": [
     {
       "id": "alpha",
@@ -241,7 +241,7 @@ Forme actuelle (schéma 1). Les blocs `workItems`, `github` et `timeTracking` d'
           "remoteUrl": "https://github.com/contoso/alpha-api.git",
           "defaultBranch": "main",
           "workItems": { "provider": "AzureDevOps", "organization": "contoso", "project": "Alpha", "secretRef": "alpha-devops-pat" },
-          "github": { "repository": "contoso/alpha-api", "trackActions": true, "trackAgentSessions": false, "secretRef": "alpha-github-pat" },
+          "github": { "repository": "contoso/alpha-api", "trackActions": true, "secretRef": "alpha-github-pat" },
           "timeTracking": { "idleMinutes": 10 }
         }
       ]
@@ -258,10 +258,10 @@ Forme actuelle (schéma 1). Les blocs `workItems`, `github` et `timeTracking` d'
 **Afin qu'** une copie de mon fichier de configuration ne donne pas accès à mes comptes.
 
 **Critères d'acceptation :**
-- [x] Les secrets sont rangés sous une référence (`secretRef`) via `ISecretStore` ; la configuration ne garde que la référence. *(Les fournisseurs qui écriront ces références arrivent avec US5.2 et US7.1.)*
+- [x] Les secrets sont rangés sous une référence (`secretRef`) via `ISecretStore` ; la configuration ne garde que la référence. Les fournisseurs (US5.2, US7.1) proposent une référence par dépôt et par service.
 - [x] L'utilisateur choisit où sont stockés ses secrets dans Paramètres (« Access tokens ») : Gestionnaire d'identification Windows (`DevToolbar:<ref>`), ou `%APPDATA%\DevToolbar\secrets.json` chiffré par DPAPI pour son compte Windows. Changer de choix déplace les secrets existants.
 - [ ] Chaque fournisseur utilise la méthode d'authentification qu'il recommande (OAuth pour GitHub et Azure DevOps) ; le PAT reste possible pour démarrer.
-- [ ] Les jetons saisis dans Paramètres ne sont jamais réaffichés en clair (champ de saisie à venir avec les fournisseurs).
+- [x] Les jetons saisis dans les réglages des plugins ne sont jamais réaffichés : le champ (`SecretField`) affiche « ●●●●●●●● saved » avec remplacer / supprimer.
 - [ ] Recette sur PC : écriture, lecture et suppression dans le Gestionnaire d'identification et avec DPAPI (non testables dans le conteneur Linux).
 
 ## US2.5 Version de schéma et migration
@@ -403,7 +403,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Pull et Push (CLI `git`, sans invite de mot de passe, délai de 2 minutes) affichent leur résultat réel (succès, conflit, erreur de Git).
 
 ## US5.2 Plugin Work Items
-**État :** 🎭 Simulé (`MockWorkItemProvider` dans tous les hôtes)
+**État :** 🟡 Partiel, 🔍 à recetter sur PC (réel dans l'hôte WPF, simulé dans l'hôte Web)
 
 **En tant que** développeur
 **Je veux** voir le ticket sur lequel je travaille et en changer
@@ -412,11 +412,13 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Critères d'acceptation :**
 - [x] Affichage « #ID - Titre », recherche et sélection d'un autre ticket.
 - [x] Interface `IWorkItemProvider` commune aux fournisseurs.
-- [ ] Fournisseur **Azure DevOps (cloud)**.
-- [ ] Fournisseur **GitHub Issues**.
-- [ ] Authentification recommandée par le fournisseur (OAuth), PAT possible pour démarrer (voir US2.4).
-- [ ] Le fournisseur se configure **par dépôt**.
-- [ ] Lien cliquable vers le ticket sur le web.
+- [x] Fournisseur **Azure DevOps (cloud)** : requête WIQL (tickets ouverts qui me sont assignés, ou recherche par titre / numéro), API REST 7.1 (`AzureDevOpsWorkItemsClient`).
+- [x] Fournisseur **GitHub Issues** : tickets ouverts récents, recherche par titre / numéro, les PR sont exclues (`GitHubIssuesClient`).
+- [x] PAT pour démarrer, rangé dans le magasin de secrets (US2.4). Erreurs lisibles (jeton refusé, projet introuvable) affichées dans le plugin.
+- [ ] Authentification recommandée par le fournisseur (OAuth).
+- [x] Le fournisseur se configure **par dépôt** dans la fenêtre de configuration du plugin Work Items (le premier dépôt configuré du projet est utilisé).
+- [x] Lien cliquable vers le ticket sur le web.
+- [ ] Recette sur PC avec un vrai PAT Azure DevOps et GitHub.
 
 ## US5.3 Suivi du temps et inactivité
 **État :** ✅ Réel dans l'hôte WPF (`TimeTrackingService`, `src/DevToolbar.Infrastructure/TimeTracking/`), 🔍 à recetter sur PC. L'hôte Web garde un service simulé avec une journée d'exemple.
@@ -491,7 +493,7 @@ Règles dans `config.json` (ajout compatible avec le schéma 1, les valeurs abse
 - [x] `DevToolbar.Web` utilise uniquement des services simulés (aucun processus réel n'est lancé).
 - [x] `DevToolbar.Tests.E2E` démarre l'hôte Web et vérifie chaque US visible (`FeatureSpecTests`, `ToolbarUiTests`, `PluginSettingsTests`).
 - [x] `ScreenshotTests` régénère les captures de `doc/screenshots/`.
-- [x] `DevToolbar.Tests.Unit` couvre le plugin Git, la négociation de taille de l'hôte, la configuration et ses migrations, le stockage JSON, Git réel (dépôts temporaires) et les secrets.
+- [x] `DevToolbar.Tests.Unit` couvre le plugin Git, la négociation de taille de l'hôte, la configuration et ses migrations, le stockage JSON, Git réel (dépôts temporaires) les secrets, et les fournisseurs (réponses HTTP simulées).
 
 ## US6.2 Intégration continue
 **État :** ⬜ À faire, obligatoire pour la version finale
@@ -506,7 +508,7 @@ Règles dans `config.json` (ajout compatible avec le schéma 1, les valeurs abse
 Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux.
 
 ## US7.1 Suivi en arrière-plan
-**État :** 🎭 Simulé (`MockCiCdService` dans tous les hôtes)
+**État :** 🟡 Partiel, 🔍 à recetter sur PC (Actions réel dans l'hôte WPF, simulé dans l'hôte Web)
 
 **En tant que** développeur
 **Je veux** que la toolbar interroge GitHub pour mes dépôts
@@ -515,16 +517,17 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 **Critères d'acceptation :**
 - [x] Icône d'état global (en cours, succès, échec) dans la pilule.
 - [x] Badge du nombre de résultats terminés non lus.
-- [ ] Interrogation réelle de l'API GitHub (Octokit) en arrière-plan, intervalle configurable.
-- [ ] Choix par dépôt : workflows Actions, sessions d'agents, ou les deux.
+- [x] Interrogation réelle de l'API REST GitHub en arrière-plan (`GitHubActionsService`, sans Octokit), toutes les `ciPollingIntervalSeconds` (60 s par défaut, 30 s minimum ; réglable dans `config.json`, pas encore dans Paramètres).
+- [x] Suivi des workflows Actions activable par dépôt (fenêtre de configuration du plugin GitHub).
+- [ ] Sessions d'agents : en attente d'une API GitHub publique pour les lister.
 
 ## US7.2 Consultation et « marquer comme lu »
-**État :** 🎭 Simulé
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **Critères d'acceptation :**
 - [x] Un clic sur l'icône ouvre la liste des dernières exécutions.
 - [x] Un clic sur une exécution l'ouvre dans le navigateur et la marque comme lue.
-- [ ] L'état « lu » est enregistré localement par dépôt (voir US8.3).
+- [x] L'état « lu » est enregistré localement par projet (`data/github-actions.json`, voir US8.3). Au premier lancement, les exécutions déjà terminées sont considérées comme lues.
 
 ---
 
@@ -548,12 +551,12 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 - [x] Fermer la fenêtre de la toolbar quitte l'application.
 
 ## US8.3 Stockage local JSON
-**État :** 🟡 Partiel, 🔍 à recetter sur PC
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **Critères d'acceptation :**
 - [x] Configuration et paramètres en JSON dans `%APPDATA%\DevToolbar`.
 - [x] Entrées de temps et absences qualifiées en JSON dans le même dossier, avec `schemaVersion` (voir US2.5) : un fichier par mois `data\time-yyyy-MM.json`, une valeur par jour (`yyyy-MM-dd` : arrivée, dernier verrouillage, entrées, absences), et `data\time-tracking.json` pour le dernier signe de vie.
-- [ ] États « lu » du suivi GitHub (quand US7.1 sera réel).
+- [x] États « lu » du suivi GitHub : `data\github-actions.json` (voir US7.2).
 - [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\DevToolbar\data\<espace>.json` par espace de noms. (La migration SQLite de `DevToolbar.Core/Data` reste inutilisée.)
 
 ## US8.4 Position et ancrage de la toolbar

@@ -24,6 +24,14 @@ public sealed record GitRepository
     [JsonPropertyName("defaultBranch")]
     public string DefaultBranch { get; init; } = string.Empty;
 
+    /// <summary>Work item provider of this repository (US5.2); null when none is configured.</summary>
+    [JsonPropertyName("workItems")]
+    public WorkItemSource? WorkItems { get; init; }
+
+    /// <summary>GitHub Actions follow-up of this repository (US7.1); null when not followed.</summary>
+    [JsonPropertyName("github")]
+    public GitHubTracking? GitHub { get; init; }
+
     /// <summary>Time tracking rules for this repository; null values keep the global ones (US5.3).</summary>
     [JsonPropertyName("timeTracking")]
     public TimeTrackingOverrides? TimeTracking { get; init; }

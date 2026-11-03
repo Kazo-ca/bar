@@ -2731,6 +2731,109 @@ body {
     color: var(--text-muted, #888);
 }
 
+/* --- Provider settings and token field (US2.4, US5.2, US7.1) --- */
+.workitem-error {
+    color: #ff8a80;
+}
+
+.provider-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.provider-repo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+}
+
+.provider-repo h5 {
+    margin: 0;
+    font-size: 0.9em;
+}
+
+.provider-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px 12px;
+}
+
+.provider-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    min-width: 180px;
+}
+
+.provider-field input,
+.provider-field select,
+.secret-field-input {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary, rgba(17, 17, 17, 0.7));
+    color: var(--text-primary);
+    font-size: 0.95em;
+    font-family: var(--font-family);
+}
+
+.provider-field input:focus-visible,
+.provider-field select:focus-visible,
+.secret-field-input:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -1px;
+}
+
+.provider-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85em;
+}
+
+.provider-fields .plugin-settings-error,
+.provider-fields .plugin-settings-hint {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.secret-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+}
+
+.secret-field-label {
+    flex-basis: 100%;
+    font-size: 0.8em;
+    color: var(--text-secondary);
+}
+
+.secret-field-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.secret-field-saved {
+    font-size: 0.85em;
+    color: #7ddf7d;
+    letter-spacing: 0.05em;
+}
+
+.secret-field .plugin-settings-error {
+    flex-basis: 100%;
+    margin: 0;
+}
+
 /* ==========================================================================
    Work day and absences (US5.3, US5.5)
    ========================================================================== */

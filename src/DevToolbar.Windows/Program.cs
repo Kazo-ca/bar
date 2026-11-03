@@ -2,6 +2,7 @@ using System.Windows;
 using DevToolbar.Core.Events;
 using DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
+using DevToolbar.Infrastructure.Providers;
 using DevToolbar.Infrastructure.Secrets;
 using DevToolbar.Infrastructure.Configuration;
 using DevToolbar.Infrastructure.Storage;
@@ -118,11 +119,15 @@ public static class Program
         services.AddSingleton<WpfHostSurfaceService>();
         services.AddSingleton<IHostSurfaceService>(sp => sp.GetRequiredService<WpfHostSurfaceService>());
 
-        // Plugins — the work item and CI providers are still the placeholder
-        // implementations used by the MAUI host (not real services yet).
+        // Plugins.
         services.AddSingleton<IGitService, DevToolbar.Infrastructure.Git.GitService>();
         services.AddSingleton<IPlugin, GitPlugin>();
-        services.AddSingleton<IWorkItemProvider, MockWorkItemProvider>();
+        // Real providers (US5.2, US7.1): Azure DevOps and GitHub, configured per repository.
+        services.AddSingleton(_ => new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });
+        services.AddSingleton<GitHubApi>();
+        services.AddSingleton<IWorkItemSourceClient, AzureDevOpsWorkItemsClient>();
+        services.AddSingleton<IWorkItemSourceClient, GitHubIssuesClient>();
+        services.AddSingleton<IWorkItemProvider, RepositoryWorkItemProvider>();
         services.AddSingleton<IPlugin, WorkItemsPlugin>();
         // Real time tracking: session lock and keyboard/mouse inactivity, JSON per month (US5.3, US5.5).
         services.AddSingleton<WindowsUserPresenceService>();
@@ -131,7 +136,7 @@ public static class Program
         services.AddSingleton<TimeTrackingService>();
         services.AddSingleton<ITimeTrackingService>(sp => sp.GetRequiredService<TimeTrackingService>());
         services.AddSingleton<IPlugin, TimeTrackerPlugin>();
-        services.AddSingleton<ICiCdService, MockCiCdService>();
+        services.AddSingleton<ICiCdService, GitHubActionsService>();
         services.AddSingleton<IPlugin, GithubAgentPlugin>();
         services.AddSingleton<IPluginLoader, PluginLoader>();
 
