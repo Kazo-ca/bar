@@ -19,7 +19,7 @@
     }
 
     <div class="git-info">
-        <span class="git-branch" title="@Plugin.CurrentBranch">⎇ @Plugin.CurrentBranch</span>
+        <span class="git-branch" title="@Plugin.CurrentBranch">⎇ <span class="git-branch-name">@Plugin.CurrentBranch</span></span>
         @if (status is { IsRepository: false })
         {
             <span class="git-status unavailable" title="@status.Error">⚠ @UnavailableLabel(status.Kind)</span>

@@ -102,7 +102,11 @@
         }
         <button class="system-btn" @onclick="ToggleTimeReport" title="Time Report">📊</button>
         <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
-        <TestDropdown />
+        @if (_debug.Enabled)
+        {
+            @* US3.5: developer tools only in Debug builds or a development host *@
+            <TestDropdown />
+        }
     </div>
 
     @* ── Drag handle (desktop hosts that support moving the window) ── *@
@@ -121,6 +125,7 @@
     // can close popups; otherwise a page-local instance is used.
     private PopupDismissService _dismiss = default!;
     private IWindowDragService? _drag;
+    private DebugFeatures _debug = new();
     private List<ActionConfig> _actions = new();
     private IReadOnlyList<IPlugin>? _visiblePlugins;
     private bool _showTimeReport;
@@ -148,6 +153,7 @@
     {
         _dismiss = Services.GetService(typeof(PopupDismissService)) as PopupDismissService ?? new PopupDismissService();
         _drag = Services.GetService(typeof(IWindowDragService)) as IWindowDragService;
+        _debug = Services.GetService(typeof(DebugFeatures)) as DebugFeatures ?? new DebugFeatures();
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
         TimeTrackingService.OnTrackingChanged += OnPluginStateChanged;
 

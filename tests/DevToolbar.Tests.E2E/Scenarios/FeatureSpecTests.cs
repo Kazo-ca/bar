@@ -121,6 +121,53 @@ public class FeatureSpecTests : PageTest
     // ───────────────────────── F3 · Shell & dropdowns ─────────────────────────
 
     [Test]
+    public async Task US3_4_ActionsThatDoNotFit_MoveToTheOverflowMenu()
+    {
+        var original = Page.ViewportSize;
+        await Page.SetViewportSizeAsync(1600, 720);
+        await OpenToolbar();
+        await Expect(Page.GetByTestId("action-overflow")).ToHaveCountAsync(0);
+        var all = await Page.Locator(".action-deck > .action-slot").CountAsync();
+
+        try
+        {
+            // The WPF window is 960 px wide.
+            await Page.SetViewportSizeAsync(960, 720);
+            var trigger = Page.GetByTestId("action-overflow");
+            await Expect(trigger).ToBeVisibleAsync(new() { Timeout = 5000 });
+            var visible = await Page.Locator(".action-deck > .action-slot").CountAsync();
+
+            await trigger.ClickAsync();
+            var menu = Page.GetByTestId("action-overflow-menu");
+            await Expect(menu).ToBeVisibleAsync();
+            await Expect(menu.Locator(".action-overflow-item")).ToHaveCountAsync(all - visible);
+            await Expect(menu).ToContainTextAsync("Build Script");
+
+            await Page.Keyboard.PressAsync("Escape");
+            await Expect(menu).ToHaveCountAsync(0);
+        }
+        finally
+        {
+            await Page.SetViewportSizeAsync(1600, 720);
+        }
+        await Expect(Page.GetByTestId("action-overflow")).ToHaveCountAsync(0, new() { Timeout = 5000 });
+        if (original != null)
+            await Page.SetViewportSizeAsync(original.Width, original.Height);
+    }
+
+    [Test]
+    public async Task US3_4_LongNames_AreTruncated_WithTheFullTextInTheTooltip()
+    {
+        await OpenToolbar();
+        var name = Page.Locator(".project-name");
+        await Expect(name).ToHaveCSSAsync("text-overflow", "ellipsis");
+        await Expect(Page.Locator(".project-selector-trigger")).ToHaveAttributeAsync("title", new System.Text.RegularExpressions.Regex("^MyWebAPI"));
+        await Expect(Page.Locator(".git-branch-name")).ToHaveCSSAsync("text-overflow", "ellipsis");
+        var branch = (await Page.Locator(".git-branch-name").TextContentAsync())!;
+        await Expect(Page.Locator(".git-branch")).ToHaveAttributeAsync("title", branch);
+    }
+
+    [Test]
     public async Task US3_1_ProjectDropdown_ClosesOnEscape()
     {
         await OpenToolbar();
