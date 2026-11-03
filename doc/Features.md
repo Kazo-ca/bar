@@ -68,10 +68,10 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.2 | Couleur d'accent et police par projet | ✅ |
 | US3.3 | Thèmes proposés à l'utilisateur | 🟡 |
 | US3.4 | Vue compacte et débordement | ⬜ |
-| US3.5 | Fonctions de debug masquées en Release | ⬜ |
+| US3.5 | Fonctions de debug masquées en Release | ✅ |
 | US4.1 | Bouton « Lancer processus » | ✅ |
-| US4.2 | Smart Focus | 🟡 |
-| US4.3 | Bouton script et sortie terminal | 🟡 |
+| US4.2 | Smart Focus | ✅ 🔍 |
+| US4.3 | Bouton script et sortie terminal | ✅ 🔍 |
 | US5.1 | Plugin Git | ✅ 🔍 |
 | US5.2 | Plugin Work Items | 🟡 🔍 |
 | US5.3 | Suivi du temps et inactivité | 🎭 |
@@ -332,15 +332,15 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [ ] Quand les actions ne tiennent pas, un bouton « … » ouvre un menu avec les actions masquées.
 
 ## US3.5 Fonctions de debug masquées en Release
-**État :** ⬜ À faire
+**État :** ✅ Fait
 
 **En tant qu'** utilisateur final
 **Je veux** ne pas voir les outils de développement de la toolbar
 **Afin d'** avoir une interface propre.
 
 **Critères d'acceptation :**
-- [ ] Le bouton 🧪 « Test Dropdown » n'est rendu que dans une build `Debug` (`#if DEBUG`) ou en environnement de développement.
-- [ ] Toute future fonction de debug suit la même règle.
+- [x] Le bouton 🧪 « Test Dropdown » n'est rendu que si `DevToolbar.UI` est compilé en `Debug` (`DebugFeatures.Enabled`, basé sur `#if DEBUG`).
+- [x] Toute future fonction de debug suit la même règle : tester `DebugFeatures.Enabled` au lieu d'écrire `#if DEBUG` dans chaque composant.
 
 ---
 
@@ -359,7 +359,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Notification d'erreur si le chemin est invalide.
 
 ## US4.2 Smart Focus
-**État :** 🟡 Partiel
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant qu'** utilisateur
 **Je veux** qu'un bouton active la fenêtre de l'application si elle est déjà ouverte, et la lance sinon
@@ -368,10 +368,11 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Critères d'acceptation :**
 - [x] Configuration : expression régulière sur le titre de la fenêtre (`windowTitleRegex`).
 - [x] Fenêtre trouvée : elle passe au premier plan. Sinon : le programme est lancé.
-- [ ] Plusieurs fenêtres trouvées : un menu permet de choisir laquelle activer.
+- [x] Plusieurs fenêtres trouvées : un menu liste leurs titres (et le processus) pour choisir laquelle activer, ou « Launch a new one ». `Esc` ou un clic à l'extérieur le ferme.
+- [x] Toutes les fenêtres visibles de premier niveau sont parcourues (pas seulement la fenêtre principale de chaque processus) ; une fenêtre réduite est restaurée avant d'être activée.
 
 ## US4.3 Bouton script et sortie terminal
-**État :** 🟡 Partiel
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant que** DevOps
 **Je veux** lancer un script et voir sa sortie
@@ -380,7 +381,8 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Critères d'acceptation :**
 - [x] Choix de l'interpréteur (`pwsh`, `cmd`, `python`).
 - [x] Une fenêtre « Terminal Output » affiche la sortie et le code de retour.
-- [ ] La sortie s'affiche **ligne par ligne pendant l'exécution** (aujourd'hui elle n'apparaît qu'à la fin).
+- [x] La sortie s'affiche **ligne par ligne pendant l'exécution** (`ProcessScriptService`) ; les lignes d'erreur (stderr) sont en rouge.
+- [x] Un bouton « Stop » arrête le script et ses processus enfants ; fermer la fenêtre pendant l'exécution l'arrête aussi.
 
 ---
 
@@ -540,7 +542,8 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 
 **Critères d'acceptation :**
 - [x] Configuration et paramètres en JSON dans `%APPDATA%\DevToolbar`.
-- [ ] Entrées de temps, absences qualifiées et états « lu » en JSON dans le même dossier, avec `schemaVersion` (voir US2.5). Le stockage est prêt ; il reste à le brancher quand le suivi du temps et le suivi GitHub seront réels.
+- [x] États « lu » de GitHub Actions en JSON dans le même dossier (`data/github-actions.json`, avec `schemaVersion`).
+- [ ] Entrées de temps et absences qualifiées en JSON (avec le suivi du temps réel, US5.3).
 - [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\DevToolbar\data\<espace>.json` par espace de noms. (La migration SQLite de `DevToolbar.Core/Data` reste inutilisée.)
 
 ## US8.4 Position et ancrage de la toolbar

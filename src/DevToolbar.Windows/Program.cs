@@ -85,7 +85,7 @@ public static class Program
         // Native services shared with the MAUI host (linked sources).
         services.AddSingleton<IProcessService, WindowsProcessService>();
         services.AddSingleton<IFileSystemService, WindowsFileSystemService>();
-        services.AddSingleton<IScriptService, WindowsScriptService>();
+        services.AddSingleton<IScriptService, DevToolbar.Infrastructure.Processes.ProcessScriptService>();
 
         // Single per-user configuration file and versioned JSON data in %APPDATA%\DevToolbar (US2.3, US2.5, US8.3).
         services.AddSingleton(AppDataPaths.ForCurrentUser());

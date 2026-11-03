@@ -10,7 +10,7 @@ This README describes **what the software does today**. The backlog (what it sho
 |---|---|
 | Windows host (WPF) | Works. Main Windows host. Still to be checked by hand on a PC: click-through, real mouse wheel, plugin configuration window. |
 | Toolbar UI (project switch, actions, menus, settings, time report) | Works in every host. |
-| Process and script actions, Smart Focus | Real in the Windows host. Script output appears when the script ends, not live. |
+| Process and script actions, Smart Focus | Real in the Windows host. Script output is shown line by line while the script runs, and can be stopped. |
 | Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). |
 | Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token. Simulated in the Web host. Not yet checked with real tokens on a PC. |
 | CI/CD (GitHub Actions) | Real in the Windows host: workflow runs of each tracked repository are polled in the background (every 60 s by default) and the read state is saved. Agent sessions are not tracked yet (no public GitHub API). Simulated in the Web host. |
@@ -58,7 +58,8 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens. A token typed in a plugin's settings is saved there and never shown again.
 - **Work items**: in the Work Items plugin settings, pick Azure DevOps (organization + project) or GitHub Issues (`owner/name`) for a repository and paste a token. The popover lists your open items, searches by title or number and links to the item on the web.
 - **GitHub Actions**: in the GitHub plugin settings, turn on Actions tracking for a repository. The pill shows the overall state and the number of unread finished runs; opening a run marks it as read.
-- **Quick actions**: launch a program, focus its window if already open (Smart Focus), or run a `pwsh`/`cmd`/`python` script and see its output.
+- **Quick actions**: launch a program, or focus its window if already open (Smart Focus; when several windows match, a menu lets you pick one). Run a `pwsh`/`cmd`/`python` script and watch its output live, with a Stop button.
+- **Debug tools**: the 🧪 test dropdown only appears in Debug builds.
 - **Plugin indicators**: work item, timer and CI/CD status in the system group, each with its own popover (the timer still uses sample data).
 - **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export (sample data).
 - **Theme**: accent color, font and custom CSS per project.
