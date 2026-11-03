@@ -4,13 +4,13 @@ using DevToolbar.Core.Events;
 using DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Rendering;
 
 /// <summary>
-/// Plugin for tracking time spent on projects with idle detection (US5.3).
-/// Associates time entries with the active work item (US5.3/US5.4).
+/// Time tracking (US5.3) and work day (US5.5): Start/Stop on the active project and work item, the
+/// timer freezes when the user is away and the absence is offered for labelling on return.
+/// The panel itself is <see cref="TimeTrackerPanel"/>.
 /// </summary>
-public class TimeTrackerPlugin : IPlugin
+public class TimeTrackerPlugin : IPlugin, IDisposable
 {
     private readonly ITimeTrackingService _timeService;
     private readonly INotificationService _notificationService;
@@ -22,9 +22,9 @@ public class TimeTrackerPlugin : IPlugin
     public bool IsEnabled { get; set; } = true;
     public event Action? OnStateChanged;
 
-    private string _currentProjectId = string.Empty;
-    private string? _activeWorkItemId;
-    private string? _activeWorkItemTitle;
+    public string CurrentProjectId { get; private set; } = string.Empty;
+    public string? ActiveWorkItemId { get; private set; }
+    public string? ActiveWorkItemTitle { get; private set; }
 
     public TimeTrackerPlugin(ITimeTrackingService timeService, INotificationService notificationService, EventAggregator eventAggregator)
     {
@@ -35,22 +35,39 @@ public class TimeTrackerPlugin : IPlugin
         // Subscribe to work item changes from WorkItemsPlugin
         _eventAggregator.Subscribe<ActiveWorkItemChangedEvent>(OnWorkItemChanged);
 
-        // Subscribe to idle detection (US5.3 - notification de rappel)
         _timeService.OnIdleDetected += OnIdleDetected;
+        _timeService.OnAbsenceEnded += OnAbsenceEnded;
     }
 
     private void OnIdleDetected()
     {
-        _notificationService.ShowWarning(
-            $"Timer paused — no activity for {(int)_timeService.IdleTimeout.TotalMinutes} minutes.",
-            "⏱ Idle Detected");
+        if (_timeService.GetActive() == null && !WasRunningBeforeAway())
+        {
+            OnStateChanged?.Invoke();
+            return;
+        }
+        _notificationService.ShowWarning("Timer paused while you are away.", "⏱ Away");
+        OnStateChanged?.Invoke();
+    }
+
+    // The service closes the entry when the user leaves; the toast only matters for a running timer.
+    private bool WasRunningBeforeAway() =>
+        _timeService.Today?.Entries.LastOrDefault() is { EndTime: { } end } && end == _timeService.AwaySince;
+
+    private void OnAbsenceEnded(IReadOnlyList<Absence> segments)
+    {
+        var start = segments.Min(a => a.Start);
+        var end = segments.Max(a => a.End);
+        _notificationService.ShowInfo(
+            $"Welcome back: away {TimeFormat.Short(end - start)} ({start:HH:mm}–{end:HH:mm}). Open ⏱ to label it.",
+            "⏱ Absence");
         OnStateChanged?.Invoke();
     }
 
     private void OnWorkItemChanged(ActiveWorkItemChangedEvent evt)
     {
-        _activeWorkItemId = evt.WorkItemId;
-        _activeWorkItemTitle = evt.WorkItemTitle;
+        ActiveWorkItemId = evt.WorkItemId;
+        ActiveWorkItemTitle = evt.WorkItemTitle;
         OnStateChanged?.Invoke();
     }
 
@@ -59,130 +76,34 @@ public class TimeTrackerPlugin : IPlugin
         // The work item is NOT reset here: WorkItemsPlugin publishes the new project's active
         // item during the same project switch (possibly before this handler runs), so clearing
         // it would drop the link and time entries would be saved without a WorkItemId (US5.3).
-        _currentProjectId = context.Project.Id;
+        CurrentProjectId = context.Project.Id;
         return Task.CompletedTask;
     }
 
-    public RenderFragment? Render() => builder =>
+    /// <summary>Start or stop the timer on the current project and work item.</summary>
+    public void ToggleTimer()
     {
         var active = _timeService.GetActive();
-        var isRunning = active != null && active.ProjectId == _currentProjectId;
-        var todayTotal = _timeService.GetTodayTotal(_currentProjectId);
-        var isIdle = _timeService.IsIdlePaused;
-
-        builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "class", "plugin-timetracker");
-
-        // Timer controls row
-        builder.OpenElement(2, "div");
-        builder.AddAttribute(3, "class", "timer-controls");
-
-        // Start/Stop button
-        builder.OpenElement(4, "button");
-        builder.AddAttribute(5, "class", isRunning ? "timer-btn timer-btn-stop" : "timer-btn timer-btn-start");
-        builder.AddAttribute(6, "onclick", EventCallback.Factory.Create(this, () =>
-        {
-            if (isRunning)
-                _timeService.Stop();
-            else
-                _timeService.Start(_currentProjectId, _activeWorkItemId);
-            OnStateChanged?.Invoke();
-        }));
-        builder.AddContent(7, isRunning ? "⏹ Stop" : "▶ Start");
-        builder.CloseElement(); // button
-
-        // Status indicator
-        builder.OpenElement(8, "span");
-        if (isIdle && isRunning)
-        {
-            builder.AddAttribute(9, "class", "timer-status idle");
-            builder.AddContent(10, "💤 Idle");
-        }
+        if (active != null && active.ProjectId == CurrentProjectId)
+            _timeService.Stop();
         else
-        {
-            builder.AddAttribute(9, "class", isRunning ? "timer-status running" : "timer-status stopped");
-            builder.AddContent(10, isRunning ? "⏺ Recording" : "⏸ Stopped");
-        }
-        builder.CloseElement();
+            _timeService.Start(CurrentProjectId, ActiveWorkItemId);
+        OnStateChanged?.Invoke();
+    }
 
-        builder.CloseElement(); // timer-controls
+    /// <summary>Re-render the toolbar (after an absence was labelled).</summary>
+    public void NotifyChanged() => OnStateChanged?.Invoke();
 
-        // Active work item indicator
-        builder.OpenElement(30, "div");
-        builder.AddAttribute(31, "class", "timer-workitem");
-        if (!string.IsNullOrEmpty(_activeWorkItemId))
-        {
-            builder.OpenElement(32, "span");
-            builder.AddAttribute(33, "class", "timer-workitem-label");
-            builder.AddContent(34, "📋");
-            builder.CloseElement();
-            builder.OpenElement(35, "span");
-            builder.AddAttribute(36, "class", "timer-workitem-id");
-            builder.AddContent(37, $"#{_activeWorkItemId}");
-            builder.CloseElement();
-            if (!string.IsNullOrEmpty(_activeWorkItemTitle))
-            {
-                builder.OpenElement(38, "span");
-                builder.AddAttribute(39, "class", "timer-workitem-title");
-                builder.AddContent(40, _activeWorkItemTitle);
-                builder.CloseElement();
-            }
-        }
-        else
-        {
-            builder.OpenElement(32, "span");
-            builder.AddAttribute(33, "class", "timer-workitem-none");
-            builder.AddContent(34, "No work item linked");
-            builder.CloseElement();
-        }
-        builder.CloseElement(); // timer-workitem
-
-        // Timer display
-        builder.OpenElement(11, "div");
-        builder.AddAttribute(12, "class", "timer-display");
-
-        builder.OpenElement(13, "span");
-        builder.AddAttribute(14, "class", "timer-duration");
-        if (isRunning && active != null)
-        {
-            builder.AddContent(15, FormatDuration(active.Duration));
-        }
-        else
-        {
-            builder.AddContent(15, "00:00:00");
-        }
-        builder.CloseElement();
-
-        builder.CloseElement(); // timer-display
-
-        // Idle timeout info
-        builder.OpenElement(25, "div");
-        builder.AddAttribute(26, "class", "timer-idle-info");
-        builder.OpenElement(27, "span");
-        builder.AddAttribute(28, "class", "timer-idle-label");
-        builder.AddContent(29, $"Idle timeout: {(int)_timeService.IdleTimeout.TotalMinutes} min");
-        builder.CloseElement();
-        builder.CloseElement(); // timer-idle-info
-
-        // Today's total
-        builder.OpenElement(16, "div");
-        builder.AddAttribute(17, "class", "timer-today");
-
-        builder.OpenElement(18, "span");
-        builder.AddAttribute(19, "class", "timer-today-label");
-        builder.AddContent(20, "Today:");
-        builder.CloseElement();
-
-        builder.OpenElement(21, "span");
-        builder.AddAttribute(22, "class", "timer-today-value");
-        builder.AddContent(23, FormatDuration(todayTotal));
-        builder.CloseElement();
-
-        builder.CloseElement(); // timer-today
-
-        builder.CloseElement(); // plugin-timetracker
+    public RenderFragment? Render() => builder =>
+    {
+        builder.OpenComponent<TimeTrackerPanel>(0);
+        builder.AddAttribute(1, nameof(TimeTrackerPanel.Plugin), this);
+        builder.CloseComponent();
     };
 
-    private static string FormatDuration(TimeSpan duration) =>
-        $"{(int)duration.TotalHours:D2}:{duration.Minutes:D2}:{duration.Seconds:D2}";
+    public void Dispose()
+    {
+        _timeService.OnIdleDetected -= OnIdleDetected;
+        _timeService.OnAbsenceEnded -= OnAbsenceEnded;
+    }
 }

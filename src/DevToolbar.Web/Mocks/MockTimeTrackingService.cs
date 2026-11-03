@@ -2,12 +2,18 @@ namespace DevToolbar.Web.Mocks;
 
 using DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
+using DevToolbar.Core.TimeTracking;
 
 /// <summary>
-/// Mock time tracking service for web testing with idle detection support (US5.3).
+/// Mock time tracking service for web testing with idle detection support (US5.3) and a sample
+/// work day (US5.5): arrival at 08:12 and an absence 11:45-13:00 waiting to be confirmed
+/// (daily meeting, then lunch), cut by the real <see cref="AbsenceClassifier"/>.
 /// </summary>
 public class MockTimeTrackingService : ITimeTrackingService
 {
+    private readonly WorkDay _today = new() { Date = DateOnly.FromDateTime(DateTime.Today) };
+    public event Action<IReadOnlyList<Absence>>? OnAbsenceEnded { add { } remove { } }
+
     private TimeEntry? _activeEntry;
     private readonly List<TimeEntry> _entries = new();
     private DateTime _lastActivity = DateTime.Now;
@@ -35,7 +41,48 @@ public class MockTimeTrackingService : ITimeTrackingService
             new TimeEntry { ProjectId = "proj-frontend", WorkItemId = "1235", StartTime = today.AddDays(-1).AddHours(13), EndTime = today.AddDays(-1).AddHours(15).AddMinutes(30), Description = "UI components" },
             new TimeEntry { ProjectId = "proj-devops", StartTime = today.AddDays(-2).AddHours(10), EndTime = today.AddDays(-2).AddHours(12), Description = "Pipeline config" },
         });
+
+        _today.FirstActivity = today.AddHours(8).AddMinutes(12);
+        _today.LastLock = today.AddHours(11).AddMinutes(45);
+        var rules = new TimeTrackingRules
+        {
+            DailyMeeting = new DailyMeetingRule { Enabled = true, Label = "Daily", Start = new(11, 45), End = new(12, 0), Days = Enum.GetValues<DayOfWeek>().ToList() },
+        };
+        _today.Absences.AddRange(AbsenceClassifier.Split(today.AddHours(11).AddMinutes(45), today.AddHours(13), rules, AbsenceCause.Locked, "proj-webapi", "1235"));
     }
+
+    public DateTime? AwaySince => null;
+
+    public WorkDay? Today => new()
+    {
+        Date = _today.Date,
+        FirstActivity = _today.FirstActivity,
+        LastLock = _today.LastLock,
+        Entries = _entries.Where(e => e.StartTime.Date == DateTime.Today).ToList(),
+        Absences = _today.Absences.ToList(),
+    };
+
+    public IReadOnlyList<Absence> PendingAbsences => _today.Absences.Where(a => a.PendingReview).ToList();
+
+    public Task ClassifyAbsenceAsync(string absenceId, AbsenceKind kind, string? label = null)
+    {
+        var absence = _today.Absences.FirstOrDefault(a => a.Id == absenceId)
+            ?? throw new KeyNotFoundException(absenceId);
+        absence.Label = !string.IsNullOrWhiteSpace(label) ? label.Trim() : kind switch
+        {
+            AbsenceKind.Meeting => absence.Label ?? "Meeting",
+            AbsenceKind.Worked => absence.Kind == AbsenceKind.Lunch ? "Worked through lunch" : "Worked away from the keyboard",
+            _ => null,
+        };
+        absence.Kind = kind;
+        absence.Automatic = false;
+        absence.PendingReview = false;
+        OnTrackingChanged?.Invoke();
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<WorkDay>> GetWorkDaysAsync(DateOnly from, DateOnly to) =>
+        Task.FromResult<IReadOnlyList<WorkDay>>(_today.Date >= from && _today.Date <= to ? [Today!] : []);
 
     public void ReportActivity()
     {
@@ -95,14 +142,25 @@ public class MockTimeTrackingService : ITimeTrackingService
 
     public TimeEntry? GetActive() => _activeEntry;
 
-    public Task<IReadOnlyList<TimeEntry>> GetEntriesAsync(string projectId) =>
-        Task.FromResult<IReadOnlyList<TimeEntry>>(
-            _entries.Where(e => e.ProjectId == projectId).ToList().AsReadOnly());
+    public Task<IReadOnlyList<TimeEntry>> GetEntriesAsync(DateTime from, string? projectId = null)
+    {
+        var counted = _today.Absences.Where(a => a.CountsAsWork).Select(a => new TimeEntry
+        {
+            Id = a.Id, ProjectId = a.ProjectId ?? "", WorkItemId = a.WorkItemId, StartTime = a.Start, EndTime = a.End,
+            Description = a.Label ?? a.Kind.ToString(), AbsenceKind = a.Kind,
+        });
+        return Task.FromResult<IReadOnlyList<TimeEntry>>(
+            _entries.Concat(counted)
+                .Where(e => e.StartTime >= from && (projectId == null || e.ProjectId == projectId))
+                .ToList().AsReadOnly());
+    }
 
     public TimeSpan GetTodayTotal(string projectId)
     {
         var today = DateTime.Today;
-        return _entries
+        var counted = _today.Absences.Where(a => a.CountsAsWork && a.ProjectId == projectId)
+            .Aggregate(TimeSpan.Zero, (total, a) => total + a.Duration);
+        return counted + _entries
             .Where(e => e.ProjectId == projectId && e.StartTime.Date == today)
             .Aggregate(TimeSpan.Zero, (total, entry) => total + entry.Duration);
     }

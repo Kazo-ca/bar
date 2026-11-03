@@ -25,6 +25,13 @@ public class TimeEntry
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Set when the entry stands for a counted absence (meeting, worked through lunch, other)
+    /// rather than timer time, so reports can tell them apart (US5.4).
+    /// </summary>
+    [JsonPropertyName("absenceKind")]
+    public AbsenceKind? AbsenceKind { get; set; }
+
     [JsonIgnore]
     public TimeSpan Duration => (EndTime ?? DateTime.Now) - StartTime;
 }

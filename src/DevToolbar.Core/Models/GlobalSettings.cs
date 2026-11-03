@@ -50,4 +50,11 @@ public class GlobalSettings
     /// </summary>
     [JsonPropertyName("secretStore")]
     public SecretStoreKind SecretStore { get; set; } = SecretStoreKind.CredentialManager;
+
+    /// <summary>
+    /// Inactivity, lunch and daily meeting rules (US5.3, US5.5). A repository can override them
+    /// (<see cref="GitRepository.TimeTracking"/>).
+    /// </summary>
+    [JsonPropertyName("timeTracking")]
+    public TimeTrackingRules TimeTracking { get; set; } = new();
 }

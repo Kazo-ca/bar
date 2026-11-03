@@ -392,6 +392,60 @@ public class FeatureSpecTests : PageTest
     }
 
     [Test]
+    public async Task US5_5_WorkDay_ShowsArrivalAndLastLock()
+    {
+        await OpenToolbar();
+        await OpenPopover("time-tracker");
+        var popover = Popover("time-tracker");
+
+        // The Web host's sample day: session opened at 08:12, locked at 11:45.
+        await Expect(popover.GetByTestId("workday-arrival")).ToHaveTextAsync("08:12");
+        await Expect(popover.GetByTestId("workday-last-lock")).ToHaveTextAsync("11:45");
+        await Page.Keyboard.PressAsync("Escape");
+    }
+
+    [Test]
+    public async Task US5_5_AbsenceOnReturn_SplitIntoDailyAndLunch_AndLunchCanCountAsWork()
+    {
+        await OpenToolbar();
+        // Away 11:45-13:00 with a daily 11:45-12:00: meeting then lunch, waiting for review.
+        await Expect(Page.GetByTestId("absence-badge")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await OpenPopover("time-tracker");
+        var review = Popover("time-tracker").GetByTestId("absence-review");
+        await Expect(review).ToContainTextAsync("You were away 1 h 15 (11:45–13:00)");
+        await Expect(review.Locator("[data-kind='Meeting'] .timer-absence-range")).ToHaveTextAsync("11:45–12:00");
+        await Expect(review.Locator("[data-kind='Lunch'] .timer-absence-range")).ToHaveTextAsync("12:00–13:00");
+
+        await review.Locator("[data-kind='Lunch'] .timer-absence-worked").ClickAsync();
+        await Expect(review.Locator("[data-kind='Lunch']")).ToHaveCountAsync(0);
+
+        await review.Locator("[data-kind='Meeting'] .timer-absence-save").ClickAsync();
+        await Expect(Popover("time-tracker").GetByTestId("absence-review")).ToHaveCountAsync(0);
+        await Expect(Page.GetByTestId("absence-badge")).ToHaveCountAsync(0);
+        await Page.Keyboard.PressAsync("Escape");
+
+        // The report lists the work day with the labelled absences.
+        await Page.Locator(".system-btn[title='Time Report']").ClickAsync();
+        var days = Page.GetByTestId("report-workdays");
+        await Expect(days).ToContainTextAsync("Meeting: Daily");
+        await Expect(days).ToContainTextAsync("Worked: Worked through lunch");
+        await Page.Keyboard.PressAsync("Escape");
+    }
+
+    [Test]
+    public async Task US5_3_Settings_HasTimeTrackingRules()
+    {
+        await OpenToolbar();
+        await OpenSettings();
+        var section = Page.GetByTestId("settings-time-section");
+        await Expect(section).ToBeVisibleAsync();
+        await Expect(section.GetByTestId("tt-idle")).ToHaveValueAsync("15");
+        await Expect(section.GetByTestId("tt-lunch-start")).ToHaveValueAsync("12:00");
+        await Expect(section.GetByTestId("tt-meeting-start")).ToHaveValueAsync("11:45");
+        await BackToToolbar();
+    }
+
+    [Test]
     public async Task US5_4_TimeReport_ClosesOnEscape()
     {
         await OpenToolbar();

@@ -12,8 +12,9 @@ This README describes **what the software does today**. The backlog (what it sho
 | Toolbar UI (project switch, actions, menus, settings, time report) | Works in every host. |
 | Process and script actions, Smart Focus | Real in the Windows host. Script output appears when the script ends, not live. |
 | Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). |
-| Work items, time tracking, CI/CD | **Simulated in every host**, including Windows. The UI works on sample data. |
-| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. A JSON `IStorageService` is available for plugin data; time entries and read states do not use it yet. |
+| Time tracking and work day | Real in the Windows host: the timer freezes on session lock, sleep or keyboard/mouse inactivity (15 min by default, global or per repository), and on return the absence is shown to be labelled (meeting, lunch, worked, other, removed). The lunch window and a daily meeting are recognised automatically. First activity and last lock of each day are recorded. Data in `%APPDATA%\DevToolbar\data\time-yyyy-MM.json`. The Web host uses a simulated sample day. |
+| Work items, CI/CD | **Simulated in every host**, including Windows. The UI works on sample data. |
+| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. Plugin data (time entries) goes through a JSON `IStorageService` in `data\`. |
 | Access tokens | Stored outside the configuration, in Windows Credential Manager or a DPAPI-encrypted `secrets.json`, chosen in Settings. No provider uses tokens yet. |
 | MAUI host | Frozen. Kept in the solution, no new features. |
 
@@ -55,8 +56,9 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Configuration file**: everything is in `%APPDATA%\DevToolbar\config.json` (shown in Settings). A file that cannot be read, or that was written by a newer version, is never overwritten.
 - **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens.
 - **Quick actions**: launch a program, focus its window if already open (Smart Focus), or run a `pwsh`/`cmd`/`python` script and see its output.
-- **Plugin indicators**: work item, timer and CI/CD status in the system group, each with its own popover (sample data).
-- **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export (sample data).
+- **Plugin indicators**: work item and CI/CD status in the system group, each with its own popover (sample data).
+- **Timer** (Windows host): Start/Stop on the active project and work item; paused while you are away, then resumed. The ⏱ panel shows when you arrived, your last lock, and the absences to label; a badge on the timer counts them. Rules in Settings → *Time tracking*.
+- **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export, plus each work day with its arrival, last lock and absences.
 - **Theme**: accent color, font and custom CSS per project.
 - **Window placement** (Windows host): docked top, docked bottom, floating or overlay, target monitor, drag handle.
 - **Tray icon** (Windows host): left click shows or hides the toolbar; right click offers Settings and Quit. Closing the toolbar window quits the app.

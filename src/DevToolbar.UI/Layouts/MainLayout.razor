@@ -71,7 +71,10 @@
             var activeEntry = TimeTrackingService.GetActive();
             var isRunning = activeEntry != null && activeEntry.ProjectId == _currentProjectId;
             var displayTime = isRunning ? activeEntry!.Duration : TimeTrackingService.GetTodayTotal(_currentProjectId);
-            var timerTitle = isRunning ? "Timer running" : "Today's total";
+            var isAway = TimeTrackingService.IsIdlePaused;
+            var pendingAbsences = TimeTrackingService.PendingAbsences.Count;
+            var timerTitle = isAway ? "Away: timer paused" : isRunning ? "Timer running" : "Today's total";
+            if (pendingAbsences > 0) timerTitle += $" ({pendingAbsences} absence(s) to label)";
             var timeTracker = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == TimeTrackerPluginId && p.IsEnabled);
         }
         @if (timeTracker != null)
@@ -79,9 +82,14 @@
             @* US5.3: the timer opens the Time Tracker panel (Start/Stop, linked work item, idle info) *@
             <PluginPopover Plugin="timeTracker" Title="@($"{timerTitle} — click for Time Tracker")"
                            CssClass="system-timer-popover">
-                <span class="system-timer-display @(isRunning ? "running" : "")">
-                    <span class="system-timer-icon">⏱</span>
+                <span class="system-timer-display @(isRunning ? "running" : "") @(isAway ? "away" : "")">
+                    <span class="system-timer-icon">@(isAway ? "💤" : "⏱")</span>
                     <span class="system-timer-value">@FormatTime(displayTime)</span>
+                    @if (pendingAbsences > 0)
+                    {
+                        @* US5.3: absences waiting to be labelled since the user came back *@
+                        <span class="system-timer-badge" data-testid="absence-badge" title="Absences to label">@pendingAbsences</span>
+                    }
                 </span>
             </PluginPopover>
         }

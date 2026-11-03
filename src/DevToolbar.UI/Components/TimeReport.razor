@@ -167,6 +167,29 @@
             {
                 <div class="time-report-empty">No entries for this period.</div>
             }
+
+            @if (_workDays.Count > 0)
+            {
+                <div class="time-report-workdays" data-testid="report-workdays">
+                    <h4>Work days</h4>
+                    @foreach (var day in _workDays)
+                    {
+                        <div class="time-report-group">
+                            <div class="time-report-group-header">
+                                <span class="time-report-group-key">📅 @day.Date.ToString("ddd, MMM dd")</span>
+                                <span class="time-report-group-total">☀ @(day.FirstActivity?.ToString("HH:mm") ?? "—") · 🔒 @(day.LastLock?.ToString("HH:mm") ?? "—")</span>
+                            </div>
+                            @foreach (var absence in day.Absences.OrderBy(a => a.Start))
+                            {
+                                <div class="time-report-group-entry time-report-absence" data-kind="@absence.Kind">
+                                    <span>@absence.Start.ToString("HH:mm")–@absence.End.ToString("HH:mm") — @AbsenceText(absence)</span>
+                                    <span class="time-report-duration">@FormatDuration(absence.Duration)@(absence.CountsAsWork ? "" : " (not counted)")</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -185,6 +208,7 @@
     private List<TimeEntry>? _crossProjectEntries;
     private Dictionary<string, string> _projectNames = new();
     private TimeSpan _totalDuration;
+    private List<WorkDay> _workDays = new();
     private ElementReference _modalRef;
     private bool _focusPending;
 
@@ -228,22 +252,21 @@
         var project = SettingsService.GetActiveProject();
         if (project == null) return;
 
-        var allEntries = await TimeTrackingService.GetEntriesAsync(project.Id);
         var cutoff = GetCutoff();
-
-        _entries = allEntries.Where(e => e.StartTime >= cutoff).OrderByDescending(e => e.StartTime).ToList();
+        var allProjectEntries = await TimeTrackingService.GetEntriesAsync(cutoff);
+        _crossProjectEntries = allProjectEntries.ToList();
+        _entries = allProjectEntries.Where(e => e.ProjectId == project.Id).OrderByDescending(e => e.StartTime).ToList();
         _totalDuration = _entries.Aggregate(TimeSpan.Zero, (sum, e) => sum + e.Duration);
 
-        // Load all projects' entries for "by project" grouping (US5.4)
+        // Project names for the "by project" grouping (US5.4)
         var projects = await SettingsService.GetProjectsAsync();
         _projectNames = projects.ToDictionary(p => p.Id, p => p.Name);
-        var allProjectEntries = new List<TimeEntry>();
-        foreach (var p in projects)
-        {
-            var entries = await TimeTrackingService.GetEntriesAsync(p.Id);
-            allProjectEntries.AddRange(entries);
-        }
-        _crossProjectEntries = allProjectEntries;
+
+        // Work days: arrival, last lock and every absence, counted or not (US5.4, US5.5)
+        _workDays = (await TimeTrackingService.GetWorkDaysAsync(DateOnly.FromDateTime(cutoff), DateOnly.FromDateTime(DateTime.Today)))
+            .Where(d => d.FirstActivity != null || d.Absences.Count > 0)
+            .OrderByDescending(d => d.Date)
+            .ToList();
     }
 
     private DateTime GetCutoff() => _period switch
@@ -291,6 +314,21 @@
         var safePeriod = _period.Replace(" ", "-").Replace("/", "-");
         var filename = $"time-report-{safePeriod}-{DateTime.Now:yyyyMMdd}.csv";
         await JSRuntime.InvokeVoidAsync("DevToolbar.downloadCsv", filename, csv.ToString());
+    }
+
+    private static string AbsenceText(Absence absence)
+    {
+        var kind = absence.Kind switch
+        {
+            AbsenceKind.Meeting => "🗓 Meeting",
+            AbsenceKind.Lunch => "🍽 Lunch",
+            AbsenceKind.Worked => "💻 Worked",
+            AbsenceKind.Other => "🏷 Other",
+            AbsenceKind.Removed => "✖ Removed",
+            _ => "❔ To label",
+        };
+        var label = string.IsNullOrWhiteSpace(absence.Label) ? "" : $": {absence.Label}";
+        return $"{kind}{label}{(absence.PendingReview ? " (to confirm)" : "")}";
     }
 
     private static string EscapeCsvField(string field)

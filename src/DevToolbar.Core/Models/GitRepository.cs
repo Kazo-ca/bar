@@ -23,4 +23,8 @@ public sealed record GitRepository
     /// <summary>Optional default branch; falls back to the project's default branch when empty.</summary>
     [JsonPropertyName("defaultBranch")]
     public string DefaultBranch { get; init; } = string.Empty;
+
+    /// <summary>Time tracking rules for this repository; null values keep the global ones (US5.3).</summary>
+    [JsonPropertyName("timeTracking")]
+    public TimeTrackingOverrides? TimeTracking { get; init; }
 }
