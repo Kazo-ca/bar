@@ -1,8 +1,9 @@
 // Host surface negotiation (see IHostSurfaceService).
 //
 // Each observed region reports the surface size it needs to be fully visible,
-// measured from the window edge the host keeps fixed (top, or bottom when the
-// page has body.dock-bottom), and receives back a --host-max-height that keeps it
+// measured from the edge it is laid out from: the top by default (pages such as
+// Settings), the bottom for regions marked data-host-anchor="bottom" (panels
+// that open upward above a bottom-docked toolbar). It receives back a --host-max-height that keeps it
 // inside the window, so whatever the host could not give scrolls instead of being
 // clipped. Loaded as a JS module by HostSizedRegion; no global script needed.
 
@@ -25,14 +26,18 @@ function measure(state) {
 
     const rect = outer.getBoundingClientRect();
     const viewport = window.innerHeight;
-    const fromBottom = document.body.classList.contains('dock-bottom');
+    // Not body.dock-bottom: a page laid out from the top keeps its top at y=0 while
+    // the host grows the window upward, so measuring it from the bottom would ask
+    // for more on every resize (runaway growth).
+    const fromBottom = outer.dataset.hostAnchor === 'bottom';
 
     // Room the region has inside the current window, from its anchored edge.
     const room = fromBottom ? rect.bottom : viewport - rect.top;
     outer.style.setProperty('--host-max-height', Math.max(0, Math.floor(room)) + 'px');
 
     // Surface needed so the region is shown without scrolling. Independent of the
-    // current window height for top-anchored regions, so resizing cannot loop.
+    // current window height (top: rect.top is fixed; bottom: viewport - rect.bottom
+    // is fixed), so resizing cannot loop.
     const height = Math.ceil(fromBottom ? viewport - rect.bottom + naturalHeight : rect.top + naturalHeight);
     const width = Math.ceil(naturalWidth);
     if (height === state.height && width === state.width) return;
