@@ -6,6 +6,7 @@ using DevToolbar.Infrastructure.Providers;
 using DevToolbar.Infrastructure.Secrets;
 using DevToolbar.Infrastructure.Configuration;
 using DevToolbar.Infrastructure.Storage;
+using DevToolbar.Infrastructure.TimeTracking;
 using DevToolbar.Maui.Platforms.Windows.Services;
 using DevToolbar.Maui.Services;
 using DevToolbar.Plugins.Git;
@@ -118,7 +119,7 @@ public static class Program
         services.AddSingleton<WpfHostSurfaceService>();
         services.AddSingleton<IHostSurfaceService>(sp => sp.GetRequiredService<WpfHostSurfaceService>());
 
-        // Plugins — time tracking is still the placeholder implementation shared with MAUI.
+        // Plugins.
         services.AddSingleton<IGitService, DevToolbar.Infrastructure.Git.GitService>();
         services.AddSingleton<IPlugin, GitPlugin>();
         // Real providers (US5.2, US7.1): Azure DevOps and GitHub, configured per repository.
@@ -128,7 +129,12 @@ public static class Program
         services.AddSingleton<IWorkItemSourceClient, GitHubIssuesClient>();
         services.AddSingleton<IWorkItemProvider, RepositoryWorkItemProvider>();
         services.AddSingleton<IPlugin, WorkItemsPlugin>();
-        services.AddSingleton<ITimeTrackingService, MockTimeTrackingService>();
+        // Real time tracking: session lock and keyboard/mouse inactivity, JSON per month (US5.3, US5.5).
+        services.AddSingleton<WindowsUserPresenceService>();
+        services.AddSingleton<IUserPresenceService>(sp => sp.GetRequiredService<WindowsUserPresenceService>());
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<TimeTrackingService>();
+        services.AddSingleton<ITimeTrackingService>(sp => sp.GetRequiredService<TimeTrackingService>());
         services.AddSingleton<IPlugin, TimeTrackerPlugin>();
         services.AddSingleton<ICiCdService, GitHubActionsService>();
         services.AddSingleton<IPlugin, GithubAgentPlugin>();
@@ -140,6 +146,10 @@ public static class Program
         services.AddSingleton<EventAggregator>();
 
         using var provider = services.BuildServiceProvider();
+
+        // Load today and close an entry a crash left open, off the UI thread (no dispatcher to deadlock on).
+        var timeTracking = provider.GetRequiredService<TimeTrackingService>();
+        Task.Run(() => timeTracking.InitializeAsync()).GetAwaiter().GetResult();
 
         var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         app.DispatcherUnhandledException += (_, e) =>
@@ -153,7 +163,19 @@ public static class Program
         // Tray icon: show / hide / quit even when the toolbar is hidden or transparent.
         var tray = provider.GetRequiredService<TrayIconService>();
         window.SourceInitialized += (_, _) => tray.Show();
-        app.Exit += (_, _) => tray.Dispose();
+        app.Exit += (_, _) =>
+        {
+            tray.Dispose();
+            // Closing the toolbar ends the work day: stop the timer and record the time (US5.5).
+            try
+            {
+                Task.Run(timeTracking.ShutdownAsync).Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (AggregateException ex)
+            {
+                Log($"Time tracking shutdown failed: {ex.InnerException}");
+            }
+        };
         var code = app.Run(window);
         Log($"Exited with code {code}.");
         return code;

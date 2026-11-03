@@ -74,16 +74,16 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US4.3 | Bouton script et sortie terminal | 🟡 |
 | US5.1 | Plugin Git | ✅ 🔍 |
 | US5.2 | Plugin Work Items | 🟡 🔍 |
-| US5.3 | Suivi du temps et inactivité | 🎭 |
-| US5.4 | Rapports de temps | 🎭 |
-| US5.5 | Journée de travail (arrivée, dîner, réunion) | ⬜ |
+| US5.3 | Suivi du temps et inactivité | ✅ 🔍 |
+| US5.4 | Rapports de temps | ✅ 🔍 |
+| US5.5 | Journée de travail (arrivée, dîner, réunion) | ✅ 🔍 |
 | US6.1 | Tests Playwright sur l'hôte Web | ✅ |
 | US6.2 | Intégration continue | ⬜ |
 | US7.1 | Suivi GitHub en arrière-plan | 🟡 🔍 |
 | US7.2 | Consultation et « marquer comme lu » | ✅ 🔍 |
 | US8.1 | Fenêtre native | ✅ 🔍 |
 | US8.2 | Zone de notification | ✅ 🔍 |
-| US8.3 | Stockage local JSON | 🟡 🔍 |
+| US8.3 | Stockage local JSON | ✅ 🔍 |
 | US8.4 | Position et ancrage de la toolbar | ✅ 🔍 |
 | US8.5 | Barre des tâches et fenêtres actives | 🟡 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
@@ -220,7 +220,7 @@ public interface IProcessService
 - [x] Aucune donnée sensible n'est écrite dans ce fichier : les jetons vont dans le magasin de secrets (US2.4).
 - [x] Paramètres affiche l'emplacement du fichier (section « Configuration »).
 
-Forme actuelle (schéma 1). Les blocs `workItems` et `github` d'un dépôt sont lus par les fournisseurs ; `timeTracking` arrivera avec le suivi du temps. Ajouter ces blocs optionnels ne change pas la version du schéma :
+Forme actuelle (schéma 1). Les blocs `workItems` et `github` d'un dépôt sont lus par les fournisseurs, `timeTracking` par le suivi du temps (US5.3). Ajouter ces blocs optionnels ne change pas la version du schéma :
 
 ```json
 {
@@ -421,7 +421,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [ ] Recette sur PC avec un vrai PAT Azure DevOps et GitHub.
 
 ## US5.3 Suivi du temps et inactivité
-**État :** 🎭 Simulé (`MockTimeTrackingService` dans tous les hôtes)
+**État :** ✅ Réel dans l'hôte WPF (`TimeTrackingService`, `src/DevToolbar.Infrastructure/TimeTracking/`), 🔍 à recetter sur PC. L'hôte Web garde un service simulé avec une journée d'exemple.
 
 **En tant qu'** employé ou travailleur autonome
 **Je veux** que le temps soit suivi automatiquement et que mes absences soient détectées
@@ -430,13 +430,14 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Critères d'acceptation :**
 - [x] Démarrer / arrêter le timer, total du jour affiché dans la pilule.
 - [x] Le temps est rattaché au projet et au ticket actif.
-- [ ] Le verrouillage de session Windows (`SystemEvents.SessionSwitch`) et l'inactivité clavier/souris sont détectés.
-- [ ] Le délai d'inactivité est configurable **globalement** et **par dépôt** (le réglage du dépôt l'emporte). Défaut : 15 minutes.
-- [ ] Au retour, la toolbar affiche la durée de l'absence et permet de la qualifier : réunion, dîner, autre (texte libre), ou à retirer.
-- [ ] Les entrées sont enregistrées localement (voir US8.3).
+- [x] Le verrouillage de session Windows (`SystemEvents.SessionSwitch`), la mise en veille et l'inactivité clavier/souris dans toutes les applications (`GetLastInputInfo`) sont détectés (`WindowsUserPresenceService`). Le timer est figé à la dernière saisie, puis repart au retour sur le même projet et le même ticket.
+- [x] Le délai d'inactivité est configurable **globalement** et **par dépôt** (le réglage du dépôt l'emporte). Défaut : 15 minutes. Paramètres → « Time tracking ». Le verrouillage peut aussi ne pas figer le timer (`pauseOnLock`).
+- [x] Au retour, un message indique la durée de l'absence, un badge apparaît sur le timer et le panneau ⏱ permet de la qualifier : réunion, dîner, « je travaillais », autre (texte libre), ou à retirer. Les absences de moins d'une minute sont ignorées.
+- [x] Les entrées sont enregistrées localement (voir US8.3). Après un plantage ou un redémarrage, l'entrée ouverte est fermée au dernier signe de vie de l'application (enregistré chaque minute) et le trou devient une absence à qualifier.
+- Temps compté comme travail : timer, réunion, « je travaillais », autre. Non compté : dîner, retiré, et une absence pas encore qualifiée.
 
 ## US5.4 Rapports de temps
-**État :** 🎭 Simulé (affiche les données du service simulé)
+**État :** ✅ Réel dans l'hôte WPF, 🔍 à recetter sur PC
 
 **En tant qu'** utilisateur
 **Je veux** consulter le temps passé par projet et par ticket
@@ -447,21 +448,35 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Période : aujourd'hui, 7 derniers jours, 30 derniers jours.
 - [x] Regroupement par projet, ticket, jour ou description.
 - [x] Export CSV.
-- [ ] Les absences qualifiées (réunion, dîner) apparaissent dans le rapport.
+- [x] Les absences qualifiées (réunion, dîner) apparaissent dans le rapport : les absences comptées sont des lignes du rapport et de l'export, et la section « Work days » donne pour chaque jour l'arrivée, le dernier verrouillage et toutes les absences.
 
 ## US5.5 Journée de travail (arrivée, dîner, réunion)
-**État :** ⬜ À faire
+**État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC
 
 **En tant qu'** employé
 **Je veux** voir à quelle heure j'ai ouvert ma session le matin et à quelle heure je l'ai verrouillée le soir, et que le dîner et ma réunion quotidienne soient reconnus automatiquement
 **Afin de** remplir ma feuille de temps sans tout ressaisir.
 
 **Critères d'acceptation :**
-- [ ] L'heure de première ouverture de session et l'heure du dernier verrouillage de la journée sont enregistrées et affichées.
-- [ ] Une absence d'environ une heure **entre 12 h et 13 h** est comptée automatiquement comme dîner.
-- [ ] L'utilisateur peut indiquer qu'il a travaillé pendant le dîner ; le temps est alors compté comme travaillé.
-- [ ] Une réunion quotidienne récurrente se configure (par exemple 11 h 45 à 12 h). Exemple : une absence de 11 h 45 à 13 h devient réunion (11 h 45 à 12 h) puis dîner (12 h à 13 h).
-- [ ] Les plages du dîner et de la réunion se configurent globalement et par dépôt.
+- [x] L'heure de première ouverture de session et l'heure du dernier verrouillage de la journée sont enregistrées et affichées (panneau ⏱ et rapport). Première activité : démarrage de l'application, déverrouillage ou première saisie du jour. Dernier verrouillage : dernier verrouillage ou fermeture de la toolbar. Une absence qui passe minuit termine la journée et commence la suivante, elle n'est pas comptée comme absence.
+- [x] Une absence qui couvre au moins 30 minutes (`minimumMinutes`) de la plage **12 h à 13 h** est comptée automatiquement comme dîner pour la partie dans la plage ; le reste est à qualifier.
+- [x] L'utilisateur peut indiquer qu'il a travaillé pendant le dîner (bouton « I worked through lunch ») ; le temps est alors compté comme travaillé.
+- [x] Une réunion quotidienne récurrente se configure (nom, heures, jours ; défaut 11 h 45 à 12 h du lundi au vendredi, désactivée). Exemple : une absence de 11 h 45 à 13 h devient réunion (11 h 45 à 12 h) puis dîner (12 h à 13 h). Les segments automatiques restent à confirmer d'un clic.
+- [x] Les plages du dîner et de la réunion se configurent globalement (Paramètres) et par dépôt (bloc `timeTracking` du dépôt dans `config.json` ; le délai d'inactivité du dépôt se règle aussi dans Paramètres).
+
+Règles dans `config.json` (ajout compatible avec le schéma 1, les valeurs absentes prennent les défauts) :
+
+```json
+"settings": {
+  "timeTracking": {
+    "idleMinutes": 15,
+    "pauseOnLock": true,
+    "lunch": { "enabled": true, "start": "12:00", "end": "13:00", "minimumMinutes": 30 },
+    "dailyMeeting": { "enabled": true, "label": "Daily", "start": "11:45", "end": "12:00", "days": [1, 2, 3, 4, 5] }
+  }
+},
+"repositories": [ { "name": "alpha-api", "timeTracking": { "idleMinutes": 10, "lunch": { "start": "11:30", "end": "12:30" } } } ]
+```
 
 ---
 
@@ -536,11 +551,12 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 - [x] Fermer la fenêtre de la toolbar quitte l'application.
 
 ## US8.3 Stockage local JSON
-**État :** 🟡 Partiel, 🔍 à recetter sur PC
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **Critères d'acceptation :**
 - [x] Configuration et paramètres en JSON dans `%APPDATA%\DevToolbar`.
-- [ ] Entrées de temps, absences qualifiées et états « lu » en JSON dans le même dossier, avec `schemaVersion` (voir US2.5). Le stockage est prêt ; il reste à le brancher quand le suivi du temps et le suivi GitHub seront réels.
+- [x] Entrées de temps et absences qualifiées en JSON dans le même dossier, avec `schemaVersion` (voir US2.5) : un fichier par mois `data\time-yyyy-MM.json`, une valeur par jour (`yyyy-MM-dd` : arrivée, dernier verrouillage, entrées, absences), et `data\time-tracking.json` pour le dernier signe de vie.
+- [x] États « lu » du suivi GitHub : `data\github-actions.json` (voir US7.2).
 - [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\DevToolbar\data\<espace>.json` par espace de noms. (La migration SQLite de `DevToolbar.Core/Data` reste inutilisée.)
 
 ## US8.4 Position et ancrage de la toolbar

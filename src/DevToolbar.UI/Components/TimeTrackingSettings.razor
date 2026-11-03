@@ -1,0 +1,132 @@
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.Core.Models
+@inject IGlobalSettingsService GlobalSettingsService
+@inject ISettingsService SettingsService
+@inject INotificationService NotificationService
+
+@*
+    US5.3 / US5.5: inactivity, lunch and daily meeting rules. Global values here; a repository of
+    the active project can override the idle delay (and, in config.json, the lunch and meeting).
+*@
+<section class="settings-section" data-testid="settings-time-section">
+    <h3>⏱ Time tracking</h3>
+    <p class="settings-description">
+        The timer freezes when you lock your session or stop using the keyboard and mouse. When you come back,
+        the absence is shown so you can label it. Absences during the lunch window and the daily meeting are labelled automatically.
+    </p>
+
+    <div class="settings-field">
+        <label for="tt-idle">Idle delay (minutes)</label>
+        <input id="tt-idle" type="number" min="1" max="240" class="settings-monitor-select" data-testid="tt-idle"
+               value="@Rules.IdleMinutes" @onchange="e => UpdateAsync(r => r.IdleMinutes = Clamp(e.Value, 1, 240, r.IdleMinutes))" />
+    </div>
+
+    <div class="settings-plugin-row">
+        <label class="settings-toggle">
+            <input type="checkbox" class="settings-plugin-checkbox" data-testid="tt-pause-on-lock" checked="@Rules.PauseOnLock"
+                   @onchange="e => UpdateAsync(r => r.PauseOnLock = (bool)(e.Value ?? true))" />
+            <span class="settings-toggle-slider"></span>
+        </label>
+        <span class="settings-plugin-name">Pause when the session is locked</span>
+    </div>
+
+    <div class="settings-plugin-row">
+        <label class="settings-toggle">
+            <input type="checkbox" class="settings-plugin-checkbox" data-testid="tt-lunch-enabled" checked="@Rules.Lunch.Enabled"
+                   @onchange="e => UpdateAsync(r => r.Lunch.Enabled = (bool)(e.Value ?? true))" />
+            <span class="settings-toggle-slider"></span>
+        </label>
+        <span class="settings-plugin-name">Lunch</span>
+        <input type="time" class="settings-time-input" aria-label="Lunch start" data-testid="tt-lunch-start" value="@Hm(Rules.Lunch.Start)"
+               @onchange="e => UpdateAsync(r => r.Lunch.Start = ParseTime(e.Value, r.Lunch.Start))" />
+        <span>to</span>
+        <input type="time" class="settings-time-input" aria-label="Lunch end" data-testid="tt-lunch-end" value="@Hm(Rules.Lunch.End)"
+               @onchange="e => UpdateAsync(r => r.Lunch.End = ParseTime(e.Value, r.Lunch.End))" />
+    </div>
+
+    <div class="settings-plugin-row">
+        <label class="settings-toggle">
+            <input type="checkbox" class="settings-plugin-checkbox" data-testid="tt-meeting-enabled" checked="@Rules.DailyMeeting.Enabled"
+                   @onchange="e => UpdateAsync(r => r.DailyMeeting.Enabled = (bool)(e.Value ?? false))" />
+            <span class="settings-toggle-slider"></span>
+        </label>
+        <input class="settings-time-input settings-time-label" aria-label="Meeting name" maxlength="40" data-testid="tt-meeting-label"
+               value="@Rules.DailyMeeting.Label"
+               @onchange="e => UpdateAsync(r => r.DailyMeeting.Label = string.IsNullOrWhiteSpace(e.Value?.ToString()) ? r.DailyMeeting.Label : e.Value!.ToString()!.Trim())" />
+        <input type="time" class="settings-time-input" aria-label="Meeting start" data-testid="tt-meeting-start" value="@Hm(Rules.DailyMeeting.Start)"
+               @onchange="e => UpdateAsync(r => r.DailyMeeting.Start = ParseTime(e.Value, r.DailyMeeting.Start))" />
+        <span>to</span>
+        <input type="time" class="settings-time-input" aria-label="Meeting end" data-testid="tt-meeting-end" value="@Hm(Rules.DailyMeeting.End)"
+               @onchange="e => UpdateAsync(r => r.DailyMeeting.End = ParseTime(e.Value, r.DailyMeeting.End))" />
+        <span class="settings-description">Mon–Fri</span>
+    </div>
+
+    @if (_project is { GitRepositories.Count: > 0 } project)
+    {
+        <h4 class="settings-subtitle">Repositories of @project.Name</h4>
+        @foreach (var repository in project.GitRepositories)
+        {
+            var repo = repository;
+            <div class="settings-field">
+                <label>Idle delay for @repo.Name</label>
+                <input type="number" min="1" max="240" class="settings-monitor-select" placeholder="@($"{Rules.IdleMinutes} (global)")"
+                       data-testid="@($"tt-repo-idle-{repo.Name}")"
+                       value="@repo.TimeTracking?.IdleMinutes" @onchange="e => UpdateRepositoryIdleAsync(repo, e.Value)" />
+            </div>
+        }
+    }
+</section>
+
+@code {
+    private ProjectConfig? _project;
+
+    private TimeTrackingRules Rules => GlobalSettingsService.Current.TimeTracking;
+
+    protected override void OnInitialized() => _project = SettingsService.GetActiveProject();
+
+    private async Task UpdateAsync(Action<TimeTrackingRules> change)
+    {
+        try
+        {
+            await GlobalSettingsService.UpdateAsync(s => change(s.TimeTracking ??= new TimeTrackingRules()));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            NotificationService.ShowError($"Could not save time tracking settings: {ex.Message}", "Settings");
+        }
+    }
+
+    private async Task UpdateRepositoryIdleAsync(GitRepository repo, object? value)
+    {
+        if (_project == null) return;
+        int? minutes = int.TryParse(value?.ToString(), out var m) && m > 0 ? Math.Min(m, 240) : null;
+        var overrides = repo.TimeTracking ?? new TimeTrackingOverrides();
+        overrides = new TimeTrackingOverrides
+        {
+            IdleMinutes = minutes,
+            PauseOnLock = overrides.PauseOnLock,
+            Lunch = overrides.Lunch,
+            DailyMeeting = overrides.DailyMeeting,
+        };
+        var empty = overrides is { IdleMinutes: null, PauseOnLock: null, Lunch: null, DailyMeeting: null };
+        var index = _project.GitRepositories.IndexOf(repo);
+        if (index < 0) return;
+        _project.GitRepositories[index] = repo with { TimeTracking = empty ? null : overrides };
+        try
+        {
+            await SettingsService.SaveProjectAsync(_project);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            NotificationService.ShowError($"Could not save the repository: {ex.Message}", "Settings");
+        }
+    }
+
+    private static string Hm(TimeOnly time) => time.ToString("HH:mm");
+
+    private static TimeOnly ParseTime(object? value, TimeOnly fallback) =>
+        TimeOnly.TryParse(value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var t) ? t : fallback;
+
+    private static int Clamp(object? value, int min, int max, int fallback) =>
+        int.TryParse(value?.ToString(), out var v) ? Math.Clamp(v, min, max) : fallback;
+}
