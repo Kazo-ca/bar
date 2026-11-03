@@ -39,6 +39,23 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetWindowRect(nint hWnd, out RECT rect);
 
+    /// <summary>
+    /// Keeps the window out of the taskbar and Alt+Tab: adds WS_EX_TOOLWINDOW and
+    /// drops WS_EX_APPWINDOW. The tray icon stays the way to reach the app.
+    /// </summary>
+    public static void HideFromTaskbarAndAltTab(nint hwnd)
+    {
+        var exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        var updated = (exStyle | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW;
+        if (updated != exStyle) SetWindowLongPtr(hwnd, GWL_EXSTYLE, updated);
+    }
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    public static partial nint GetWindowLongPtr(nint hWnd, int nIndex);
+
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+    public static partial nint SetWindowLongPtr(nint hWnd, int nIndex, nint newLong);
+
     [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial int RegisterWindowMessage(string name);
 
@@ -59,6 +76,8 @@ internal static partial class NativeMethods
         public nint lParam;
     }
 
+    public const int GWL_EXSTYLE = -20;
+    public const nint WS_EX_TOOLWINDOW = 0x00000080, WS_EX_APPWINDOW = 0x00040000;
     public const int ABM_NEW = 0, ABM_REMOVE = 1, ABM_QUERYPOS = 2, ABM_SETPOS = 3;
     public static readonly nint HWND_TOPMOST = new(-1);
     public const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010, SWP_SHOWWINDOW = 0x0040;

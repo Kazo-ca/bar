@@ -48,7 +48,8 @@ public sealed class ToolbarWindow : Window
         AllowsTransparency = true;
         Background = Brushes.Transparent;
         Topmost = true;
-        ShowInTaskbar = true;
+        // No taskbar button: the tray icon is the way to show / hide / quit.
+        ShowInTaskbar = false;
         WindowStartupLocation = WindowStartupLocation.Manual;
 
         _webView = new BlazorWebView
@@ -94,6 +95,8 @@ public sealed class ToolbarWindow : Window
     {
         var hwnd = new WindowInteropHelper(this).Handle;
         Program.Log($"Window created, HWND=0x{hwnd:X}.");
+        // Tool window: also out of Alt+Tab (a borderless strip there would be confusing).
+        NativeMethods.HideFromTaskbarAndAltTab(hwnd);
         _host.Attach(this, hwnd);
         _services.GetRequiredService<WindowsWindowService>().SetOwnWindowHandle(hwnd);
 
