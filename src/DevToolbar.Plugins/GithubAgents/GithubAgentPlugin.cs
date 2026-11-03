@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 /// Plugin for monitoring GitHub Actions / CI/CD sessions.
 /// Supports background polling for session updates (US7.1).
 /// </summary>
-public class GithubAgentPlugin : IPlugin, IPluginIndicator
+public class GithubAgentPlugin : IConfigurablePlugin, IPluginIndicator
 {
     private readonly ICiCdService _ciCdService;
     private readonly INotificationService _notificationService;
@@ -19,6 +19,7 @@ public class GithubAgentPlugin : IPlugin, IPluginIndicator
     public string Icon => "🔄";
     public bool IsEnabled { get; set; } = true;
     public event Action? OnStateChanged;
+    public Type SettingsComponentType => typeof(DevToolbar.Plugins.Providers.GitHubActionsSettingsPanel);
 
     // IPluginIndicator — global CI/CD status icon + unread badge (US7.1)
     public string? IndicatorText => null;
@@ -51,8 +52,22 @@ public class GithubAgentPlugin : IPlugin, IPluginIndicator
 
     private async Task RefreshSessionsAsync()
     {
-        _sessions = await _ciCdService.GetSessionsAsync(_currentProjectId);
+        _sessions = await LoadSessionsAsync();
         OnStateChanged?.Invoke();
+    }
+
+    /// <summary>Reads the sessions; a failure keeps the previous list instead of breaking the toolbar.</summary>
+    private async Task<IReadOnlyList<CiCdSession>> LoadSessionsAsync()
+    {
+        try
+        {
+            return await _ciCdService.GetSessionsAsync(_currentProjectId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _notificationService.ShowError($"CI/CD status could not be read: {ex.Message}", Name);
+            return _sessions;
+        }
     }
 
     public async Task OnProjectChangedAsync(PluginContext context)
@@ -62,7 +77,8 @@ public class GithubAgentPlugin : IPlugin, IPluginIndicator
         _pollCts?.Dispose();
 
         _currentProjectId = context.Project.Id;
-        _sessions = await _ciCdService.GetSessionsAsync(_currentProjectId);
+        _sessions = Array.Empty<CiCdSession>();
+        _sessions = await LoadSessionsAsync();
 
         // Start background polling for this project (US7.1)
         _pollCts = new CancellationTokenSource();

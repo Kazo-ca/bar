@@ -141,7 +141,7 @@ public class PluginSettingsTests : PageTest
     {
         await OpenGitSettingsAsync();
 
-        await Page.Locator(".plugin-settings-nav-item[data-plugin-id='work-items']").ClickAsync();
+        await Page.Locator(".plugin-settings-nav-item[data-plugin-id='time-tracker']").ClickAsync();
         await Expect(Page.Locator(".plugin-settings-none")).ToBeVisibleAsync();
 
         await Page.Keyboard.PressAsync("Escape");
@@ -162,5 +162,33 @@ public class PluginSettingsTests : PageTest
         // Restore for other tests.
         await Page.Locator(".settings-plugin-row[data-plugin-id='time-tracker'] .settings-toggle-slider").ClickAsync();
         await Expect(Page.Locator(".settings-plugin-row[data-plugin-id='time-tracker'] input")).ToBeCheckedAsync();
+    }
+    [Test]
+    public async Task WorkItemsWindow_GitHubSource_SavesTokenWithoutShowingIt()
+    {
+        await OpenGitSettingsAsync();
+        await Page.Locator(".plugin-settings-nav-item[data-plugin-id='work-items']").ClickAsync();
+        var repo = Page.Locator(".provider-repo").First;
+
+        await repo.GetByTestId("work-items-provider").SelectOptionAsync("GitHub");
+        await repo.GetByTestId("github-repository").FillAsync("not a repo");
+        await repo.GetByTestId("provider-save").ClickAsync();
+        await Expect(repo.GetByTestId("provider-message")).ToHaveClassAsync("plugin-settings-error");
+
+        await repo.GetByTestId("github-repository").FillAsync("contoso/my-webapi");
+        await repo.GetByTestId("provider-save").ClickAsync();
+        await Expect(repo.GetByTestId("provider-message")).ToHaveTextAsync("Saved.");
+
+        await repo.GetByTestId("secret-field-input").FillAsync("ghp_secret_value");
+        await repo.GetByTestId("secret-field-save").ClickAsync();
+        await Expect(repo.GetByTestId("secret-field-saved")).ToBeVisibleAsync();
+        await Expect(Page.Locator("input[type=password]")).ToHaveCountAsync(0);
+        Assert.That(await Page.ContentAsync(), Does.Not.Contain("ghp_secret_value"));
+
+        // Restore for other tests.
+        await repo.Locator(".secret-field-remove").ClickAsync();
+        await Expect(repo.GetByTestId("secret-field-input")).ToBeVisibleAsync();
+        await repo.GetByTestId("work-items-provider").SelectOptionAsync("");
+        await Expect(repo.GetByTestId("secret-field")).ToHaveCountAsync(0);
     }
 }
