@@ -23,4 +23,12 @@ public sealed record GitRepository
     /// <summary>Optional default branch; falls back to the project's default branch when empty.</summary>
     [JsonPropertyName("defaultBranch")]
     public string DefaultBranch { get; init; } = string.Empty;
+
+    /// <summary>Work item provider of this repository (US5.2); null when none is configured.</summary>
+    [JsonPropertyName("workItems")]
+    public WorkItemSource? WorkItems { get; init; }
+
+    /// <summary>GitHub Actions follow-up of this repository (US7.1); null when not followed.</summary>
+    [JsonPropertyName("github")]
+    public GitHubTracking? GitHub { get; init; }
 }

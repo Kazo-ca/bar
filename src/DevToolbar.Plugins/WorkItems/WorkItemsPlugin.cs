@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 /// Supports dropdown search/select to change active item (US5.2).
 /// Publishes ActiveWorkItemChangedEvent for TimeTracker integration (US5.3).
 /// </summary>
-public class WorkItemsPlugin : IPlugin, IPluginIndicator
+public class WorkItemsPlugin : IConfigurablePlugin, IPluginIndicator
 {
     private readonly IWorkItemProvider _provider;
     private readonly EventAggregator _eventAggregator;
@@ -21,12 +21,17 @@ public class WorkItemsPlugin : IPlugin, IPluginIndicator
     public string Icon => "📋";
     public bool IsEnabled { get; set; } = true;
     public event Action? OnStateChanged;
+    public Type SettingsComponentType => typeof(DevToolbar.Plugins.Providers.WorkItemsSettingsPanel);
+
+    /// <summary>Last provider error (token rejected, network...), shown instead of the list.</summary>
+    public string? Error => _error;
+    private string? _error;
 
     // IPluginIndicator — compact "#ID" pill in the toolbar, full panel in a popover (US5.2)
     public string? IndicatorText => _activeItem != null ? $"#{_activeItem.Id}" : null;
     public string? IndicatorTooltip => _activeItem != null ? $"#{_activeItem.Id} - {_activeItem.Title}" : "No active work item";
     public int BadgeCount => 0;
-    public string? StatusLevel => null;
+    public string? StatusLevel => _error != null ? "failure" : null;
 
     private WorkItem? _activeItem;
     private IReadOnlyList<WorkItem> _recentItems = Array.Empty<WorkItem>();
@@ -43,7 +48,7 @@ public class WorkItemsPlugin : IPlugin, IPluginIndicator
     public async Task OnProjectChangedAsync(PluginContext context)
     {
         // Load recent items for this project context (empty query = get all recent)
-        _recentItems = await _provider.SearchAsync(string.Empty);
+        _recentItems = await LoadAsync(string.Empty);
         _activeItem = _recentItems.FirstOrDefault();
         _showSearch = false;
         _searchQuery = string.Empty;
@@ -57,6 +62,22 @@ public class WorkItemsPlugin : IPlugin, IPluginIndicator
         });
 
         OnStateChanged?.Invoke();
+    }
+
+    /// <summary>Queries the provider; a failure is kept in <see cref="Error"/> instead of breaking the toolbar.</summary>
+    private async Task<IReadOnlyList<WorkItem>> LoadAsync(string query)
+    {
+        try
+        {
+            var items = await _provider.SearchAsync(query);
+            _error = null;
+            return items;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _error = ex.Message;
+            return Array.Empty<WorkItem>();
+        }
     }
 
     public RenderFragment? Render() => builder =>
@@ -93,8 +114,11 @@ public class WorkItemsPlugin : IPlugin, IPluginIndicator
         else
         {
             builder.OpenElement(4, "span");
-            builder.AddAttribute(5, "class", "workitem-none");
-            builder.AddContent(6, "No active work item");
+            builder.AddAttribute(5, "class", _error != null ? "workitem-none workitem-error" : "workitem-none");
+            builder.AddAttribute(6, "title", _error ?? _provider.ProviderName);
+            builder.AddContent(7, _error ?? (_provider.ProviderName == "Not configured"
+                ? "No work item source: configure the plugin in Settings"
+                : "No active work item"));
             builder.CloseElement();
         }
 
@@ -133,7 +157,7 @@ public class WorkItemsPlugin : IPlugin, IPluginIndicator
                 _searchQuery = e.Value?.ToString() ?? string.Empty;
                 if (_searchQuery.Length >= 1)
                 {
-                    _searchResults = await _provider.SearchAsync(_searchQuery);
+                    _searchResults = await LoadAsync(_searchQuery);
                 }
                 else
                 {

@@ -50,4 +50,8 @@ public class GlobalSettings
     /// </summary>
     [JsonPropertyName("secretStore")]
     public SecretStoreKind SecretStore { get; set; } = SecretStoreKind.CredentialManager;
+
+    /// <summary>How often GitHub Actions runs are polled, in seconds (US7.1). Minimum 30.</summary>
+    [JsonPropertyName("ciPollingIntervalSeconds")]
+    public int CiPollingIntervalSeconds { get; set; } = 60;
 }

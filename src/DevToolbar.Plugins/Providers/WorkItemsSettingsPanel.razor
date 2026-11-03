@@ -1,0 +1,81 @@
+@namespace DevToolbar.Plugins.Providers
+@using DevToolbar.Core.Configuration
+@using DevToolbar.Plugins.Shared
+@inherits PluginSettingsComponentBase
+
+@* US5.2: each repository can take its work items from Azure DevOps or GitHub Issues. *@
+<div class="provider-settings" data-testid="work-items-settings">
+    <p class="plugin-settings-hint">
+        Choose where the work items of <strong>@Project.Name</strong> come from. The token is stored in the secret store chosen in Settings, never in the configuration file.
+    </p>
+
+    @if (Project.GitRepositories.Count == 0)
+    {
+        <div class="git-repo-empty">Link a repository folder first (Git Tools settings).</div>
+    }
+
+    @foreach (var repository in Project.GitRepositories)
+    {
+        var current = repository;
+        var source = current.WorkItems;
+        <section class="provider-repo" @key="current.Path">
+            <h5>📁 @current.Name</h5>
+            <label class="provider-field">
+                <span>Provider</span>
+                <select class="provider-kind" data-testid="work-items-provider" value="@(source?.Provider.ToString() ?? "")"
+                        @onchange="e => ChangeProviderAsync(current, e.Value?.ToString())">
+                    <option value="">None</option>
+                    <option value="AzureDevOps">Azure DevOps (cloud)</option>
+                    <option value="GitHub">GitHub Issues</option>
+                </select>
+            </label>
+
+            @if (source != null)
+            {
+                <WorkItemSourceFields Source="source" OnSave="s => SaveAsync(current, s)" />
+                <SecretField SecretRef="@source.SecretRef"
+                             Label="@(source.Provider == WorkItemProviderKind.AzureDevOps ? "Azure DevOps PAT (scope: Work Items, read)" : "GitHub token (Issues: read)")" />
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private async Task ChangeProviderAsync(GitRepository repository, string? value)
+    {
+        WorkItemSource? source = Enum.TryParse<WorkItemProviderKind>(value, out var kind)
+            ? new WorkItemSource
+            {
+                Provider = kind,
+                Repository = repository.WorkItems?.Repository is { Length: > 0 } known ? known : GuessGitHubRepository(repository),
+                Organization = repository.WorkItems?.Organization ?? string.Empty,
+                Project = repository.WorkItems?.Project ?? string.Empty,
+                SecretRef = ProviderSettingsValidator.DefaultSecretRef(Project, repository,
+                    kind == WorkItemProviderKind.AzureDevOps ? "azure-devops" : "github"),
+            }
+            : null;
+        await ReplaceAsync(repository, repository with { WorkItems = source });
+    }
+
+    private Task SaveAsync(GitRepository repository, WorkItemSource source) =>
+        ReplaceAsync(repository, repository with { WorkItems = source });
+
+    private async Task ReplaceAsync(GitRepository old, GitRepository updated)
+    {
+        Project.GitRepositories = Project.GitRepositories.Select(r => ReferenceEquals(r, old) ? updated : r).ToList();
+        await OnProjectChanged.InvokeAsync(Project);
+    }
+
+    /// <summary>owner/name from a github.com remote URL, or empty.</summary>
+    public static string GuessGitHubRepository(GitRepository repository)
+    {
+        var url = repository.RemoteUrl.Trim();
+        var marker = url.IndexOf("github.com", StringComparison.OrdinalIgnoreCase);
+        if (marker < 0)
+            return string.Empty;
+        var path = url[(marker + "github.com".Length)..].TrimStart(':', '/');
+        if (path.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+            path = path[..^4];
+        return ProviderSettingsValidator.IsGitHubRepository(path) ? path : string.Empty;
+    }
+}

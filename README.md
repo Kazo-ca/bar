@@ -12,9 +12,11 @@ This README describes **what the software does today**. The backlog (what it sho
 | Toolbar UI (project switch, actions, menus, settings, time report) | Works in every host. |
 | Process and script actions, Smart Focus | Real in the Windows host. Script output appears when the script ends, not live. |
 | Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). |
-| Work items, time tracking, CI/CD | **Simulated in every host**, including Windows. The UI works on sample data. |
-| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. A JSON `IStorageService` is available for plugin data; time entries and read states do not use it yet. |
-| Access tokens | Stored outside the configuration, in Windows Credential Manager or a DPAPI-encrypted `secrets.json`, chosen in Settings. No provider uses tokens yet. |
+| Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token. Simulated in the Web host. Not yet checked with real tokens on a PC. |
+| CI/CD (GitHub Actions) | Real in the Windows host: workflow runs of each tracked repository are polled in the background (every 60 s by default) and the read state is saved. Agent sessions are not tracked yet (no public GitHub API). Simulated in the Web host. |
+| Time tracking | **Simulated in every host**, including Windows. The UI works on sample data. |
+| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. A JSON `IStorageService` is available for plugin data; GitHub Actions read states use it; time entries do not yet. |
+| Access tokens | Stored outside the configuration, in Windows Credential Manager or a DPAPI-encrypted `secrets.json`, chosen in Settings. The work items and GitHub providers read their token from there. |
 | MAUI host | Frozen. Kept in the solution, no new features. |
 
 ## Projects
@@ -22,7 +24,7 @@ This README describes **what the software does today**. The backlog (what it sho
 | Project | Type | Role |
 |---|---|---|
 | `src/DevToolbar.Core` | Class library | Interfaces, models, events. No UI or native dependency. |
-| `src/DevToolbar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores. |
+| `src/DevToolbar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores, Azure DevOps and GitHub REST clients. |
 | `src/DevToolbar.UI` | Razor class library | Blazor components, layout, pages, CSS, JS. |
 | `src/DevToolbar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. |
 | `src/DevToolbar.Windows` | WPF + Blazor Hybrid | **Main Windows host**: transparent, click-through toolbar window. |
@@ -53,9 +55,11 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Projects**: the left pill lists projects; switching updates plugins, actions and accent color. Settings → *New project* creates a project linked to a repository's local folder (*Browse…* opens the Windows folder dialog).
 - **Git**: current branch, number of modified files and commits to push/pull, read from the folder; Pull/Push with their real result. Several repositories per project are possible, managed in the plugin configuration window.
 - **Configuration file**: everything is in `%APPDATA%\DevToolbar\config.json` (shown in Settings). A file that cannot be read, or that was written by a newer version, is never overwritten.
-- **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens.
+- **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens. A token typed in a plugin's settings is saved there and never shown again.
+- **Work items**: in the Work Items plugin settings, pick Azure DevOps (organization + project) or GitHub Issues (`owner/name`) for a repository and paste a token. The popover lists your open items, searches by title or number and links to the item on the web.
+- **GitHub Actions**: in the GitHub plugin settings, turn on Actions tracking for a repository. The pill shows the overall state and the number of unread finished runs; opening a run marks it as read.
 - **Quick actions**: launch a program, focus its window if already open (Smart Focus), or run a `pwsh`/`cmd`/`python` script and see its output.
-- **Plugin indicators**: work item, timer and CI/CD status in the system group, each with its own popover (sample data).
+- **Plugin indicators**: work item, timer and CI/CD status in the system group, each with its own popover (the timer still uses sample data).
 - **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export (sample data).
 - **Theme**: accent color, font and custom CSS per project.
 - **Window placement** (Windows host): docked top, docked bottom, floating or overlay, target monitor, drag handle.
