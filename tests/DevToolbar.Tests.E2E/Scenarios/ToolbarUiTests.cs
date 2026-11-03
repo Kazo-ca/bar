@@ -600,6 +600,27 @@ public class ToolbarUiTests : PageTest
         await Expect(Page.Locator("[data-testid='new-project-error']")).ToContainTextAsync("invalid characters");
     }
 
+    // --- US2.4: choice of the access token store ---
+
+    [Test]
+    public async Task SettingsPage_SecretStore_CanBeChanged()
+    {
+        await NavigateAndWait();
+        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
+        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
+
+        var vault = Page.Locator("[data-testid='secret-store-CredentialManager']");
+        var file = Page.Locator("[data-testid='secret-store-EncryptedFile']");
+        await Expect(vault).ToBeCheckedAsync();
+
+        await file.CheckAsync();
+        await Expect(file).ToBeCheckedAsync();
+
+        // Restore the shared Web host state for the other tests.
+        await vault.CheckAsync();
+        await Expect(vault).ToBeCheckedAsync();
+    }
+
     // ==============================================================
     // MAUI Desktop Preview Chrome Tests
     // ==============================================================

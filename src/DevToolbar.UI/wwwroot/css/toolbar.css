@@ -2692,3 +2692,41 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* --- Settings: access token store (US2.4) --- */
+.settings-secret-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settings-secret-option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 10px;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(45, 45, 45, 0.6);
+    border-left: 3px solid transparent;
+    cursor: pointer;
+}
+
+.settings-secret-option.active {
+    border-left-color: var(--accent-color, #0078D4);
+}
+
+.settings-secret-option input {
+    grid-row: span 2;
+    accent-color: var(--accent-color, #0078D4);
+}
+
+.settings-secret-title {
+    font-weight: 600;
+    font-size: 0.85em;
+}
+
+.settings-secret-desc {
+    font-size: 0.78em;
+    color: var(--text-muted, #888);
+}

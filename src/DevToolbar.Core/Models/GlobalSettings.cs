@@ -44,4 +44,10 @@ public class GlobalSettings
     /// </summary>
     [JsonPropertyName("windowPollingIntervalMs")]
     public int WindowPollingIntervalMs { get; set; } = 1500;
+
+    /// <summary>
+    /// Where access tokens are stored (US2.4). Changing it moves the existing secrets.
+    /// </summary>
+    [JsonPropertyName("secretStore")]
+    public SecretStoreKind SecretStore { get; set; } = SecretStoreKind.CredentialManager;
 }

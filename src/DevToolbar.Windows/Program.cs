@@ -1,6 +1,8 @@
 using System.Windows;
 using DevToolbar.Core.Events;
 using DevToolbar.Core.Interfaces;
+using DevToolbar.Core.Models;
+using DevToolbar.Infrastructure.Secrets;
 using DevToolbar.Infrastructure.Configuration;
 using DevToolbar.Infrastructure.Storage;
 using DevToolbar.Maui.Platforms.Windows.Services;
@@ -90,6 +92,17 @@ public static class Program
         services.AddSingleton<ISettingsService, UserConfigSettingsService>();
         services.AddSingleton<IGlobalSettingsService, UserConfigGlobalSettingsService>();
         services.AddSingleton<IStorageService, JsonStorageService>();
+
+        // Access tokens: Windows Credential Manager or a DPAPI-encrypted file, as chosen in Settings (US2.4).
+        services.AddSingleton(sp => new SelectableSecretStore(
+            new Dictionary<SecretStoreKind, ISecretStore>
+            {
+                [SecretStoreKind.CredentialManager] = new CredentialManagerSecretStore(),
+                [SecretStoreKind.EncryptedFile] = new EncryptedFileSecretStore(sp.GetRequiredService<AppDataPaths>(), new DpapiSecretProtector()),
+            },
+            sp.GetRequiredService<IGlobalSettingsService>()));
+        services.AddSingleton<ISecretStore>(sp => sp.GetRequiredService<SelectableSecretStore>());
+        services.AddSingleton<ISecretStoreSelector>(sp => sp.GetRequiredService<SelectableSecretStore>());
         services.AddSingleton<WindowsWindowService>();
         services.AddSingleton<IWindowService>(sp => sp.GetRequiredService<WindowsWindowService>());
 
