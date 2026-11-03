@@ -88,6 +88,8 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US8.5 | Barre des tâches et fenêtres actives | 🟡 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
 | US9.2 | Hôte MAUI gelé | 🧊 |
+| US10.1 | Sessions et coûts IA (v2) | ⬜ v2 |
+| US10.2 | Rapport des coûts IA (v2) | ⬜ v2 |
 
 ---
 
@@ -564,3 +566,37 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 **État :** 🧊 Gelé
 
 `src/DevToolbar.Maui` reste dans la solution mais ne reçoit plus de nouvelles fonctions. Il n'est pas compilé dans le conteneur Linux et n'est pas recetté.
+
+---
+
+# F10. Suivi des sessions et des coûts IA (v2)
+
+Prévu pour la **v2**, pas avant. Objectif : voir dans la toolbar les sessions des assistants IA (GitHub Copilot, Claude d'Anthropic, OpenAI) et ce qu'elles coûtent, par projet si possible.
+
+**Sources de données possibles** (à revérifier au moment de l'implémentation, ces API évoluent vite) :
+
+| Fournisseur | Ce qui est disponible | Limites connues |
+|---|---|---|
+| Anthropic (Claude) | API Admin : rapports d'usage (jetons) et de coûts de l'organisation, filtrables par clé d'API et par modèle. Claude Code garde aussi en local un journal de chaque session avec les jetons consommés. | L'API Admin demande une clé admin d'organisation. Le journal local ne donne pas le prix ; il faut l'appliquer au tarif du modèle. |
+| OpenAI | API Usage et API Costs de l'organisation (jetons et montants par jour, par projet, par clé). | Clé admin d'organisation requise. |
+| GitHub Copilot | API de métriques Copilot (usage agrégé de l'organisation) et API de facturation (requêtes premium). Les sessions de l'agent Copilot apparaissent comme des PR et des tâches sur le dépôt. | Données surtout agrégées par organisation ou par jour, pas toujours par session. Peu de détail pour un abonnement individuel. |
+
+## US10.1 Sessions et coûts IA dans la toolbar
+**État :** ⬜ À faire (v2)
+
+**En tant que** développeur
+**Je veux** voir les sessions IA en cours ou récentes et leur coût du jour et du mois
+**Afin de** surveiller ma consommation et ne pas dépasser mon budget.
+
+**Critères d'acceptation :**
+- [ ] Un plugin « IA » affiche dans la pilule le coût du jour (ou du mois) et un badge quand une session se termine.
+- [ ] Les fournisseurs se configurent un par un (Copilot, Anthropic, OpenAI), avec leurs clés stockées comme les autres secrets (voir US2.4).
+- [ ] Les sessions sont rattachées au projet ou au dépôt quand la source le permet (clé d'API par projet, dépôt de la PR, dossier de la session Claude Code).
+- [ ] Un seuil de budget optionnel déclenche une notification.
+
+## US10.2 Rapport des coûts IA
+**État :** ⬜ À faire (v2)
+
+**Critères d'acceptation :**
+- [ ] Rapport par période (jour, semaine, mois), regroupé par fournisseur, modèle et projet.
+- [ ] Export CSV, comme le rapport de temps (US5.4).
