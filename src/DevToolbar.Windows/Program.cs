@@ -1,6 +1,10 @@
 using System.Windows;
 using DevToolbar.Core.Events;
 using DevToolbar.Core.Interfaces;
+using DevToolbar.Core.Models;
+using DevToolbar.Infrastructure.Secrets;
+using DevToolbar.Infrastructure.Configuration;
+using DevToolbar.Infrastructure.Storage;
 using DevToolbar.Maui.Platforms.Windows.Services;
 using DevToolbar.Maui.Services;
 using DevToolbar.Plugins.Git;
@@ -80,9 +84,25 @@ public static class Program
         // Native services shared with the MAUI host (linked sources).
         services.AddSingleton<IProcessService, WindowsProcessService>();
         services.AddSingleton<IFileSystemService, WindowsFileSystemService>();
-        services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<IScriptService, WindowsScriptService>();
-        services.AddSingleton<IGlobalSettingsService, JsonGlobalSettingsService>();
+
+        // Single per-user configuration file and versioned JSON data in %APPDATA%\DevToolbar (US2.3, US2.5, US8.3).
+        services.AddSingleton(AppDataPaths.ForCurrentUser());
+        services.AddSingleton<UserConfigurationStore>();
+        services.AddSingleton<ISettingsService, UserConfigSettingsService>();
+        services.AddSingleton<IGlobalSettingsService, UserConfigGlobalSettingsService>();
+        services.AddSingleton<IStorageService, JsonStorageService>();
+
+        // Access tokens: Windows Credential Manager or a DPAPI-encrypted file, as chosen in Settings (US2.4).
+        services.AddSingleton(sp => new SelectableSecretStore(
+            new Dictionary<SecretStoreKind, ISecretStore>
+            {
+                [SecretStoreKind.CredentialManager] = new CredentialManagerSecretStore(),
+                [SecretStoreKind.EncryptedFile] = new EncryptedFileSecretStore(sp.GetRequiredService<AppDataPaths>(), new DpapiSecretProtector()),
+            },
+            sp.GetRequiredService<IGlobalSettingsService>()));
+        services.AddSingleton<ISecretStore>(sp => sp.GetRequiredService<SelectableSecretStore>());
+        services.AddSingleton<ISecretStoreSelector>(sp => sp.GetRequiredService<SelectableSecretStore>());
         services.AddSingleton<WindowsWindowService>();
         services.AddSingleton<IWindowService>(sp => sp.GetRequiredService<WindowsWindowService>());
 
@@ -92,12 +112,14 @@ public static class Program
         services.AddSingleton<IDockingService>(sp => sp.GetRequiredService<WpfAppBarService>());
         services.AddSingleton<IWindowRegionService, NoOpWindowRegionService>();
         services.AddSingleton<IWindowDragService, WpfWindowDragService>();
+        services.AddSingleton<IFolderPickerService, WpfFolderPickerService>();
         // Two-way sizing: components declare the room they need, the window grows within the work area.
         services.AddSingleton<WpfHostSurfaceService>();
         services.AddSingleton<IHostSurfaceService>(sp => sp.GetRequiredService<WpfHostSurfaceService>());
 
         // Plugins — the work item / time / CI providers are still the placeholder
         // implementations used by the MAUI host (not real services yet).
+        services.AddSingleton<IGitService, DevToolbar.Infrastructure.Git.GitService>();
         services.AddSingleton<IPlugin, GitPlugin>();
         services.AddSingleton<IWorkItemProvider, MockWorkItemProvider>();
         services.AddSingleton<IPlugin, WorkItemsPlugin>();

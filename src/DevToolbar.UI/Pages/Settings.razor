@@ -201,38 +201,26 @@
                     }
                 }
             </div>
+            @if (_showNewProject)
+            {
+                <NewProjectForm OnCreated="OnProjectCreated" OnCancel="() => _showNewProject = false" />
+            }
+            else
+            {
+                <button class="settings-btn" data-testid="settings-new-project" @onclick="() => _showNewProject = true">＋ New project</button>
+            }
         </section>
 
-        <section class="settings-section">
-            <h3>Configuration Hierarchy</h3>
-            <p class="settings-description">Settings are resolved in order of priority (highest first):</p>
-            <div class="settings-config-hierarchy">
-                <div class="config-level">
-                    <span class="config-level-badge config-level-1">1</span>
-                    <span class="config-level-name">.devtoolbar.json</span>
-                    <span class="config-level-desc">Local project override (in project directory)</span>
-                    @if (_activeProject != null)
-                    {
-                        <span class="config-level-path">@(_activeProject.Path)/.devtoolbar.json</span>
-                    }
-                </div>
-                <div class="config-level">
-                    <span class="config-level-badge config-level-2">2</span>
-                    <span class="config-level-name">Template Config</span>
-                    <span class="config-level-desc">Project type template (e.g., WebApi, SPA)</span>
-                    @if (_activeProject != null)
-                    {
-                        <span class="config-level-path">template-@(_activeProject.ProjectType?.ToLowerInvariant() ?? "unknown").json</span>
-                    }
-                </div>
-                <div class="config-level">
-                    <span class="config-level-badge config-level-3">3</span>
-                    <span class="config-level-name">Global Config</span>
-                    <span class="config-level-desc">User-wide default settings</span>
-                    <span class="config-level-path">%APPDATA%/DevToolbar/global.json</span>
-                </div>
+        <section class="settings-section" data-testid="settings-config-section">
+            <h3>Configuration</h3>
+            <p class="settings-description">All projects, repositories and settings are stored in one file per user. Access tokens are never written to it.</p>
+            <div class="settings-field">
+                <label>File</label>
+                <span class="settings-value settings-path" data-testid="settings-config-path">@(SettingsService.ConfigurationLocation ?? "In memory (not saved)")</span>
             </div>
         </section>
+
+        <SecretStoreSettings />
 
         <section class="settings-section settings-app-section" data-testid="settings-app-section">
             <h3>Application</h3>
@@ -327,6 +315,15 @@
         if (_activeProject == null) return;
         _activeProject.Theme.FontFamily = fontFamily;
         ThemeService.SetTheme(_activeProject.Theme);
+    }
+
+    private bool _showNewProject;
+
+    private async Task OnProjectCreated(ProjectConfig project)
+    {
+        _showNewProject = false;
+        _projects = await SettingsService.GetProjectsAsync();
+        _activeProject = SettingsService.GetActiveProject();
     }
 
     private async Task SwitchProject(string projectId)

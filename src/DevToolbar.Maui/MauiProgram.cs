@@ -77,7 +77,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IWindowRegionService, WindowsRegionService>();
 #endif
 
-        // Register plugins
+        // Register plugins (MAUI is frozen: only what the shared plugins need to start).
+        builder.Services.AddSingleton<IGitService, DevToolbar.Infrastructure.Git.GitService>();
         builder.Services.AddSingleton<IPlugin, GitPlugin>();
         builder.Services.AddSingleton<IWorkItemProvider, MockWorkItemProvider>();
         builder.Services.AddSingleton<IPlugin, WorkItemsPlugin>();

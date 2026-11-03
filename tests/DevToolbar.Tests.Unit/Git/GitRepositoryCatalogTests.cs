@@ -136,16 +136,4 @@ public class GitRepositoryCatalogTests
         Assert.That(GitRepositoryCatalog.EffectiveBranch(Repo("/a", branch: "main"), project), Is.EqualTo("main"));
         Assert.That(GitRepositoryCatalog.EffectiveBranch(Repo("/a"), project), Is.EqualTo("develop"));
     }
-
-    [Test]
-    public void BuildArguments_RunsInsideRepositoryFolder()
-    {
-        Assert.That(GitRepositoryCatalog.BuildArguments(Repo(@"C:\my repo"), "pull"), Is.EqualTo("-C \"C:\\my repo\" pull"));
-    }
-
-    [Test]
-    public void BuildArguments_KeepsClosingQuote_WhenPathEndsWithSeparator()
-    {
-        Assert.That(GitRepositoryCatalog.BuildArguments(Repo(@"C:\src\"), "push"), Is.EqualTo("-C \"C:\\src\\.\" push"));
-    }
 }

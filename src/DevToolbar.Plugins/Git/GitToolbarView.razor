@@ -4,6 +4,7 @@
 @{
     var repositories = Plugin.Repositories;
     var selected = Plugin.SelectedRepository;
+    var status = Plugin.Status;
 }
 <div class="plugin-git">
     @if (repositories.Count > 1)
@@ -18,13 +19,25 @@
     }
 
     <div class="git-info">
-        <span class="git-branch">⎇ @Plugin.CurrentBranch</span>
-        <span class="@(Plugin.IsDirty ? "git-status dirty" : "git-status clean")">@(Plugin.IsDirty ? "● Modified" : "✓ Clean")</span>
+        <span class="git-branch" title="@Plugin.CurrentBranch">⎇ @Plugin.CurrentBranch</span>
+        @if (status is { IsRepository: false })
+        {
+            <span class="git-status unavailable" title="@status.Error">⚠ @UnavailableLabel(status.Kind)</span>
+        }
+        else
+        {
+            <span class="@(Plugin.IsDirty ? "git-status dirty" : "git-status clean")"
+                  title="@(Plugin.IsDirty ? $"{status?.ChangedFiles} changed file(s)" : "No local changes")">@(Plugin.IsDirty ? $"● {status?.ChangedFiles} modified" : "✓ Clean")</span>
+            @if (status is { Ahead: > 0 } || status is { Behind: > 0 })
+            {
+                <span class="git-tracking" title="Commits to push / to pull (as of the last fetch)">↑@status!.Ahead ↓@status.Behind</span>
+            }
+        }
     </div>
 
     <div class="git-sync">
-        <button class="git-btn git-btn-pull" title="Pull latest changes" @onclick="Plugin.PullAsync">⬇ Pull</button>
-        <button class="git-btn git-btn-push" title="Push local changes" @onclick="Plugin.PushAsync">⬆ Push</button>
+        <button class="git-btn git-btn-pull" title="Pull latest changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PullAsync">⬇ Pull</button>
+        <button class="git-btn git-btn-push" title="Push local changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PushAsync">⬆ Push</button>
     </div>
 
     @if (!string.IsNullOrEmpty(Plugin.SyncStatus))
@@ -38,7 +51,11 @@
     [Parameter, EditorRequired]
     public GitPlugin Plugin { get; set; } = default!;
 
+    /// <summary>How often the branch and local changes are read again from the folder.</summary>
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(10);
+
     private GitPlugin? _subscribed;
+    private Timer? _refreshTimer;
 
     protected override void OnParametersSet()
     {
@@ -46,10 +63,30 @@
         Unsubscribe();
         Plugin.OnStateChanged += OnPluginStateChanged;
         _subscribed = Plugin;
+        _refreshTimer ??= new Timer(_ => _ = RefreshAsync(), null, RefreshInterval, RefreshInterval);
     }
 
-    private void OnRepositoryChanged(ChangeEventArgs e) =>
-        Plugin.SelectRepository(e.Value?.ToString() ?? string.Empty);
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            await (_subscribed?.RefreshStatusAsync() ?? Task.CompletedTask);
+        }
+        catch (Exception)
+        {
+            // A failed background refresh keeps the last known state; the next tick retries.
+        }
+    }
+
+    private Task OnRepositoryChanged(ChangeEventArgs e) =>
+        Plugin.SelectRepositoryAsync(e.Value?.ToString() ?? string.Empty);
+
+    private static string UnavailableLabel(GitStatusKind kind) => kind switch
+    {
+        GitStatusKind.FolderNotFound => "Folder missing",
+        GitStatusKind.NotARepository => "Not a Git repo",
+        _ => "Unreadable",
+    };
 
     private void OnPluginStateChanged() => _ = InvokeAsync(StateHasChanged);
 
@@ -61,5 +98,9 @@
         }
     }
 
-    public void Dispose() => Unsubscribe();
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+        Unsubscribe();
+    }
 }

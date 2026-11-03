@@ -2,7 +2,7 @@
 
 Ce document est le **backlog** du projet : il décrit ce que la toolbar doit faire, et indique pour chaque user story ce qui est déjà fait. L'état actuel du logiciel, pour un nouvel utilisateur, est décrit dans le [README](../README.md) (en anglais).
 
-Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, après les PR #2 à #7).
+Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, après les PR #2 à #7). Mise à jour le même jour pour les fondations : configuration unique, migrations, Git réel, secrets.
 
 ## Comment lire ce document
 
@@ -61,9 +61,9 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US1.2 | Interfaces Core | ✅ |
 | US2.1 | Système de plugins | 🟡 |
 | US2.2 | Changement de projet | ✅ |
-| US2.3 | Configuration utilisateur unique | 🟡 |
-| US2.4 | Stockage sécurisé des secrets | ⬜ |
-| US2.5 | Version de schéma et migration | ⬜ |
+| US2.3 | Configuration utilisateur unique | 🟡 🔍 |
+| US2.4 | Stockage sécurisé des secrets | 🟡 🔍 |
+| US2.5 | Version de schéma et migration | ✅ 🔍 |
 | US3.1 | Layout principal (pilule) | ✅ |
 | US3.2 | Couleur d'accent et police par projet | ✅ |
 | US3.3 | Thèmes proposés à l'utilisateur | 🟡 |
@@ -72,7 +72,7 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | 🟡 |
 | US4.3 | Bouton script et sortie terminal | 🟡 |
-| US5.1 | Plugin Git | 🟡 |
+| US5.1 | Plugin Git | ✅ 🔍 |
 | US5.2 | Plugin Work Items | 🎭 |
 | US5.3 | Suivi du temps et inactivité | 🎭 |
 | US5.4 | Rapports de temps | 🎭 |
@@ -83,7 +83,7 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US7.2 | Consultation et « marquer comme lu » | 🎭 |
 | US8.1 | Fenêtre native | ✅ 🔍 |
 | US8.2 | Zone de notification | ✅ 🔍 |
-| US8.3 | Stockage local JSON | 🟡 |
+| US8.3 | Stockage local JSON | 🟡 🔍 |
 | US8.4 | Position et ancrage de la toolbar | ✅ 🔍 |
 | US8.5 | Barre des tâches et fenêtres actives | 🟡 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
@@ -100,6 +100,7 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 ```mermaid
 graph TD
     Core["DevToolbar.Core<br/>interfaces, modèles, événements"]
+    Infra["DevToolbar.Infrastructure<br/>config JSON, migrations, Git, secrets"]
     UI["DevToolbar.UI<br/>composants Blazor (RCL)"]
     Plugins["DevToolbar.Plugins<br/>Git, Work Items, Temps, CI/CD"]
     Windows["DevToolbar.Windows<br/>hôte WPF (principal)"]
@@ -109,6 +110,9 @@ graph TD
     Unit["DevToolbar.Tests.Unit<br/>NUnit"]
 
     UI --> Core
+    Infra --> Core
+    Windows --> Infra
+    Unit --> Infra
     Plugins --> Core
     Windows --> UI
     Windows --> Plugins
@@ -123,7 +127,8 @@ graph TD
 ```text
 DevToolbar.slnx
 ├── src
-│   ├── DevToolbar.Core       Interfaces/, Models/, Events/, Layout/, Data/
+│   ├── DevToolbar.Core       Interfaces/, Models/, Events/, Layout/, Configuration/, Data/
+│   ├── DevToolbar.Infrastructure  Storage/, Configuration/, Git/, Secrets/ (services réels, testés sous Linux)
 │   ├── DevToolbar.UI         Components/, Layouts/, Pages/, Services/, wwwroot/
 │   ├── DevToolbar.Plugins    Git/, WorkItems/, TimeTracker/, GithubAgents/, Services/PluginLoader.cs
 │   ├── DevToolbar.Windows    Hôte WPF : ToolbarWindow.cs, Program.cs, Services/
@@ -145,7 +150,7 @@ Tous les projets ciblent **.NET 10**.
 **Afin de** réutiliser la même interface dans plusieurs hôtes et la tester dans un navigateur.
 
 **Critères d'acceptation :**
-- [x] La solution `DevToolbar.slnx` contient Core, UI, Plugins, Windows, Web, Maui et les deux projets de tests.
+- [x] La solution `DevToolbar.slnx` contient Core, Infrastructure, UI, Plugins, Windows, Web, Maui et les deux projets de tests.
 - [x] `DevToolbar.UI` et `DevToolbar.Plugins` ne référencent que `DevToolbar.Core`.
 - [x] Chaque hôte référence UI, Plugins et Core.
 - [x] L'hôte Web démarre et affiche la toolbar sans erreur.
@@ -200,26 +205,28 @@ public interface IProcessService
 - [x] Seuls les plugins de `enabledPlugins` sont affichés.
 
 ## US2.3 Configuration utilisateur unique
-**État :** 🟡 Partiel
+**État :** 🟡 Partiel, 🔍 à recetter sur PC
 
 **En tant qu'** utilisateur
 **Je veux** que toute ma configuration (projets, dépôts, actions, thèmes, règles de temps) soit dans un seul fichier
 **Afin de** savoir où elle se trouve et de pouvoir la sauvegarder facilement.
 
 **Critères d'acceptation :**
-- [x] La configuration est lue depuis `%APPDATA%\DevToolbar\config.json` (projets) et les paramètres globaux depuis le même dossier.
-- [ ] Un seul fichier contient tout ; les réglages globaux et les projets ne sont plus séparés.
-- [ ] Les surcharges par `.devtoolbar.json` dans le dossier du projet sont **retirées** (le code actuel les lit encore).
-- [ ] Chaque dépôt déclare son dossier local, son fournisseur de work items et son suivi GitHub.
-- [ ] Aucune donnée sensible n'est écrite dans ce fichier (voir US2.4).
+- [x] La configuration est lue depuis `%APPDATA%\DevToolbar\config.json` (`UserConfigurationStore`, `src/DevToolbar.Infrastructure/Configuration/`).
+- [x] Un seul fichier contient tout : `settings` (réglages globaux) et `projects`. L'ancien `global-settings.json` est fusionné au premier lancement puis déplacé dans `backups\`.
+- [x] Les surcharges par `.devtoolbar.json` dans le dossier du projet sont **retirées** de l'hôte WPF (l'hôte MAUI gelé garde son ancien code).
+- [x] Chaque dépôt déclare son dossier local (`localPath`).
+- [ ] Chaque dépôt déclare son fournisseur de work items et son suivi GitHub (avec les fournisseurs réels, US5.2 et US7.1).
+- [x] Aucune donnée sensible n'est écrite dans ce fichier : les jetons vont dans le magasin de secrets (US2.4).
+- [x] Paramètres affiche l'emplacement du fichier (section « Configuration »).
 
-Exemple de forme visée (les noms exacts seront fixés à l'implémentation) :
+Forme actuelle (schéma 1). Les blocs `workItems`, `github` et `timeTracking` d'un dépôt arriveront avec les fournisseurs et le suivi du temps :
 
 ```json
 {
   "schemaVersion": 1,
   "activeProjectId": "alpha",
-  "timeTracking": { "idleMinutes": 15 },
+  "settings": { "toolbarBehavior": 2, "targetMonitorIndex": 0, "toolbarHeight": 56, "secretStore": "CredentialManager" },
   "projects": [
     {
       "id": "alpha",
@@ -231,6 +238,8 @@ Exemple de forme visée (les noms exacts seront fixés à l'implémentation) :
         {
           "name": "alpha-api",
           "localPath": "C:\\repos\\alpha-api",
+          "remoteUrl": "https://github.com/contoso/alpha-api.git",
+          "defaultBranch": "main",
           "workItems": { "provider": "AzureDevOps", "organization": "contoso", "project": "Alpha", "secretRef": "alpha-devops-pat" },
           "github": { "repository": "contoso/alpha-api", "trackActions": true, "trackAgentSessions": false, "secretRef": "alpha-github-pat" },
           "timeTracking": { "idleMinutes": 10 }
@@ -242,29 +251,31 @@ Exemple de forme visée (les noms exacts seront fixés à l'implémentation) :
 ```
 
 ## US2.4 Stockage sécurisé des secrets
-**État :** ⬜ À faire
+**État :** 🟡 Partiel, 🔍 à recetter sur PC
 
 **En tant qu'** utilisateur
 **Je veux** que mes jetons d'accès soient stockés de façon chiffrée
 **Afin qu'** une copie de mon fichier de configuration ne donne pas accès à mes comptes.
 
 **Critères d'acceptation :**
-- [ ] La configuration ne contient qu'une référence (`secretRef`) vers le secret.
-- [ ] L'utilisateur choisit où sont stockés ses secrets : Gestionnaire d'identification Windows, ou fichier chiffré localement (DPAPI).
+- [x] Les secrets sont rangés sous une référence (`secretRef`) via `ISecretStore` ; la configuration ne garde que la référence. *(Les fournisseurs qui écriront ces références arrivent avec US5.2 et US7.1.)*
+- [x] L'utilisateur choisit où sont stockés ses secrets dans Paramètres (« Access tokens ») : Gestionnaire d'identification Windows (`DevToolbar:<ref>`), ou `%APPDATA%\DevToolbar\secrets.json` chiffré par DPAPI pour son compte Windows. Changer de choix déplace les secrets existants.
 - [ ] Chaque fournisseur utilise la méthode d'authentification qu'il recommande (OAuth pour GitHub et Azure DevOps) ; le PAT reste possible pour démarrer.
-- [ ] Les jetons saisis dans Paramètres ne sont jamais réaffichés en clair.
+- [ ] Les jetons saisis dans Paramètres ne sont jamais réaffichés en clair (champ de saisie à venir avec les fournisseurs).
+- [ ] Recette sur PC : écriture, lecture et suppression dans le Gestionnaire d'identification et avec DPAPI (non testables dans le conteneur Linux).
 
 ## US2.5 Version de schéma et migration
-**État :** ⬜ À faire
+**État :** ✅ Fait, 🔍 à recetter sur PC (migration d'une vraie configuration existante)
 
 **En tant que** mainteneur
 **Je veux** que chaque fichier de données porte sa version de schéma
 **Afin de** faire évoluer le format sans perdre les données des utilisateurs.
 
 **Critères d'acceptation :**
-- [ ] Chaque fichier JSON écrit par l'application contient `schemaVersion`.
-- [ ] Au chargement, un fichier d'ancienne version est migré puis réécrit ; une copie de l'original est conservée.
-- [ ] L'accès aux données passe par `IStorageService`, pour pouvoir changer de format (base de données) plus tard.
+- [x] Chaque fichier JSON écrit par l'application contient `schemaVersion` (`config.json`, `secrets.json`, `data\*.json`).
+- [x] Au chargement, un fichier d'ancienne version est migré puis réécrit ; une copie de l'original est conservée dans `%APPDATA%\DevToolbar\backups\` (`config.v0.<date>.json`). Les migrations travaillent sur l'arbre JSON (`IJsonMigration`, `VersionedJson`).
+- [x] Un fichier illisible ou écrit par une version plus récente n'est jamais écrasé : l'application démarre sur des valeurs par défaut et le signale dans le journal.
+- [x] L'accès aux données passe par `IStorageService`, pour pouvoir changer de format (base de données) plus tard.
 
 ---
 
@@ -376,20 +387,20 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 # F5. Plugins fournis
 
 ## US5.1 Plugin Git
-**État :** 🟡 Partiel
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant que** développeur
 **Je veux** voir la branche courante et l'état de mes dépôts
 **Afin de** ne pas commiter dans la mauvaise branche.
 
 **Critères d'acceptation :**
-- [ ] À la création d'un projet, on l'associe à un dépôt et à son dossier local (cas principal).
+- [x] À la création d'un projet (Paramètres, « ＋ New project »), on l'associe à un dépôt et à son dossier local (cas principal).
 - [x] *(Ajout pour plus tard, déjà amorcé par la PR #4)* Un projet peut contenir plusieurs dépôts ; on en sélectionne un dans le panneau Git.
 - [x] Boutons Pull et Push sur le dépôt sélectionné (CLI `git`).
 - [x] Les dépôts se gèrent dans la fenêtre de configuration du plugin.
-- [ ] Chaque dépôt est relié à un dossier local, choisi à la configuration.
-- [ ] La branche et l'état propre/modifié sont **lus dans le dossier local** avec LibGit2Sharp (aujourd'hui : branche tirée de la configuration, état toujours « Clean »).
-- [ ] Pull et Push affichent leur résultat réel (succès, conflit, erreur).
+- [x] Chaque dépôt est relié à un dossier local, choisi à la configuration (bouton « Browse… » / 📂, boîte de dialogue Windows).
+- [x] La branche, le nombre de fichiers modifiés et l'avance/retard sur la branche suivie sont **lus dans le dossier local** avec LibGit2Sharp (`GitService`), relus toutes les 10 secondes. Dossier absent ou non Git : la toolbar l'indique.
+- [x] Pull et Push (CLI `git`, sans invite de mot de passe, délai de 2 minutes) affichent leur résultat réel (succès, conflit, erreur de Git).
 
 ## US5.2 Plugin Work Items
 **État :** 🎭 Simulé (`MockWorkItemProvider` dans tous les hôtes)
@@ -465,7 +476,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] `DevToolbar.Web` utilise uniquement des services simulés (aucun processus réel n'est lancé).
 - [x] `DevToolbar.Tests.E2E` démarre l'hôte Web et vérifie chaque US visible (`FeatureSpecTests`, `ToolbarUiTests`, `PluginSettingsTests`).
 - [x] `ScreenshotTests` régénère les captures de `doc/screenshots/`.
-- [x] `DevToolbar.Tests.Unit` couvre le plugin Git et la négociation de taille de l'hôte.
+- [x] `DevToolbar.Tests.Unit` couvre le plugin Git, la négociation de taille de l'hôte, la configuration et ses migrations, le stockage JSON, Git réel (dépôts temporaires) et les secrets.
 
 ## US6.2 Intégration continue
 **État :** ⬜ À faire, obligatoire pour la version finale
@@ -522,12 +533,12 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 - [x] Fermer la fenêtre de la toolbar quitte l'application.
 
 ## US8.3 Stockage local JSON
-**État :** 🟡 Partiel
+**État :** 🟡 Partiel, 🔍 à recetter sur PC
 
 **Critères d'acceptation :**
 - [x] Configuration et paramètres en JSON dans `%APPDATA%\DevToolbar`.
-- [ ] Entrées de temps, absences qualifiées et états « lu » en JSON dans le même dossier, avec `schemaVersion` (voir US2.5).
-- [ ] L'interface `IStorageService` a une implémentation réelle (aujourd'hui : aucune ; la migration SQLite de `DevToolbar.Core/Data` n'est pas utilisée).
+- [ ] Entrées de temps, absences qualifiées et états « lu » en JSON dans le même dossier, avec `schemaVersion` (voir US2.5). Le stockage est prêt ; il reste à le brancher quand le suivi du temps et le suivi GitHub seront réels.
+- [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\DevToolbar\data\<espace>.json` par espace de noms. (La migration SQLite de `DevToolbar.Core/Data` reste inutilisée.)
 
 ## US8.4 Position et ancrage de la toolbar
 **État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC

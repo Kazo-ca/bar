@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 /// <summary>
 /// Application-wide settings for toolbar behavior, positioning, and display.
-/// Persisted in %APPDATA%/DevToolbar/global-settings.json.
+/// Persisted in the "settings" section of the user configuration (%APPDATA%\DevToolbar\config.json).
 /// </summary>
 public class GlobalSettings
 {
@@ -44,4 +44,10 @@ public class GlobalSettings
     /// </summary>
     [JsonPropertyName("windowPollingIntervalMs")]
     public int WindowPollingIntervalMs { get; set; } = 1500;
+
+    /// <summary>
+    /// Where access tokens are stored (US2.4). Changing it moves the existing secrets.
+    /// </summary>
+    [JsonPropertyName("secretStore")]
+    public SecretStoreKind SecretStore { get; set; } = SecretStoreKind.CredentialManager;
 }

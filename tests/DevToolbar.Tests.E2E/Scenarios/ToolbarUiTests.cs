@@ -567,42 +567,58 @@ public class ToolbarUiTests : PageTest
         await Expect(Page.Locator(".time-report-group-key", new() { HasText = "MyWebAPI" })).ToBeVisibleAsync(new() { Timeout = 5000 });
     }
 
-    // --- US2.2: Config Hierarchy in Settings ---
+    // --- US2.3: single user configuration file shown in Settings ---
 
     [Test]
-    public async Task SettingsPage_ShouldShowConfigHierarchy()
+    public async Task SettingsPage_ShouldShowSingleConfigurationFile()
     {
         await NavigateAndWait();
         await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
 
-        // Should show Configuration Hierarchy section
-        await Expect(Page.Locator("text=Configuration Hierarchy")).ToBeVisibleAsync();
-        await Expect(Page.Locator(".config-level")).ToHaveCountAsync(3);
+        await Expect(Page.Locator("[data-testid='settings-config-section']")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid='settings-config-path']")).ToContainTextAsync("config.json");
+        await Expect(Page.Locator("text=Configuration Hierarchy")).ToHaveCountAsync(0);
     }
 
+    // --- US5.1: a project is created linked to a repository folder ---
+
     [Test]
-    public async Task SettingsPage_ConfigHierarchy_ShouldShowDevtoolbarJson()
+    public async Task SettingsPage_NewProjectForm_ValidatesTheFolder()
     {
         await NavigateAndWait();
         await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
 
-        // Should show .devtoolbar.json as highest priority
-        await Expect(Page.Locator(".config-level-name", new() { HasText = ".devtoolbar.json" })).ToBeVisibleAsync();
-        // Should show project-specific path
-        await Expect(Page.Locator(".config-level-path", new() { HasText = "/projects/my-webapi/.devtoolbar.json" })).ToBeVisibleAsync();
+        await Page.Locator("[data-testid='settings-new-project']").ClickAsync();
+        await Expect(Page.Locator("[data-testid='new-project-form']")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid='new-project-create']")).ToBeDisabledAsync();
+
+        await Page.Locator("[data-testid='new-project-path']").FillAsync("C:\\bad\"folder");
+        await Page.Locator("[data-testid='new-project-create']").ClickAsync();
+
+        await Expect(Page.Locator("[data-testid='new-project-error']")).ToContainTextAsync("invalid characters");
     }
 
+    // --- US2.4: choice of the access token store ---
+
     [Test]
-    public async Task SettingsPage_ConfigHierarchy_ShouldShowTemplateConfig()
+    public async Task SettingsPage_SecretStore_CanBeChanged()
     {
         await NavigateAndWait();
         await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync(new() { Timeout = 30000 });
 
-        await Expect(Page.Locator(".config-level-name", new() { HasText = "Template Config" })).ToBeVisibleAsync();
-        await Expect(Page.Locator(".config-level-path", new() { HasText = "template-webapi.json" })).ToBeVisibleAsync();
+        var vault = Page.Locator("[data-testid='secret-store-CredentialManager']");
+        var file = Page.Locator("[data-testid='secret-store-EncryptedFile']");
+        await Expect(vault).ToBeCheckedAsync();
+
+        await file.CheckAsync();
+        await Expect(file).ToBeCheckedAsync();
+
+        // Restore the shared Web host state for the other tests.
+        await vault.CheckAsync();
+        await Expect(vault).ToBeCheckedAsync();
     }
 
     // ==============================================================

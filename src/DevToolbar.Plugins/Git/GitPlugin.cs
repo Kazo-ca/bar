@@ -5,13 +5,13 @@ using DevToolbar.Core.Models;
 using Microsoft.AspNetCore.Components;
 
 /// <summary>
-/// Plugin showing Git branch status with Quick Sync (Pull/Push) for the active project.
-/// A project can declare several repositories; the toolbar shows a selector and
-/// Pull/Push run inside the selected repository folder.
+/// Plugin showing the Git state of the active project's repository, read from its local
+/// folder (US5.1), with Quick Sync (Pull/Push). A project can declare several repositories;
+/// the toolbar shows a selector and everything acts on the selected repository.
 /// </summary>
 public class GitPlugin : IConfigurablePlugin
 {
-    private readonly IProcessService _processService;
+    private readonly IGitService _gitService;
     private readonly INotificationService _notificationService;
 
     public string UniqueId => "git-tools";
@@ -23,12 +23,14 @@ public class GitPlugin : IConfigurablePlugin
 
     private ProjectConfig _project = new();
     private string? _selectedRepositoryPath;
-    private bool _isDirty;
+    private GitStatus? _status;
     private string _syncStatus = string.Empty;
+    private int _refreshing;
+    private bool _isSyncing;
 
-    public GitPlugin(IProcessService processService, INotificationService notificationService)
+    public GitPlugin(IGitService gitService, INotificationService notificationService)
     {
-        _processService = processService;
+        _gitService = gitService;
         _notificationService = notificationService;
     }
 
@@ -40,30 +42,74 @@ public class GitPlugin : IConfigurablePlugin
         Repositories.FirstOrDefault(r => _selectedRepositoryPath != null && GitRepositoryCatalog.SamePath(r.Path, _selectedRepositoryPath))
         ?? Repositories.FirstOrDefault();
 
-    public Task OnProjectChangedAsync(PluginContext context)
+    public async Task OnProjectChangedAsync(PluginContext context)
     {
         _project = context.Project;
         _selectedRepositoryPath = Repositories.FirstOrDefault()?.Path;
-        _isDirty = false;
+        _status = null;
         _syncStatus = string.Empty;
-        return Task.CompletedTask;
+        await RefreshStatusAsync();
     }
 
-    /// <summary>Selects the repository used by the toolbar buttons.</summary>
-    public void SelectRepository(string path)
+    /// <summary>Selects the repository used by the toolbar buttons and reads its state.</summary>
+    public async Task SelectRepositoryAsync(string path)
     {
         _selectedRepositoryPath = path;
+        _status = null;
         _syncStatus = string.Empty;
         OnStateChanged?.Invoke();
+        await RefreshStatusAsync();
     }
 
-    /// <summary>Branch shown for the selected repository.</summary>
-    public string CurrentBranch => SelectedRepository is { } repository
-        ? GitRepositoryCatalog.EffectiveBranch(repository, _project)
-        : _project.DefaultBranch;
+    /// <summary>
+    /// Reads the selected repository's state from its folder. Calls made while a refresh
+    /// is running are skipped (the toolbar refreshes periodically).
+    /// </summary>
+    public async Task RefreshStatusAsync()
+    {
+        var repository = SelectedRepository;
+        if (repository == null)
+        {
+            _status = null;
+            OnStateChanged?.Invoke();
+            return;
+        }
+        if (Interlocked.Exchange(ref _refreshing, 1) == 1)
+            return;
+        try
+        {
+            var status = await _gitService.GetStatusAsync(repository.Path);
+            // Ignore a late answer for a repository that is no longer selected.
+            if (SelectedRepository is { } current && GitRepositoryCatalog.SamePath(current.Path, repository.Path))
+            {
+                _status = status;
+                OnStateChanged?.Invoke();
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _refreshing, 0);
+        }
+    }
+
+    /// <summary>Last state read from the selected repository's folder; null before the first read.</summary>
+    public GitStatus? Status => _status;
+
+    /// <summary>
+    /// Branch shown for the selected repository: the one checked out in the folder, or the
+    /// configured branch until the folder has been read (or when it cannot be read).
+    /// </summary>
+    public string CurrentBranch => _status is { IsRepository: true, Branch: { } branch }
+        ? branch
+        : SelectedRepository is { } repository
+            ? GitRepositoryCatalog.EffectiveBranch(repository, _project)
+            : _project.DefaultBranch;
 
     /// <summary>Whether the working copy has local changes.</summary>
-    public bool IsDirty => _isDirty;
+    public bool IsDirty => _status?.IsDirty ?? false;
+
+    /// <summary>True while Pull or Push runs.</summary>
+    public bool IsSyncing => _isSyncing;
 
     /// <summary>Last Pull/Push status message.</summary>
     public string SyncStatus => _syncStatus;
@@ -79,13 +125,13 @@ public class GitPlugin : IConfigurablePlugin
         builder.CloseComponent();
     };
 
-    /// <summary>Runs <c>git pull</c> inside the selected repository.</summary>
-    public Task PullAsync() => RunSyncAsync("pull", "Pull");
+    /// <summary>Runs <c>git pull</c> inside the selected repository and shows its real result.</summary>
+    public Task PullAsync() => RunSyncAsync(_gitService.PullAsync, "Pull");
 
-    /// <summary>Runs <c>git push</c> inside the selected repository.</summary>
-    public Task PushAsync() => RunSyncAsync("push", "Push");
+    /// <summary>Runs <c>git push</c> inside the selected repository and shows its real result.</summary>
+    public Task PushAsync() => RunSyncAsync(_gitService.PushAsync, "Push");
 
-    private async Task RunSyncAsync(string subCommand, string verb)
+    private async Task RunSyncAsync(Func<string, CancellationToken, Task<GitCommandResult>> command, string verb)
     {
         var repository = SelectedRepository;
         if (repository == null)
@@ -93,20 +139,47 @@ public class GitPlugin : IConfigurablePlugin
             _notificationService.ShowWarning("No Git repository configured for this project.", "Git Sync");
             return;
         }
+        if (_isSyncing)
+            return;
 
+        _isSyncing = true;
+        _syncStatus = $"{verb}ing {repository.Name}...";
+        OnStateChanged?.Invoke();
         try
         {
-            _syncStatus = $"{verb}ing {repository.Name}...";
-            OnStateChanged?.Invoke();
-            await _processService.StartProcessAsync("git", GitRepositoryCatalog.BuildArguments(repository, subCommand));
-            _syncStatus = $"✓ {verb} complete";
-            _notificationService.ShowSuccess($"{verb} completed for {repository.Name}", "Git Sync");
+            var result = await command(repository.Path, CancellationToken.None);
+            ReportSyncResult(result, verb, repository.Name);
         }
         catch (Exception ex)
         {
             _syncStatus = $"✗ {verb} failed: {ex.Message}";
             _notificationService.ShowError($"{verb} failed for {repository.Name}: {ex.Message}", "Git Sync");
         }
+        finally
+        {
+            _isSyncing = false;
+        }
         OnStateChanged?.Invoke();
+        await RefreshStatusAsync();
+    }
+
+    private void ReportSyncResult(GitCommandResult result, string verb, string repositoryName)
+    {
+        if (result.HasConflicts)
+        {
+            _syncStatus = $"⚠ {verb}: conflicts to resolve";
+            _notificationService.ShowWarning($"{verb} on {repositoryName} left conflicts to resolve. {result.Summary}", "Git Sync");
+        }
+        else if (result.Success)
+        {
+            _syncStatus = $"✓ {verb} complete";
+            var detail = string.IsNullOrEmpty(result.Summary) ? string.Empty : $" {result.Summary}";
+            _notificationService.ShowSuccess($"{verb} completed for {repositoryName}.{detail}", "Git Sync");
+        }
+        else
+        {
+            _syncStatus = $"✗ {verb} failed: {result.Summary}";
+            _notificationService.ShowError($"{verb} failed for {repositoryName}: {result.Summary}", "Git Sync");
+        }
     }
 }

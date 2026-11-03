@@ -44,6 +44,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DevToolbar.Core\DevToolbar.Core.csproj" />
+    <ProjectReference Include="..\DevToolbar.Infrastructure\DevToolbar.Infrastructure.csproj" />
     <ProjectReference Include="..\DevToolbar.UI\DevToolbar.UI.csproj" />
     <ProjectReference Include="..\DevToolbar.Plugins\DevToolbar.Plugins.csproj" />
   </ItemGroup>
@@ -54,8 +55,6 @@
     They depend only on Core, System.* and Win32 P/Invoke.
   -->
   <ItemGroup>
-    <Compile Include="..\DevToolbar.Maui\Services\JsonSettingsService.cs" Link="Shared\JsonSettingsService.cs" />
-    <Compile Include="..\DevToolbar.Maui\Services\JsonGlobalSettingsService.cs" Link="Shared\JsonGlobalSettingsService.cs" />
     <Compile Include="..\DevToolbar.Maui\Services\WindowsFileSystemService.cs" Link="Shared\WindowsFileSystemService.cs" />
     <Compile Include="..\DevToolbar.Maui\Services\WindowsProcessService.cs" Link="Shared\WindowsProcessService.cs" />
     <Compile Include="..\DevToolbar.Maui\Services\WindowsScriptService.cs" Link="Shared\WindowsScriptService.cs" />

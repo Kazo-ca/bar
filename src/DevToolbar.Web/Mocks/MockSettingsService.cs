@@ -13,6 +13,9 @@ public class MockSettingsService : ISettingsService
 
     public event Action<ProjectConfig>? OnActiveProjectChanged;
 
+    /// <summary>The Web host keeps its sample projects in memory; this mirrors the Windows path.</summary>
+    public string? ConfigurationLocation => @"%APPDATA%\DevToolbar\config.json (simulated)";
+
     public MockSettingsService()
     {
         _projects = new List<ProjectConfig>
@@ -96,6 +99,16 @@ public class MockSettingsService : ISettingsService
         {
             OnActiveProjectChanged?.Invoke(_activeProject);
         }
+        return Task.CompletedTask;
+    }
+
+    public Task AddProjectAsync(ProjectConfig project)
+    {
+        if (_projects.Any(p => string.Equals(p.Id, project.Id, StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException($"A project with id '{project.Id}' already exists.", nameof(project));
+        _projects.Add(project);
+        _activeProject = project;
+        OnActiveProjectChanged?.Invoke(project);
         return Task.CompletedTask;
     }
 

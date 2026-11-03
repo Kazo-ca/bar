@@ -25,8 +25,12 @@ builder.Services.AddSingleton<IWindowService, MockWindowService>();
 builder.Services.AddSingleton<IDockingService, MockDockingService>();
 builder.Services.AddSingleton<IGlobalSettingsService, MockGlobalSettingsService>();
 builder.Services.AddSingleton<IWindowRegionService, MockWindowRegionService>();
+builder.Services.AddSingleton<MockSecretStore>();
+builder.Services.AddSingleton<ISecretStore>(sp => sp.GetRequiredService<MockSecretStore>());
+builder.Services.AddSingleton<ISecretStoreSelector>(sp => sp.GetRequiredService<MockSecretStore>());
 
 // Register plugins
+builder.Services.AddSingleton<IGitService, MockGitService>();
 builder.Services.AddSingleton<IPlugin, GitPlugin>();
 builder.Services.AddSingleton<IWorkItemProvider, MockWorkItemProvider>();
 builder.Services.AddSingleton<IPlugin, WorkItemsPlugin>();

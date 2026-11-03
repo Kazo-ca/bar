@@ -11,9 +11,10 @@ This README describes **what the software does today**. The backlog (what it sho
 | Windows host (WPF) | Works. Main Windows host. Still to be checked by hand on a PC: click-through, real mouse wheel, plugin configuration window. |
 | Toolbar UI (project switch, actions, menus, settings, time report) | Works in every host. |
 | Process and script actions, Smart Focus | Real in the Windows host. Script output appears when the script ends, not live. |
-| Git plugin | Pull/Push run the real `git` CLI on the configured repositories. The branch shown comes from the configuration, and the clean/dirty indicator is not read from the repository yet. |
+| Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). |
 | Work items, time tracking, CI/CD | **Simulated in every host**, including Windows. The UI works on sample data. |
-| Storage | Configuration is stored as JSON in `%APPDATA%\DevToolbar`. Time entries and plugin state are not persisted yet. |
+| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. A JSON `IStorageService` is available for plugin data; time entries and read states do not use it yet. |
+| Access tokens | Stored outside the configuration, in Windows Credential Manager or a DPAPI-encrypted `secrets.json`, chosen in Settings. No provider uses tokens yet. |
 | MAUI host | Frozen. Kept in the solution, no new features. |
 
 ## Projects
@@ -21,13 +22,14 @@ This README describes **what the software does today**. The backlog (what it sho
 | Project | Type | Role |
 |---|---|---|
 | `src/DevToolbar.Core` | Class library | Interfaces, models, events. No UI or native dependency. |
+| `src/DevToolbar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores. |
 | `src/DevToolbar.UI` | Razor class library | Blazor components, layout, pages, CSS, JS. |
 | `src/DevToolbar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. |
 | `src/DevToolbar.Windows` | WPF + Blazor Hybrid | **Main Windows host**: transparent, click-through toolbar window. |
 | `src/DevToolbar.Web` | Blazor Web App | Test host with simulated services, used by the Playwright tests. |
 | `src/DevToolbar.Maui` | MAUI Blazor Hybrid | Original Windows host, frozen. |
 | `tests/DevToolbar.Tests.E2E` | NUnit + Playwright | UI tests against the Web host, and screenshot capture. |
-| `tests/DevToolbar.Tests.Unit` | NUnit | Unit tests (Git plugin, host sizing). |
+| `tests/DevToolbar.Tests.Unit` | NUnit | Unit tests (Git plugin and real Git on temporary repositories, configuration and migrations, storage, secrets, host sizing). |
 
 All projects target .NET 10. `spikes/window-feasibility/` keeps the experiment that led to the WPF host.
 
@@ -48,8 +50,10 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 
 ## Features available today
 
-- **Project switching**: the left pill lists projects; switching updates plugins, actions and accent color.
-- **Git**: several repositories per project, Pull/Push on the selected one, repositories managed in the plugin configuration window.
+- **Projects**: the left pill lists projects; switching updates plugins, actions and accent color. Settings → *New project* creates a project linked to a repository's local folder (*Browse…* opens the Windows folder dialog).
+- **Git**: current branch, number of modified files and commits to push/pull, read from the folder; Pull/Push with their real result. Several repositories per project are possible, managed in the plugin configuration window.
+- **Configuration file**: everything is in `%APPDATA%\DevToolbar\config.json` (shown in Settings). A file that cannot be read, or that was written by a newer version, is never overwritten.
+- **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens.
 - **Quick actions**: launch a program, focus its window if already open (Smart Focus), or run a `pwsh`/`cmd`/`python` script and see its output.
 - **Plugin indicators**: work item, timer and CI/CD status in the system group, each with its own popover (sample data).
 - **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export (sample data).
@@ -75,7 +79,16 @@ The MAUI and Windows projects only build on Windows (or on Linux with `-p:Enable
 ```powershell
 dotnet run --project src/DevToolbar.Windows
 ```
-The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF `BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through, so clicks and the mouse wheel reach the application under the empty areas around the pill and its menus. To keep that true, `src/DevToolbar.Windows/wwwroot/css/wpf-host.css` removes every outer `box-shadow`. Startup and crash diagnostics go to `%LOCALAPPDATA%\DevToolbar\logs\windows-host.log`.
+The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF `BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through, so clicks and the mouse wheel reach the application under the empty areas around the pill and its menus. To keep that true, `src/DevToolbar.Windows/wwwroot/css/wpf-host.css` removes every outer `box-shadow`. Startup and crash diagnostics go to `%LOCALAPPDATA%\DevToolbar\logs\windows-host.log`. Pull and Push need Git on the `PATH`.
+
+Files written for the current user, all in `%APPDATA%\DevToolbar`:
+
+| File | Content |
+|---|---|
+| `config.json` | Settings, projects and repositories (`schemaVersion` 1). |
+| `secrets.json` | Only when *Encrypted file* is the token store: values encrypted with DPAPI. |
+| `data\*.json` | Plugin data, one file per namespace. |
+| `backups\` | Copies taken before a migration, or of a file that could not be read. |
 
 ### Run the Web test host
 ```bash

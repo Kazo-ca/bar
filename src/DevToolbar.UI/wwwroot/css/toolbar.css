@@ -550,6 +550,21 @@ body {
     color: #f0c060;
 }
 
+.git-status.unavailable {
+    color: #f08080;
+}
+
+.git-tracking {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.7);
+    font-variant-numeric: tabular-nums;
+}
+
+.git-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
 /* ==========================================================================
    Action Deck — Glass circle icon buttons (matching design)
    ========================================================================== */
@@ -1833,66 +1848,12 @@ body {
 }
 
 /* ==========================================================================
-   Config Hierarchy (US2.2)
+   Settings descriptions and configuration file (US2.3)
    ========================================================================== */
 .settings-description {
     font-size: 0.85em;
     color: var(--text-muted, #888);
     margin-bottom: 12px;
-}
-
-.settings-config-hierarchy {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.config-level {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    background: rgba(45, 45, 45, 0.6);
-    border-radius: 8px;
-    border-left: 3px solid var(--accent-color, #0078D4);
-}
-
-.config-level-badge {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75em;
-    font-weight: bold;
-    color: white;
-    flex-shrink: 0;
-}
-
-.config-level-1 { background: #E53935; }
-.config-level-2 { background: #FB8C00; }
-.config-level-3 { background: #43A047; }
-
-.config-level-name {
-    font-weight: 600;
-    min-width: 140px;
-    font-size: 0.85em;
-}
-
-.config-level-desc {
-    flex: 1;
-    font-size: 0.8em;
-    color: var(--text-muted, #888);
-}
-
-.config-level-path {
-    font-family: monospace;
-    font-size: 0.75em;
-    color: var(--text-muted, #666);
-    background: rgba(17, 17, 17, 0.7);
-    padding: 2px 6px;
-    border-radius: 3px;
 }
 
 /* ==========================================================================
@@ -2300,6 +2261,16 @@ body {
     font-family: var(--font-family);
 }
 
+.git-repo-folder {
+    display: flex;
+    gap: 6px;
+}
+
+.git-repo-folder input {
+    flex: 1;
+    min-width: 0;
+}
+
 .git-repo-form-grid input:focus {
     outline: 2px solid var(--accent-color);
     outline-offset: -1px;
@@ -2646,4 +2617,116 @@ body {
 /* flow-root: children's margins count in the measured height. */
 .host-sized-content {
     display: flow-root;
+}
+
+/* --- Settings: new project form (US5.1) --- */
+.new-project-form {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(45, 45, 45, 0.6);
+    border-left: 3px solid var(--accent-color, #0078D4);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.new-project-form h4 {
+    margin: 0;
+    font-size: 0.9em;
+}
+
+.new-project-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 10px;
+}
+
+.new-project-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8em;
+    color: var(--text-muted, #aaa);
+}
+
+.new-project-folder {
+    display: flex;
+    gap: 6px;
+}
+
+.settings-text-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(17, 17, 17, 0.7);
+    color: var(--text-primary, #fff);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 1.1em;
+}
+
+.settings-text-input:focus-visible {
+    outline: 2px solid var(--accent-color, #0078D4);
+    outline-offset: 1px;
+}
+
+.settings-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.settings-form-error {
+    color: #f08080;
+    font-size: 0.85em;
+}
+
+.new-project-actions {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 640px) {
+    .new-project-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* --- Settings: access token store (US2.4) --- */
+.settings-secret-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settings-secret-option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 10px;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(45, 45, 45, 0.6);
+    border-left: 3px solid transparent;
+    cursor: pointer;
+}
+
+.settings-secret-option.active {
+    border-left-color: var(--accent-color, #0078D4);
+}
+
+.settings-secret-option input {
+    grid-row: span 2;
+    accent-color: var(--accent-color, #0078D4);
+}
+
+.settings-secret-title {
+    font-weight: 600;
+    font-size: 0.85em;
+}
+
+.settings-secret-desc {
+    font-size: 0.78em;
+    color: var(--text-muted, #888);
 }
