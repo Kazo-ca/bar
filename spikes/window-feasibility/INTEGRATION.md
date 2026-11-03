@@ -1,6 +1,6 @@
 # Intégration au projet principal
 
-> **Mise à jour 2 novembre 2026 — décision prise.** Benoit a choisi l'hôte WPF parallèle (« on garde les deux, mais WPF sera probablement la voie principale »). Implémenté dans `src/DevToolbar.Windows` ; MAUI et Web inchangés. Ce qui suit est l'audit d'origine. État de l'implémentation et recette restante : section « Implémentation » en fin de document.
+> **Mise à jour 2 novembre 2026 — décision prise.** Benoit a choisi l'hôte WPF parallèle (« on garde les deux, mais WPF sera probablement la voie principale »). Le 3 novembre 2026, MAUI est déclaré gelé. Implémenté dans `src/DevToolbar.Windows` ; MAUI et Web inchangés. Ce qui suit est l'audit d'origine. État de l'implémentation et recette restante : section « Implémentation » en fin de document.
 
 
 Le 1 novembre 2026, Benoit a déclaré « tout fonctionne comme je le veux » pour le scénario manuel sans ombre : premier clic extérieur reçu par le témoin, fermeture du menu et molette fonctionnelle. Il a demandé d'appliquer cette approche au projet principal. Ce retour ne qualifie pas les autres scénarios du protocole.
@@ -11,7 +11,7 @@ Le 1 novembre 2026, Benoit a déclaré « tout fonctionne comme je le veux » po
 
 L'autre contrainte possible est de conserver impérativement l'hôte MAUI/WinUI actuel. Dans ce cas, le mécanisme WPF validé ne peut pas être appliqué directement ; une nouvelle faisabilité de l'hébergement WinUI serait nécessaire. Une simple suppression d'ombre CSS ne transforme pas ce dernier en fenêtre WPF layered.
 
-Cette décision reste **en attente**. Aucun nouvel hôte principal, remplacement de MAUI ou changement des services métier n'a été implémenté avant ce choix.
+*(Texte d'origine de l'audit, avant la décision.)* Cette décision était alors **en attente**. Elle a été prise le 2 novembre 2026 (hôte WPF), et le 3 novembre 2026 l'hôte MAUI a été déclaré **gelé** : il reste dans la solution mais ne reçoit plus de nouvelles fonctions. Le backlog à jour est dans [`doc/Features.md`](../../doc/Features.md).
 
 ## Pourquoi ce choix est nécessaire
 

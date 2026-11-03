@@ -1,418 +1,560 @@
-# F1. Architecture & Fondations
-Mise en place de la solution, des 4 projets, et de l'injection de dépendance pour supporter le mode Hybride (MAUI) et le mode Web (Test).
-graph TD
-    %% Définition des Projets
-    Core["🟦 DevToolbar.Core\n(Class Library .NET 10)\nInterfaces & Models"]
-    UI["🟪 DevToolbar.UI\n(Razor Class Lib)\nComposants Blazor"]
-    Plugins["🟩 DevToolbar.Plugins\n(Class Library)\nLogique Métier & Implémentations"]
-    
-    MauiApp["🟧 DevToolbar.Maui\n(MAUI .NET 10)\nNative Host (Windows)"]
-    WebApp["⬜ DevToolbar.Web\n(Blazor Web App .NET 10)\nTest Host (Browser)"]
-    TestProject["⬛ DevToolbar.Tests.E2E\n(NUnit + Playwright)\nTests Automatisés"]
+# DevToolbar : backlog des fonctionnalités
 
-    %% Relations
+Ce document est le **backlog** du projet : il décrit ce que la toolbar doit faire, et indique pour chaque user story ce qui est déjà fait. L'état actuel du logiciel, pour un nouvel utilisateur, est décrit dans le [README](../README.md) (en anglais).
+
+Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, après les PR #2 à #7).
+
+## Comment lire ce document
+
+**État d'une user story** (colonne « État » et ligne en tête de chaque US) :
+
+| Symbole | Signification |
+|---|---|
+| ✅ Fait | Tous les critères d'acceptation sont remplis dans l'hôte WPF. |
+| 🟡 Partiel | Une partie des critères est remplie ; les cases non cochées disent ce qui manque. |
+| 🎭 Simulé | L'interface est faite, mais les données viennent d'un service simulé (mock), **y compris dans l'hôte WPF**. |
+| ⬜ À faire | Rien n'est implémenté. |
+| 🔍 À recetter | Implémenté, mais pas encore vérifié à la main sur un PC Windows. |
+| 🧊 Gelé | Conservé, mais ne reçoit plus de nouvelles fonctions. |
+
+**Critères d'acceptation** : `- [x]` = fait, `- [ ]` = pas fait.
+
+## Vocabulaire
+
+| Terme | Sens dans ce document |
+|---|---|
+| **Projet** | Un contexte de travail sélectionnable dans la toolbar (pilule de gauche). Il regroupe un ou plusieurs dépôts, des actions et un thème. |
+| **Dépôt** | Un dépôt Git configuré dans un projet. Chaque dépôt est **relié à un dossier local**. Les fournisseurs (work items, CI/CD, sessions d'agents) se configurent par dépôt. |
+| **Hôte** | L'exécutable qui affiche l'interface Blazor : WPF (principal), Web (tests), MAUI (gelé). |
+| **Plugin** | Un module qui ajoute un indicateur et un panneau à la toolbar (Git, Work Items, Temps, CI/CD). |
+| **Pilule** | La forme arrondie de la toolbar et de ses groupes, voir la maquette. |
+| **Configuration utilisateur** | Le fichier JSON unique de l'utilisateur, dans `%APPDATA%\DevToolbar`, qui contient tous les projets et dépôts. |
+
+## Décisions prises
+
+| Sujet | Décision | Date |
+|---|---|---|
+| Hôte Windows | WPF (`src/DevToolbar.Windows`) est la voie principale. MAUI est **gelé** : il reste dans la solution mais ne reçoit plus de nouvelles fonctions. | 2 et 3 nov. 2026 |
+| Configuration | **Un seul fichier de configuration par utilisateur**, qui contient tous les projets et dépôts. Pas de niveaux Global / Type / Projet, pas de `template.json`. | 3 nov. 2026 |
+| Données sensibles | Les jetons (PAT, etc.) ne vont **pas** dans le JSON en clair. Stockage sécurisé (coffre ou chiffrement local) **à décider ensemble**. | 3 nov. 2026 |
+| Stockage | Fichiers JSON dans `%APPDATA%\DevToolbar` pour l'instant. Chaque fichier porte une propriété de **version de schéma** et doit pouvoir être migré (vers un autre format ou une base plus tard). SQLite n'est plus requis. | 3 nov. 2026 |
+| Work items | Configurables **par dépôt** : Azure DevOps (cloud) et GitHub Issues. Authentification par PAT pour commencer. | 3 nov. 2026 |
+| Suivi GitHub (F7) | Configurable **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux. | 3 nov. 2026 |
+| Git | État lu dans le dossier local du dépôt avec **LibGit2Sharp** (pas de la configuration). | 3 nov. 2026 |
+| Maquette | `doc/Toolbar-desing-exemple.png` est une **ligne directrice** : les éléments restent les mêmes, les thèmes proposés à l'utilisateur changent le style. | 3 nov. 2026 |
+| Fonctions de debug | Visibles uniquement dans une build `Debug` (`#if DEBUG` ou `IsDevelopment`). | 3 nov. 2026 |
+| Plugins tiers | Pas de chargement de DLL externes pour l'instant, mais le système de plugins doit rester ouvert pour que n'importe qui puisse en écrire un. | 3 nov. 2026 |
+| Intégration continue | Pas maintenant ; obligatoire pour la version finale. | 3 nov. 2026 |
+| Fermer la toolbar | Fermer la fenêtre **quitte l'application** (pas de réduction dans la zone de notification). | 3 nov. 2026 |
+
+## Questions ouvertes
+
+1. **Stockage des secrets** : coffre (Windows Credential Manager, Azure Key Vault…) ou fichier chiffré localement (DPAPI) ? À décider ensemble.
+2. **Gestionnaire d'identification** au-delà du PAT : GitHub App, extension Azure DevOps, OAuth… Lequel en premier ?
+3. **Modes `Floating` et `Overlay`, liste des fenêtres actives, remplacement de la barre des tâches** : ces fonctions existent dans le code et dans Paramètres. Fonctions normales à garder et documenter, ou fonctions de debug à masquer en Release ?
+4. **Projet et dépôt** : un projet garde-t-il un sens s'il ne contient qu'un dépôt, ou la toolbar doit-elle se sélectionner directement par dépôt ?
+
+## Vue d'ensemble
+
+| US | Titre | État |
+|---|---|---|
+| US1.1 | Solution et projets | ✅ |
+| US1.2 | Interfaces Core | ✅ |
+| US2.1 | Système de plugins | 🟡 |
+| US2.2 | Changement de projet | ✅ |
+| US2.3 | Configuration utilisateur unique | 🟡 |
+| US2.4 | Stockage sécurisé des secrets | ⬜ |
+| US2.5 | Version de schéma et migration | ⬜ |
+| US3.1 | Layout principal (pilule) | ✅ |
+| US3.2 | Couleur d'accent et police par projet | ✅ |
+| US3.3 | Thèmes proposés à l'utilisateur | 🟡 |
+| US3.4 | Vue compacte et débordement | ⬜ |
+| US3.5 | Fonctions de debug masquées en Release | ⬜ |
+| US4.1 | Bouton « Lancer processus » | ✅ |
+| US4.2 | Smart Focus | 🟡 |
+| US4.3 | Bouton script et sortie terminal | 🟡 |
+| US5.1 | Plugin Git | 🟡 |
+| US5.2 | Plugin Work Items | 🎭 |
+| US5.3 | Suivi du temps et inactivité | 🎭 |
+| US5.4 | Rapports de temps | 🎭 |
+| US5.5 | Journée de travail (arrivée, dîner, réunion) | ⬜ |
+| US6.1 | Tests Playwright sur l'hôte Web | ✅ |
+| US6.2 | Intégration continue | ⬜ |
+| US7.1 | Suivi GitHub en arrière-plan | 🎭 |
+| US7.2 | Consultation et « marquer comme lu » | 🎭 |
+| US8.1 | Fenêtre native | ✅ 🔍 |
+| US8.2 | Zone de notification | ✅ 🔍 |
+| US8.3 | Stockage local JSON | 🟡 |
+| US8.4 | Position et ancrage de la toolbar | ✅ 🔍 |
+| US8.5 | Barre des tâches et fenêtres actives | 🟡 voir question 3 |
+| US9.1 | Hôte WPF principal | ✅ 🔍 |
+| US9.2 | Hôte MAUI gelé | 🧊 |
+
+---
+
+# F1. Architecture et fondations
+
+## Projets de la solution
+
+```mermaid
+graph TD
+    Core["DevToolbar.Core<br/>interfaces, modèles, événements"]
+    UI["DevToolbar.UI<br/>composants Blazor (RCL)"]
+    Plugins["DevToolbar.Plugins<br/>Git, Work Items, Temps, CI/CD"]
+    Windows["DevToolbar.Windows<br/>hôte WPF (principal)"]
+    Web["DevToolbar.Web<br/>hôte de test, services simulés"]
+    Maui["DevToolbar.Maui<br/>hôte MAUI (gelé)"]
+    E2E["DevToolbar.Tests.E2E<br/>NUnit + Playwright"]
+    Unit["DevToolbar.Tests.Unit<br/>NUnit"]
+
     UI --> Core
     Plugins --> Core
-    
-    MauiApp --> UI
-    MauiApp --> Plugins
-    MauiApp --> Core
-    
-    WebApp --> UI
-    WebApp --> Plugins
-    WebApp --> Core
-    
-    TestProject -.-> WebApp : "Pilote via Playwright"
+    Windows --> UI
+    Windows --> Plugins
+    Web --> UI
+    Web --> Plugins
+    Maui --> UI
+    Maui --> Plugins
+    E2E -. "pilote via Playwright" .-> Web
+    Unit --> Plugins
+```
 
-📂 DevToolbar.sln
-│
-├── 📂 src
-│   │
-│   ├── 🟦 DevToolbar.Core          # Le Cœur (Pas de dépendance UI ou Native)
-│   │   ├── Interfaces              # IPlugin, IProjectService, INativeService
-│   │   ├── Models                  # ProjectConfig, PluginContext
-│   │   └── Events                  # EventAggregator (Pub/Sub)
-│   │
-│   ├── 🟪 DevToolbar.UI            # La Librairie de Composants (RCL)
-│   │   ├── Components              # ActionButton.razor, ProjectSelector.razor
-│   │   ├── Layouts                 # MainLayout.razor
-│   │   ├── Pages                   # SettingsPage.razor
-│   │   └── wwwroot                 # CSS, JS, Images partagés
-│   │
-│   ├── 🟩 DevToolbar.Plugins       # Ta "Business-Logic" (Git, TFS, etc.)
-│   │   ├── Git                     # Implémentation IPlugin pour Git
-│   │   ├── AzureDevOps             # Implémentation IPlugin pour TFS
-│   │   └── TimeTracker             # Logique de tracking
-│   │
-│   ├── 🟧 DevToolbar.Maui          # L'Application Finale (Executable)
-│   │   ├── Platforms               # Code spécifique Windows/Mac
-│   │   ├── Services                # WindowsProcessService (Implémentation réelle)
-│   │   └── MauiProgram.cs          # Injection de dépendance (DI) Réelle
-│   │
-│   └── ⬜ DevToolbar.Web           # Le "Mock Host" pour Playwright
-│       ├── Mocks                   # MockProcessService (Simule les actions)
-│       └── Program.cs              # Injection de dépendance (DI) Mockée
-│
-└── 📂 tests
-    └── ⬛ DevToolbar.Tests.E2E     # Projet de Tests
-        ├── Drivers                 # Configuration Playwright
-        └── Scenarios               # Tests (ex: ButtonClickTest.cs)
+```text
+DevToolbar.slnx
+├── src
+│   ├── DevToolbar.Core       Interfaces/, Models/, Events/, Layout/, Data/
+│   ├── DevToolbar.UI         Components/, Layouts/, Pages/, Services/, wwwroot/
+│   ├── DevToolbar.Plugins    Git/, WorkItems/, TimeTracker/, GithubAgents/, Services/PluginLoader.cs
+│   ├── DevToolbar.Windows    Hôte WPF : ToolbarWindow.cs, Program.cs, Services/
+│   ├── DevToolbar.Web        Hôte de test : Mocks/, Program.cs
+│   └── DevToolbar.Maui       Hôte MAUI gelé
+├── tests
+│   ├── DevToolbar.Tests.E2E  Drivers/, Scenarios/
+│   └── DevToolbar.Tests.Unit
+└── spikes/window-feasibility Banc d'essai de la fenêtre transparente (historique)
+```
 
-        
-## US1.1 Création de la Solution et des Projets
-Mise en place de la structure de dossier et des références croisées.
+Tous les projets ciblent **.NET 10**.
 
-**En tant que** Développeur (Toi)
-**Je veux** initialiser la solution avec les 4 projets distincts (.NET 9)
-**Afin de** séparer proprement la logique, l'UI et l'implémentation native.
+## US1.1 Solution et projets
+**État :** ✅ Fait
 
-**Auteur:** User
-**Priorité:** Critique
-**Estimation:** 2 points
+**En tant que** développeur
+**Je veux** une solution qui sépare la logique, l'interface et les hôtes natifs
+**Afin de** réutiliser la même interface dans plusieurs hôtes et la tester dans un navigateur.
 
-**Critères d'acceptation:**
-[ ] La solution contient `DevToolbar.Core` (ClassLib), `DevToolbar.UI` (RCL), `DevToolbar.Maui` (MAUI) et `DevToolbar.Web` (Blazor Web App).
-[ ] `DevToolbar.UI` référence `DevToolbar.Core`.
-[ ] `DevToolbar.Maui` et `DevToolbar.Web` référencent `DevToolbar.UI` et `DevToolbar.Core`.
-[ ] Le projet Web lance une page Blazor vide sans erreur.
+**Critères d'acceptation :**
+- [x] La solution `DevToolbar.slnx` contient Core, UI, Plugins, Windows, Web, Maui et les deux projets de tests.
+- [x] `DevToolbar.UI` et `DevToolbar.Plugins` ne référencent que `DevToolbar.Core`.
+- [x] Chaque hôte référence UI, Plugins et Core.
+- [x] L'hôte Web démarre et affiche la toolbar sans erreur.
 
-**Fichiers/Projets concernés:**
-- 📁 `Solution/`
-- 📄 `DevToolbar.sln`
+## US1.2 Interfaces Core
+**État :** ✅ Fait
 
----
+**En tant qu'** architecte
+**Je veux** que tout accès natif (processus, fichiers, fenêtres, configuration, stockage) passe par une interface de `DevToolbar.Core`
+**Afin d'** injecter des services réels dans l'hôte WPF et des services simulés dans l'hôte Web.
 
-## US1.2 Définition des Interfaces Core (Contrats)
-Création des interfaces qui abstraient les fonctionnalités natives pour permettre le testing web.
+**Critères d'acceptation :**
+- [x] Interfaces dans `src/DevToolbar.Core/Interfaces/` : `IProcessService`, `IFileSystemService`, `ISettingsService`, `IGlobalSettingsService`, `IScriptService`, `IStorageService`, `IPlugin`, `IPluginLoader`, `IWorkItemProvider`, `ITimeTrackingService`, `ICiCdService`, et les services de fenêtre (`IDockingService`, `IWindowService`, `IWindowDragService`, `IHostSurfaceService`, `IWindowRegionService`, `INativeService`).
+- [x] L'hôte Web n'enregistre que des implémentations simulées (`src/DevToolbar.Web/Mocks/`).
 
-**En tant que** Architecte
-**Je veux** définir les interfaces `IProcessService`, `IFileSystemService` et `ISettingsService`
-**Afin de** pouvoir injecter des mocks dans le projet Web et des services réels dans MAUI.
-
-**Auteur:** User
-**Priorité:** Haute
-**Estimation:** 3 points
-
-**Exemple de code :**
-''' csharp
-namespace DevToolbar.Core.Interfaces;
-
-public interface IProcessService {
-    Task<int> StartProcessAsync(string path, string arguments);
+```csharp
+public interface IProcessService
+{
+    Task<int> StartProcessAsync(string path, string arguments = "");
     bool FocusWindowByTitle(string titleRegex);
 }
-'''
-
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Core/Interfaces/`
-- 📄 `IProcessService.cs`
-- 📄 `IPlugin.cs`
+```
 
 ---
 
-# F2. Système de Plugins & Configuration
-Le moteur qui permet de charger des fonctionnalités dynamiquement et de gérer les contextes projets.
+# F2. Plugins et configuration
 
-## US2.1 Engine de Chargement de Plugins
-Mécanisme pour découvrir et charger les plugins (internes ou DLL externes).
+## US2.1 Système de plugins
+**État :** 🟡 Partiel
 
-**En tant que** Système
-**Je veux** scanner et instancier toutes les classes implémentant `IPlugin` au démarrage
-**Afin de** rendre l'application extensible.
+**En tant que** développeur tiers
+**Je veux** écrire mon propre plugin en implémentant `IPlugin`
+**Afin d'** ajouter à la toolbar un outil adapté à mes besoins.
 
-**Critères d'acceptation:**
-[ ] Service `PluginLoader` capable de lister les plugins.
-[ ] Chaque plugin a un `UniqueId` et un `Name`.
-[ ] Injection de dépendance fonctionnelle pour les plugins.
+**Critères d'acceptation :**
+- [x] `PluginLoader` (`src/DevToolbar.Plugins/Services/PluginLoader.cs`) liste les plugins enregistrés dans l'injection de dépendances.
+- [x] Chaque plugin a un `UniqueId`, un `Name` et une icône.
+- [x] Un plugin peut afficher un indicateur dans la pilule (`IPluginIndicator`) et une fenêtre de configuration (`IConfigurablePlugin`).
+- [ ] Un guide « Écrire un plugin » explique le contrat et comment l'enregistrer.
+- Hors périmètre pour l'instant : chargement de DLL externes depuis un dossier.
 
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Core/Services/`
-- 📄 `PluginService.cs`
+## US2.2 Changement de projet
+**État :** ✅ Fait
 
-## US2.2 Gestion des Contextes Projets (Templating)
-Permettre la configuration par projet avec héritage (Global -> Type -> Projet -> User).
+**En tant qu'** utilisateur
+**Je veux** que la toolbar change quand je sélectionne un autre projet
+**Afin de** voir uniquement les outils utiles à ce projet.
 
-**En tant que** Utilisateur
-**Je veux** que la configuration de la toolbar change quand je sélectionne un projet différent
-**Afin de** voir les outils pertinents pour ce projet (ex: pas de bouton "Deploy" sur une lib).
+**Critères d'acceptation :**
+- [x] Le sélecteur de projet (pilule de gauche) liste les projets de la configuration.
+- [x] Le changement de projet notifie tous les plugins (`OnProjectChangedAsync`) et met à jour les actions et le thème.
+- [x] Seuls les plugins de `enabledPlugins` sont affichés.
 
-**Critères d'acceptation:**
-[ ] Définition du modèle `ProjectConfig` (JSON).
-[ ] Support des dossiers : Si le `Path` du projet existe, tenter de lire un `.devtoolbar.json` local.
-[ ] Le changement de projet notifie tous les plugins via `OnProjectChanged`.
+## US2.3 Configuration utilisateur unique
+**État :** 🟡 Partiel
 
-**Exemple de code :**
-''' json
-// template-webapi.json
+**En tant qu'** utilisateur
+**Je veux** que toute ma configuration (projets, dépôts, actions, thèmes, règles de temps) soit dans un seul fichier
+**Afin de** savoir où elle se trouve et de pouvoir la sauvegarder facilement.
+
+**Critères d'acceptation :**
+- [x] La configuration est lue depuis `%APPDATA%\DevToolbar\config.json` (projets) et les paramètres globaux depuis le même dossier.
+- [ ] Un seul fichier contient tout ; les réglages globaux et les projets ne sont plus séparés.
+- [ ] Les surcharges par `.devtoolbar.json` dans le dossier du projet sont **retirées** (le code actuel les lit encore).
+- [ ] Chaque dépôt déclare son dossier local, son fournisseur de work items et son suivi GitHub.
+- [ ] Aucune donnée sensible n'est écrite dans ce fichier (voir US2.4).
+
+Exemple de forme visée (les noms exacts seront fixés à l'implémentation) :
+
+```json
 {
-  "projectType": "WebApi",
-  "theme": { "accentColor": "#0078D7" },
-  "enabledPlugins": ["Git", "SwaggerLauncher"]
+  "schemaVersion": 1,
+  "activeProjectId": "alpha",
+  "timeTracking": { "idleMinutes": 15 },
+  "projects": [
+    {
+      "id": "alpha",
+      "name": "Projet Alpha",
+      "theme": { "name": "light", "accentColor": "#0078D7" },
+      "enabledPlugins": ["git", "work-items", "time-tracker", "github-agents"],
+      "actions": [],
+      "repositories": [
+        {
+          "name": "alpha-api",
+          "localPath": "C:\\repos\\alpha-api",
+          "workItems": { "provider": "AzureDevOps", "organization": "contoso", "project": "Alpha", "secretRef": "alpha-devops-pat" },
+          "github": { "repository": "contoso/alpha-api", "trackActions": true, "trackAgentSessions": false, "secretRef": "alpha-github-pat" },
+          "timeTracking": { "idleMinutes": 10 }
+        }
+      ]
+    }
+  ]
 }
-'''
+```
 
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Core/Models/`
-- 📄 `ProjectConfig.cs`
-- 📄 `SettingsService.cs`
+## US2.4 Stockage sécurisé des secrets
+**État :** ⬜ À faire, choix technique ouvert (question 1)
+
+**En tant qu'** utilisateur
+**Je veux** que mes jetons d'accès soient stockés de façon chiffrée
+**Afin qu'** une copie de mon fichier de configuration ne donne pas accès à mes comptes.
+
+**Critères d'acceptation :**
+- [ ] La configuration ne contient qu'une référence (`secretRef`) vers le secret.
+- [ ] Le secret est stocké dans un coffre ou chiffré localement (solution à choisir).
+- [ ] Les PAT GitHub et Azure DevOps sont saisis dans Paramètres et ne sont jamais réaffichés en clair.
+- [ ] Une note d'architecture prévoit d'autres modes d'authentification (GitHub App, extension Azure DevOps, OAuth).
+
+## US2.5 Version de schéma et migration
+**État :** ⬜ À faire
+
+**En tant que** mainteneur
+**Je veux** que chaque fichier de données porte sa version de schéma
+**Afin de** faire évoluer le format sans perdre les données des utilisateurs.
+
+**Critères d'acceptation :**
+- [ ] Chaque fichier JSON écrit par l'application contient `schemaVersion`.
+- [ ] Au chargement, un fichier d'ancienne version est migré puis réécrit ; une copie de l'original est conservée.
+- [ ] L'accès aux données passe par `IStorageService`, pour pouvoir changer de format (base de données) plus tard.
 
 ---
 
-# F3. UI Framework & Theming
-La coquille visuelle de l'application, utilisant Blazor.
+# F3. Interface et thèmes
 
-## US3.1 Layout Principal (Shell)
-Création de la structure visuelle : Barre latérale (Projets), Zone centrale (Plugins), Zone droite (Actions).
+Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple.png). C'est une ligne directrice : la disposition et les éléments sont fixes, les thèmes en changent le style.
 
-**En tant que** Utilisateur
-**Je veux** une interface compacte et organisée
-**Afin de** accéder rapidement à mes outils sans perdre d'espace écran.
+## US3.1 Layout principal (pilule)
+**État :** ✅ Fait
 
-**Critères d'acceptation:**
-[ ] Layout Responsive (CSS Grid/Flexbox).
-[ ] Composant `ProjectSelector` (Dropdown).
-[ ] Composant `PluginZone` (DynamicComponent).
-[ ] Composant `ActionDeck` (Liste de boutons).
+**En tant qu'** utilisateur
+**Je veux** une toolbar compacte en forme de pilule
+**Afin d'** accéder à mes outils sans perdre de place à l'écran.
 
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.UI/Layouts/`
-- 📄 `MainLayout.razor`
-- 📄 `ToolbarShell.razor`
+**Critères d'acceptation :**
+- [x] De gauche à droite : projet et Git, actions rapides, puis groupe système (indicateurs des plugins, temps, rapports, paramètres).
+- [x] `ProjectSelector`, `PluginZone`, `ActionDeck` et la poignée de déplacement sont des composants de `DevToolbar.UI`.
+- [x] Les menus s'ouvrent sous la toolbar, ou au-dessus si elle est ancrée en bas.
+- [x] Les menus se ferment par un clic extérieur, `Échap` (le focus revient au déclencheur) ou quand une autre application est activée.
 
-## US3.2 Personnalisation CSS (Théming dynamique)
-Injection de variables CSS basées sur la configuration du projet actif.
+## US3.2 Couleur d'accent et police par projet
+**État :** ✅ Fait
 
-**En tant que** Designer
-**Je veux** que la couleur d'accentuation change selon le projet
-**Afin de** identifier visuellement le contexte immédiat (ex: Prod = Rouge, Dev = Vert).
+**En tant qu'** utilisateur
+**Je veux** que la couleur d'accent change selon le projet
+**Afin de** savoir d'un coup d'œil dans quel contexte je suis.
 
-**Critères d'acceptation:**
-[ ] Service `ThemeService` qui génère un bloc `<style>`.
-[ ] Support des couleurs hexadécimales et des fonts.
-[ ] Si un CSS custom est fourni dans la config, il est injecté.
+**Critères d'acceptation :**
+- [x] `ThemeService` génère les variables CSS `--accent-color` et `--font-family`.
+- [x] Un CSS personnalisé dans la configuration du projet est injecté.
+- [x] La couleur et la police se modifient dans Paramètres.
 
-**Exemple de code :**
-''' csharp
-// Dans MainLayout.razor
-protected override void OnParametersSet() {
-   _cssVariables = $"--accent-color: {CurrentProject.Color}; --font-family: {CurrentProject.Font};";
-}
-'''
+## US3.3 Thèmes proposés à l'utilisateur
+**État :** 🟡 Partiel
 
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.UI/Services/`
-- 📄 `ThemeService.cs`
+**En tant qu'** utilisateur
+**Je veux** choisir un thème (clair, sombre, vert…)
+**Afin d'** adapter la toolbar à mon goût sans changer sa disposition.
+
+**Critères d'acceptation :**
+- [ ] Les thèmes clair, sombre et vert de la maquette sont disponibles dans l'interface Blazor.
+- [ ] Le thème se choisit dans Paramètres.
+- [ ] Un thème ne change que les styles (couleurs, ombres intérieures, rayons), jamais les éléments.
+
+## US3.4 Vue compacte et débordement
+**État :** ⬜ À faire
+
+**En tant qu'** utilisateur avec peu de place
+**Je veux** que les textes longs soient tronqués et que les actions en trop passent dans un menu « … »
+**Afin que** la toolbar reste lisible.
+
+**Critères d'acceptation :**
+- [ ] Le nom de projet et la branche sont tronqués avec « … » et affichés en entier dans l'info-bulle.
+- [ ] Quand les actions ne tiennent pas, un bouton « … » ouvre un menu avec les actions masquées.
+
+## US3.5 Fonctions de debug masquées en Release
+**État :** ⬜ À faire
+
+**En tant qu'** utilisateur final
+**Je veux** ne pas voir les outils de développement de la toolbar
+**Afin d'** avoir une interface propre.
+
+**Critères d'acceptation :**
+- [ ] Le bouton 🧪 « Test Dropdown » n'est rendu que dans une build `Debug` (`#if DEBUG`) ou en environnement de développement.
+- [ ] Toute future fonction de debug suit la même règle.
 
 ---
 
-# F4. Quick Actions (Custom Buttons)
-Le "Deck" programmable par l'utilisateur.
+# F4. Actions rapides
 
-## US4.1 Bouton "Lancer Processus"
-Création d'un bouton qui lance un exe.
+## US4.1 Bouton « Lancer processus »
+**État :** ✅ Fait
 
-**En tant que** Développeur
-**Je veux** configurer un bouton pour lancer Postman ou Visual Studio
+**En tant que** développeur
+**Je veux** un bouton qui lance un programme (Postman, Visual Studio…)
 **Afin de** gagner du temps.
 
-**Critères d'acceptation:**
-[ ] Configuration : Icone, Label, Path, Arguments.
-[ ] Appel via `IProcessService.StartProcessAsync`.
-[ ] Gestion d'erreur si le path est invalide (Toast notification).
+**Critères d'acceptation :**
+- [x] Configuration : icône, libellé, chemin, arguments.
+- [x] Lancement via `IProcessService.StartProcessAsync`.
+- [x] Notification d'erreur si le chemin est invalide.
 
-## US4.2 Bouton "Lier à une fenêtre" (Smart Focus)
-Bouton qui met le focus sur une fenêtre existante ou la lance si absente.
+## US4.2 Smart Focus
+**État :** 🟡 Partiel
 
-**En tant que** Utilisateur
-**Je veux** cliquer sur un bouton qui m'amène à ma fenêtre de logs déjà ouverte
-**Afin de** ne pas ouvrir 10 instances de la même application.
+**En tant qu'** utilisateur
+**Je veux** qu'un bouton active la fenêtre de l'application si elle est déjà ouverte, et la lance sinon
+**Afin de** ne pas ouvrir dix fois la même application.
 
-**Critères d'acceptation:**
-[ ] Configuration : Regex du titre de la fenêtre (ex: ".*Log..*").
-[ ] Si fenêtre trouvée -> `NativeMethods.SetForegroundWindow`.
-[ ] Si non trouvée -> Lancer l'exécutable configuré.
-[ ] (Bonus) Si plusieurs fenêtres -> Menu contextuel.
+**Critères d'acceptation :**
+- [x] Configuration : expression régulière sur le titre de la fenêtre (`windowTitleRegex`).
+- [x] Fenêtre trouvée : elle passe au premier plan. Sinon : le programme est lancé.
+- [ ] Plusieurs fenêtres trouvées : un menu permet de choisir laquelle activer.
 
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Maui/Services/` (Implémentation native Windows API)
-- 📄 `WindowsProcessService.cs`
-- 📁 `DevToolbar.UI/Components/Buttons/`
-- 📄 `SmartProcessButton.razor`
-
-## US4.3 Bouton Script (Powershell/Python)
-Exécution de scripts avec feedback visuel.
+## US4.3 Bouton script et sortie terminal
+**État :** 🟡 Partiel
 
 **En tant que** DevOps
-**Je veux** lancer un script de build et voir le résultat
-**Afin de** vérifier que la compilation a réussi.
+**Je veux** lancer un script et voir sa sortie
+**Afin de** vérifier qu'il a réussi.
 
-**Critères d'acceptation:**
-[ ] Choix de l'interpréteur (pwsh, cmd, python).
-[ ] Ouverture d'une modale "Terminal Output" pour voir les logs en temps réel (Stream).
+**Critères d'acceptation :**
+- [x] Choix de l'interpréteur (`pwsh`, `cmd`, `python`).
+- [x] Une fenêtre « Terminal Output » affiche la sortie et le code de retour.
+- [ ] La sortie s'affiche **ligne par ligne pendant l'exécution** (aujourd'hui elle n'apparaît qu'à la fin).
 
 ---
 
-# F5. Plugins par Défaut
-Les outils essentiels intégrés.
+# F5. Plugins fournis
 
-## US5.1 Plugin Git Tools
-Affichage de l'état de la branche courante.
+## US5.1 Plugin Git
+**État :** 🟡 Partiel
 
-**En tant que** Développeur
-**Je veux** voir ma branche actuelle et si j'ai des changements
+**En tant que** développeur
+**Je veux** voir la branche courante et l'état de mes dépôts
 **Afin de** ne pas commiter dans la mauvaise branche.
 
-**Critères d'acceptation:**
-[ ] Utilisation de `LibGit2Sharp` ou CLI Git.
-[ ] Affichage : Nom branche, Indicateur (Clean/Dirty).
-[ ] Bouton "Quick Sync" (Pull/Push).
+**Critères d'acceptation :**
+- [x] Un projet peut contenir plusieurs dépôts ; on en sélectionne un dans le panneau Git.
+- [x] Boutons Pull et Push sur le dépôt sélectionné (CLI `git`).
+- [x] Les dépôts se gèrent dans la fenêtre de configuration du plugin.
+- [ ] Chaque dépôt est relié à un dossier local, choisi à la configuration.
+- [ ] La branche et l'état propre/modifié sont **lus dans le dossier local** avec LibGit2Sharp (aujourd'hui : branche tirée de la configuration, état toujours « Clean »).
+- [ ] Pull et Push affichent leur résultat réel (succès, conflit, erreur).
 
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Core/Plugins/Git/`
-- 📄 `GitPlugin.cs`
+## US5.2 Plugin Work Items
+**État :** 🎭 Simulé (`MockWorkItemProvider` dans tous les hôtes)
 
-## US5.2 Plugin Work Items (TFS/GitHub)
-Lien avec le ticketing.
+**En tant que** développeur
+**Je veux** voir le ticket sur lequel je travaille et en changer
+**Afin d'** imputer mon temps au bon ticket.
 
-**En tant que** Développeur
-**Je veux** voir sur quel ticket je travaille et pouvoir le changer
-**Afin de** tracker mon temps correctement.
+**Critères d'acceptation :**
+- [x] Affichage « #ID - Titre », recherche et sélection d'un autre ticket.
+- [x] Interface `IWorkItemProvider` commune aux fournisseurs.
+- [ ] Fournisseur **Azure DevOps (cloud)**, authentification par PAT.
+- [ ] Fournisseur **GitHub Issues**, authentification par PAT.
+- [ ] Le fournisseur se configure **par dépôt**.
+- [ ] Lien cliquable vers le ticket sur le web.
 
-**Critères d'acceptation:**
-[ ] Affichage "ID - Titre".
-[ ] Dropdown pour chercher/sélectionner un autre item.
-[ ] Lien clicable vers le web (Azure DevOps / GitHub Issues).
-[ ] Interface `IWorkItemProvider` pour supporter les 2 systèmes.
+## US5.3 Suivi du temps et inactivité
+**État :** 🎭 Simulé (`MockTimeTrackingService` dans tous les hôtes)
 
-## US5.3 Plugin Time Management
-Tracking automatique du temps.
+**En tant qu'** employé ou travailleur autonome
+**Je veux** que le temps soit suivi automatiquement et que mes absences soient détectées
+**Afin d'** avoir des feuilles de temps exactes.
 
-**En tant que** Freelance/Employé
-**Je veux** que le timer s'arrête quand je verrouille ma session windows
-**Afin de** avoir des feuilles de temps précises.
+**Critères d'acceptation :**
+- [x] Démarrer / arrêter le timer, total du jour affiché dans la pilule.
+- [x] Le temps est rattaché au projet et au ticket actif.
+- [ ] Le verrouillage de session Windows (`SystemEvents.SessionSwitch`) et l'inactivité clavier/souris sont détectés.
+- [ ] Le délai d'inactivité est configurable **globalement** et **par dépôt** (le réglage du dépôt l'emporte). Défaut : 15 minutes.
+- [ ] Au retour, la toolbar affiche la durée de l'absence et permet de la qualifier : réunion, dîner, autre (texte libre), ou à retirer.
+- [ ] Les entrées sont enregistrées localement (voir US8.3).
 
-**Critères d'acceptation:**
-[ ] Écoute de `SystemEvents.SessionSwitch` (MAUI seulement).
-[ ] Stockage local (SQLite) des entrées (Start, Stop, ProjectId, WorkItemId).
-[ ] Détection d'inactivité (clavier/souris) après 15 min.
+## US5.4 Rapports de temps
+**État :** 🎭 Simulé (affiche les données du service simulé)
 
----
+**En tant qu'** utilisateur
+**Je veux** consulter le temps passé par projet et par ticket
+**Afin de** remplir mes feuilles de temps ou facturer.
 
-# F6. Testing & Qualité
-Infrastructure pour les tests E2E avec Playwright.
+**Critères d'acceptation :**
+- [x] Fenêtre de rapport ouverte depuis le groupe système.
+- [x] Période : aujourd'hui, 7 derniers jours, 30 derniers jours.
+- [x] Regroupement par projet, ticket, jour ou description.
+- [x] Export CSV.
+- [ ] Les absences qualifiées (réunion, dîner) apparaissent dans le rapport.
 
-## US6.1 Configuration Playwright sur le projet Web
-Préparer le terrain pour les tests automatisés.
+## US5.5 Journée de travail (arrivée, dîner, réunion)
+**État :** ⬜ À faire
 
-**En tant que** QA / Développeur
-**Je veux** pouvoir lancer l'interface de la toolbar dans un navigateur standard via le projet `Test-Blazor-WebApp`
-**Afin de** écrire des scripts Playwright qui valident l'UI.
+**En tant qu'** employé
+**Je veux** voir à quelle heure j'ai ouvert ma session le matin et à quelle heure je l'ai verrouillée le soir, et que le dîner et ma réunion quotidienne soient reconnus automatiquement
+**Afin de** remplir ma feuille de temps sans tout ressaisir.
 
-**Critères d'acceptation:**
-[ ] Le projet `Test-Blazor-WebApp` utilise des Mocks pour `IProcessService` (ne lance rien, log juste).
-[ ] Script Playwright de base qui lance l'app et vérifie le titre.
-[ ] CI/CD pipeline capable d'exécuter ces tests.
-
-**Exemple de code :**
-''' csharp
-// Dans Program.cs du projet Web
-builder.Services.AddSingleton<IProcessService, MockProcessService>();
-builder.Services.AddSingleton<IPluginLoader, MockPluginLoader>();
-'''
-
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Web/Mocks/`
-- 📁 `DevToolbar.Tests/E2E/`
-
-# F7. Plugin : GitHub Agent Sessions (Oubli de la liste précédente)
-Suivi des tâches d'intégration continue/déploiement continu (CI/CD) liées au projet courant.
-
-## US7.1 Suivi des tâches en arrière-plan
-**En tant que** Développeur DevOps
-**Je veux** que la toolbar interroge régulièrement l'API GitHub pour le projet en cours
-**Afin de** savoir si mes builds/déploiements sont terminés sans avoir à garder la page web ouverte.
-
-**Critères d'acceptation:**
-[ ] Polling de l'API GitHub (Octokit) en tâche de fond (intervalle configurable).
-[ ] Affichage d'une icône d'état global du CI/CD dans la toolbar.
-[ ] Affichage d'un badge numérique rouge/vert pour le nombre de tâches terminées "non lues".
-
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Plugins/GithubAgents/`
-- 📄 `GithubAgentPlugin.cs`
-
-## US7.2 Consultation et Acquittement (Mark as Read)
-**En tant que** Développeur
-**Je veux** cliquer sur le badge des agents pour voir les résultats et les marquer comme lus
-**Afin de** vider mes notifications et ouvrir les logs détaillés si nécessaire.
-
-**Critères d'acceptation:**
-[ ] Clic sur l'icône ouvre un menu déroulant (dropdown) listant les dernières sessions.
-[ ] Clic sur une session spécifique l'ouvre dans le navigateur web.
-[ ] Clic sur une session spécifique la marque comme `read` (stocké dans les données locales du plugin pour ce projet).
-
+**Critères d'acceptation :**
+- [ ] L'heure de première ouverture de session et l'heure du dernier verrouillage de la journée sont enregistrées et affichées.
+- [ ] Une absence d'environ une heure **entre 12 h et 13 h** est comptée automatiquement comme dîner.
+- [ ] L'utilisateur peut indiquer qu'il a travaillé pendant le dîner ; le temps est alors compté comme travaillé.
+- [ ] Une réunion quotidienne récurrente se configure (par exemple 11 h 45 à 12 h). Exemple : une absence de 11 h 45 à 13 h devient réunion (11 h 45 à 12 h) puis dîner (12 h à 13 h).
+- [ ] Les plages du dîner et de la réunion se configurent globalement et par dépôt.
 
 ---
 
-# F5. Plugins par Défaut (Suite - Ajout des Rapports)
+# F6. Tests et qualité
 
-## US5.4 Rapports de Temps (Time Reporting)
-**En tant que** Utilisateur
-**Je veux** pouvoir consulter le temps passé par projet et par WorkItem
-**Afin de** remplir mes feuilles de temps ou facturer mes clients.
+## US6.1 Tests Playwright sur l'hôte Web
+**État :** ✅ Fait
 
-**Critères d'acceptation:**
-[ ] Modale de rapport accessible depuis le plugin "Time Management".
-[ ] Filtres par : Jour, Semaine, Mois.
-[ ] Regroupement par : Projet, WorkItem, ou Custom Action.
-[ ] Bouton d'export en CSV.
+**En tant que** développeur
+**Je veux** tester l'interface de la toolbar dans un navigateur
+**Afin de** valider l'interface sans lancer Windows.
 
-**Exemple de code :**
-''' csharp
-// Exemple de requête Entity Framework pour le rapport
-var weeklyReport = await _dbContext.TimeEntries
-    .Where(t => t.StartTime >= DateTime.Now.AddDays(-7))
-    .GroupBy(t => new { t.ProjectId, t.WorkItemId })
-    .Select(g => new { 
-        Context = g.Key, 
-        TotalMinutes = g.Sum(x => (x.EndTime - x.StartTime).TotalMinutes) 
-    }).ToListAsync();
-'''
+**Critères d'acceptation :**
+- [x] `DevToolbar.Web` utilise uniquement des services simulés (aucun processus réel n'est lancé).
+- [x] `DevToolbar.Tests.E2E` démarre l'hôte Web et vérifie chaque US visible (`FeatureSpecTests`, `ToolbarUiTests`, `PluginSettingsTests`).
+- [x] `ScreenshotTests` régénère les captures de `doc/screenshots/`.
+- [x] `DevToolbar.Tests.Unit` couvre le plugin Git et la négociation de taille de l'hôte.
+
+## US6.2 Intégration continue
+**État :** ⬜ À faire, obligatoire pour la version finale
+
+**Critères d'acceptation :**
+- [ ] Un workflow GitHub Actions compile la solution et lance les tests unitaires et Playwright à chaque PR.
 
 ---
 
-# F8. Intégration Desktop & Base de données (Fondations MAUI)
-Ces fonctionnalités sont indispensables pour que l'application se comporte comme une vraie "Toolbar" et sauvegarde correctement tes données.
+# F7. Suivi GitHub : Actions et sessions d'agents
 
-## US8.1 Gestion de la Fenêtre Native (Window Chrome & TopMost)
-**En tant que** Utilisateur Desktop
-**Je veux** que la barre soit ancrée en haut ou en bas de l'écran sans les bordures Windows classiques
-**Afin de** s'intégrer parfaitement à mon espace de travail comme une vraie barre d'outils.
+Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux.
 
-**Critères d'acceptation:**
-[ ] Retrait de la barre de titre standard Windows (TitleBar = Collapsed).
-[ ] Mode "Always on Top" (Toujours au premier plan) activable via les paramètres globaux.
-[ ] (Bonus) Appels API Win32 (SetWindowPos) pour ancrer l'application comme une AppBar Windows.
+## US7.1 Suivi en arrière-plan
+**État :** 🎭 Simulé (`MockCiCdService` dans tous les hôtes)
 
-**Fichiers/Projets concernés:**
-- 📁 `DevToolbar.Maui/Platforms/Windows/`
-- 📄 `App.xaml.cs` (Configuration du `MauiWinUIWindow`)
+**En tant que** développeur
+**Je veux** que la toolbar interroge GitHub pour mes dépôts
+**Afin de** savoir quand un build ou une session d'agent est terminé sans garder la page ouverte.
 
-## US8.2 System Tray (Zone de notification)
-**En tant que** Utilisateur Desktop
-**Je veux** que l'application reste active dans la zone de notification (près de l'horloge) quand je la ferme ou la minimise
-**Afin de** garder le tracker de temps et les plugins d'arrière-plan actifs sans encombrer ma barre des tâches.
+**Critères d'acceptation :**
+- [x] Icône d'état global (en cours, succès, échec) dans la pilule.
+- [x] Badge du nombre de résultats terminés non lus.
+- [ ] Interrogation réelle de l'API GitHub (Octokit) en arrière-plan, intervalle configurable.
+- [ ] Choix par dépôt : workflows Actions, sessions d'agents, ou les deux.
 
-**Critères d'acceptation:**
-[ ] Icône présente dans le System Tray.
-[ ] Double clic sur l'icône restaure la Toolbar.
-[ ] Clic droit offre un menu contextuel (Afficher, Paramètres globaux, Quitter).
+## US7.2 Consultation et « marquer comme lu »
+**État :** 🎭 Simulé
 
-## US8.3 Système de Stockage Local (SQLite + JSON)
-**En tant que** Système
-**Je veux** un mécanisme unifié pour stocker les données selon leur portée (Global, Par Projet, Par Type de Projet)
-**Afin de** persister la configuration, les rapports de temps et les états des plugins (comme les agents lus).
+**Critères d'acceptation :**
+- [x] Un clic sur l'icône ouvre la liste des dernières exécutions.
+- [x] Un clic sur une exécution l'ouvre dans le navigateur et la marque comme lue.
+- [ ] L'état « lu » est enregistré localement par dépôt (voir US8.3).
 
-**Critères d'acceptation:**
-[ ] Mise en place d'une base SQLite locale (ex: `%APPDATA%\DevToolbar\data.db`) pour les données relationnelles (TimeTracking, Logs).
-[ ] Service de configuration (JSON) hiérarchique : fusionne `global.json`, `template.json`, et `.devtoolbar.json` (dans le dossier du projet lié).
+---
+
+# F8. Intégration au bureau Windows
+
+## US8.1 Fenêtre native
+**État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC
+
+**Critères d'acceptation :**
+- [x] Fenêtre sans bordure ni barre de titre, toujours au premier plan.
+- [x] Fond transparent : les zones vides autour de la pilule laissent passer les clics et la molette vers l'application en dessous (aucune ombre extérieure, voir `src/DevToolbar.Windows/wwwroot/css/wpf-host.css`).
+- [ ] Recette sur PC : clic au travers, vraie molette, premier clic extérieur avec un menu ouvert, DPI et plusieurs écrans.
+
+## US8.2 Zone de notification
+**État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC
+
+**Critères d'acceptation :**
+- [x] Icône dans la zone de notification.
+- [x] Clic gauche : afficher ou masquer la toolbar.
+- [x] Clic droit : Masquer/Afficher, Paramètres, Quitter.
+- [x] Fermer la fenêtre de la toolbar quitte l'application.
+
+## US8.3 Stockage local JSON
+**État :** 🟡 Partiel
+
+**Critères d'acceptation :**
+- [x] Configuration et paramètres en JSON dans `%APPDATA%\DevToolbar`.
+- [ ] Entrées de temps, absences qualifiées et états « lu » en JSON dans le même dossier, avec `schemaVersion` (voir US2.5).
+- [ ] L'interface `IStorageService` a une implémentation réelle (aujourd'hui : aucune ; la migration SQLite de `DevToolbar.Core/Data` n'est pas utilisée).
+
+## US8.4 Position et ancrage de la toolbar
+**État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC
+
+**Critères d'acceptation :**
+- [x] Modes dans Paramètres : ancrée en haut, ancrée en bas (réserve la place comme une barre Windows), flottante, superposée (`Overlay`, en haut sans réserver de place).
+- [x] Choix de l'écran cible.
+- [x] Poignée à droite de la pilule pour déplacer la toolbar flottante ; elle reste à l'écran.
+- [x] L'hôte et Blazor négocient la taille de la fenêtre pour que menus et Paramètres tiennent (`SurfaceSizeNegotiator`).
+
+## US8.5 Barre des tâches et fenêtres actives
+**État :** 🟡 Code présent, statut à confirmer (question 3)
+
+**Critères d'acceptation :**
+- [x] Réglages « Afficher les fenêtres actives » et « Remplacer la barre des tâches » dans Paramètres.
+- [ ] Décider s'il s'agit de fonctions normales ou de debug, puis compléter cette US.
+
+---
+
+# F9. Hôtes
+
+## US9.1 Hôte WPF principal
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+- [x] `src/DevToolbar.Windows` : fenêtre WPF transparente (`AllowsTransparency`), `BlazorWebView` WPF officiel 10.0.110, une seule fenêtre.
+- [x] Routes `/` (toolbar) et `/settings`.
+- [x] Services Windows réels pour processus, fichiers, scripts, fenêtres, configuration.
+- Historique et preuves du choix : [`spikes/window-feasibility/INTEGRATION.md`](../spikes/window-feasibility/INTEGRATION.md).
+
+## US9.2 Hôte MAUI gelé
+**État :** 🧊 Gelé
+
+`src/DevToolbar.Maui` reste dans la solution mais ne reçoit plus de nouvelles fonctions. Il n'est pas compilé dans le conteneur Linux et n'est pas recetté.
