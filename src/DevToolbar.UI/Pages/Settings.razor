@@ -52,6 +52,17 @@
             <section class="settings-section">
                 <h3>Theme</h3>
                 <div class="settings-field">
+                    <label for="theme-select">Theme</label>
+                    <select id="theme-select" class="settings-theme-select" data-testid="theme-select"
+                            value="@ThemeNames.Normalize(_activeProject.Theme.Name)"
+                            @onchange="@(e => UpdateThemeName(e.Value?.ToString()))">
+                        @foreach (var name in ThemeNames.All)
+                        {
+                            <option value="@name">@ThemeNames.DisplayName(name)</option>
+                        }
+                    </select>
+                </div>
+                <div class="settings-field">
                     <label>Accent Color</label>
                     <div class="settings-color-preview">
                         <input type="color" value="@_activeProject.Theme.AccentColor"
@@ -371,18 +382,29 @@
 
     private void OnPluginSettingsChanged(ProjectConfig project) => _activeProject = project;
 
-    private void UpdateAccentColor(string color)
-    {
-        if (_activeProject == null) return;
-        _activeProject.Theme.AccentColor = color;
-        ThemeService.SetTheme(_activeProject.Theme);
-    }
+    private Task UpdateThemeName(string? name) =>
+        ApplyThemeAsync(theme => theme.Name = ThemeNames.Normalize(name));
 
-    private void UpdateFontFamily(string fontFamily)
+    private Task UpdateAccentColor(string color) =>
+        ApplyThemeAsync(theme => theme.AccentColor = color);
+
+    private Task UpdateFontFamily(string fontFamily) =>
+        ApplyThemeAsync(theme => theme.FontFamily = fontFamily);
+
+    /// <summary>Applies a theme change to the toolbar at once, then saves it with the project.</summary>
+    private async Task ApplyThemeAsync(Action<ThemeConfig> change)
     {
         if (_activeProject == null) return;
-        _activeProject.Theme.FontFamily = fontFamily;
+        change(_activeProject.Theme);
         ThemeService.SetTheme(_activeProject.Theme);
+        try
+        {
+            await SettingsService.SaveProjectAsync(_activeProject);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Could not save the theme: {ex.Message}", "Settings");
+        }
     }
 
     private bool _showNewProject;

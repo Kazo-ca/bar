@@ -381,6 +381,69 @@ public class FeatureSpecTests : PageTest
         await Expect(style).ToHaveCountAsync(0);
     }
 
+    [Test]
+    public async Task US3_3_Theme_FollowsActiveProject()
+    {
+        await OpenToolbar();
+        var shell = Page.Locator(".toolbar-shell");
+        await Expect(shell).ToHaveAttributeAsync("data-theme", "light");
+        var lightBackground = await ShellBackground();
+
+        await SwitchProject("FrontEnd App");
+        await Expect(shell).ToHaveAttributeAsync("data-theme", "green");
+        var greenBackground = await ShellBackground();
+
+        await SwitchProject("DevOps Pipeline");
+        await Expect(shell).ToHaveAttributeAsync("data-theme", "dark");
+        var darkBackground = await ShellBackground();
+
+        Assert.That(new[] { lightBackground, greenBackground, darkBackground }.Distinct().Count(), Is.EqualTo(3),
+            "each theme gives the toolbar its own glass colour");
+        await SwitchProject("MyWebAPI");
+    }
+
+    [Test]
+    public async Task US3_3_Theme_IsChosenInSettings_AndKeepsTheSameElements()
+    {
+        await OpenToolbar();
+        var shell = Page.Locator(".toolbar-shell");
+        await Expect(shell).ToHaveAttributeAsync("data-theme", "light");
+        var lightElements = await ToolbarElementClasses();
+
+        try
+        {
+            await OpenSettings();
+            var select = Page.GetByTestId("theme-select");
+            await Expect(select).ToHaveValueAsync("light");
+            await select.SelectOptionAsync("dark");
+            await BackToToolbar();
+
+            await Expect(shell).ToHaveAttributeAsync("data-theme", "dark");
+            Assert.That(await ToolbarElementClasses(), Is.EqualTo(lightElements), "a theme only changes styles");
+
+            // The choice is saved with the project: it survives a project switch.
+            await SwitchProject("FrontEnd App");
+            await SwitchProject("MyWebAPI");
+            await Expect(shell).ToHaveAttributeAsync("data-theme", "dark");
+        }
+        finally
+        {
+            await OpenSettings();
+            await Page.GetByTestId("theme-select").SelectOptionAsync("light");
+            await BackToToolbar();
+        }
+
+        await Expect(shell).ToHaveAttributeAsync("data-theme", "light");
+    }
+
+    private Task<string> ShellBackground() =>
+        Page.Locator(".toolbar-shell").EvaluateAsync<string>("el => getComputedStyle(el).backgroundColor");
+
+    /// <summary>The class list of every element in the toolbar, in document order.</summary>
+    private Task<string[]> ToolbarElementClasses() =>
+        Page.Locator(".toolbar-shell").EvaluateAsync<string[]>(
+            "el => [...el.querySelectorAll('*')].map(e => e.tagName + '.' + [...e.classList].sort().join('.'))");
+
     // ───────────────────────── F4 · Quick actions ─────────────────────────
 
     [Test]

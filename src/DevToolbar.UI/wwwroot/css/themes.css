@@ -1,0 +1,103 @@
+/* ==========================================================================
+   Toolbar themes (US3.3), from doc/Toolbar-desing-exemple.png.
+
+   The theme is set by MainLayout as data-theme on .toolbar-shell
+   ("light", "dark" or "green"). A theme only changes colours, shadows and
+   glass; the elements, sizes and radii stay the same for every theme.
+   "light" is the base look of toolbar.css, so it needs no rules here.
+   Every popup of the toolbar (project list, plugin panels, "…" menu) lives
+   inside .toolbar-shell, so these selectors reach them too.
+   ========================================================================== */
+
+/* --- Dark: slate glass, navy Git module, dark glass action buttons --- */
+.toolbar-shell[data-theme="dark"] {
+    --glass-bg: rgba(48, 54, 66, 0.82);
+    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+    --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --text-primary: #e8ecf2;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.toolbar-shell[data-theme="dark"] .module-project {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--project-color) 45%, #1b2638),
+        color-mix(in srgb, var(--project-color) 30%, #141c2a));
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.toolbar-shell[data-theme="dark"] .module-git {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--project-color) 22%, #1d2534),
+        color-mix(in srgb, var(--project-color) 12%, #171e2b));
+}
+
+.toolbar-shell[data-theme="dark"] .module-system {
+    background: linear-gradient(135deg, rgba(30, 34, 42, 0.92), rgba(22, 25, 32, 0.95));
+}
+
+.toolbar-shell[data-theme="dark"] .action-button {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(225, 230, 240, 0.85);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.toolbar-shell[data-theme="dark"] .action-button:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+}
+
+.toolbar-shell[data-theme="dark"] .project-dropdown,
+.toolbar-shell[data-theme="dark"] .plugin-popover-panel {
+    background: rgba(26, 30, 38, 0.96);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.toolbar-shell[data-theme="dark"] .toolbar-report-btn { filter: brightness(1.4); }
+
+/* --- Green: green glass, deep green Git module, light glass action buttons --- */
+.toolbar-shell[data-theme="green"] {
+    --glass-bg: rgba(96, 150, 100, 0.78);
+    --shadow-soft: 0 8px 32px rgba(30, 70, 35, 0.25), 0 2px 8px rgba(30, 70, 35, 0.12);
+    --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.toolbar-shell[data-theme="green"] .module-project {
+    background: linear-gradient(135deg, #5cb26a, #44934f);
+    box-shadow: 0 2px 10px rgba(30, 90, 40, 0.35);
+}
+
+.toolbar-shell[data-theme="green"] .module-project:hover {
+    box-shadow: 0 4px 16px rgba(30, 90, 40, 0.45);
+}
+
+.toolbar-shell[data-theme="green"] .module-git {
+    background: linear-gradient(135deg, rgba(38, 92, 48, 0.92), rgba(30, 76, 40, 0.95));
+}
+
+.toolbar-shell[data-theme="green"] .module-system {
+    background: linear-gradient(135deg, rgba(52, 60, 54, 0.9), rgba(40, 46, 42, 0.94));
+}
+
+.toolbar-shell[data-theme="green"] .action-button {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.toolbar-shell[data-theme="green"] .action-button:hover {
+    background: rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #fff;
+}
+
+.toolbar-shell[data-theme="green"] .project-dropdown,
+.toolbar-shell[data-theme="green"] .plugin-popover-panel {
+    background: rgba(28, 56, 34, 0.95);
+}
+
+.toolbar-shell[data-theme="green"] .project-dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+}

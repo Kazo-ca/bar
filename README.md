@@ -67,7 +67,7 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Plugin indicators**: work item and CI/CD status in the system group, each with its own popover.
 - **Timer** (Windows host): Start/Stop on the active project and work item; paused while you are away, then resumed. The ⏱ panel shows when you arrived, your last lock, and the absences to label; a badge on the timer counts them. Rules in Settings → *Time tracking*.
 - **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export, plus each work day with its arrival, last lock and absences.
-- **Theme**: accent color, font and custom CSS per project.
+- **Theme**: light, dark or green toolbar theme (from the design mockup), accent color, font and custom CSS, per project.
 - **Window placement** (Windows host): docked top, docked bottom, floating or overlay, target monitor, drag handle.
 - **Tray icon** (Windows host): left click shows or hides the toolbar; right click offers Settings and Quit. Closing the toolbar window quits the app.
 - **Popups** close on outside click, on `Esc` (focus returns to the trigger) and when another application is activated.

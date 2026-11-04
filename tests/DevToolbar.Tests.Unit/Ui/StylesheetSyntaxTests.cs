@@ -13,6 +13,7 @@ public class StylesheetSyntaxTests
     private static readonly string[] Stylesheets =
     {
         "src/DevToolbar.UI/wwwroot/css/toolbar.css",
+        "src/DevToolbar.UI/wwwroot/css/themes.css",
         "src/DevToolbar.Windows/wwwroot/css/wpf-host.css",
     };
 

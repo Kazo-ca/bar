@@ -69,7 +69,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US2.5 | Version de schéma et migration | ✅ 🔍 |
 | US3.1 | Layout principal (pilule) | ✅ |
 | US3.2 | Couleur d'accent et police par projet | ✅ |
-| US3.3 | Thèmes proposés à l'utilisateur | 🟡 |
+| US3.3 | Thèmes proposés à l'utilisateur | ✅ |
 | US3.4 | Vue compacte et débordement | ✅ 🔍 |
 | US3.5 | Fonctions de debug masquées en Release | ✅ |
 | US3.6 | Modules redimensionnables | ✅ 🔍 |
@@ -318,16 +318,17 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] La couleur et la police se modifient dans Paramètres.
 
 ## US3.3 Thèmes proposés à l'utilisateur
-**État :** 🟡 Partiel
+**État :** ✅ Fait
 
 **En tant qu'** utilisateur
 **Je veux** choisir un thème (clair, sombre, vert…)
 **Afin d'** adapter la toolbar à mon goût sans changer sa disposition.
 
 **Critères d'acceptation :**
-- [ ] Les thèmes clair, sombre et vert de la maquette sont disponibles dans l'interface Blazor.
-- [ ] Le thème se choisit dans Paramètres.
-- [ ] Un thème ne change que les styles (couleurs, ombres intérieures, rayons), jamais les éléments.
+- [x] Les thèmes clair, sombre et vert de la maquette sont disponibles dans l'interface Blazor (`css/themes.css`, attribut `data-theme` sur la toolbar). Le clair est l'apparence de base ; le sombre et le vert changent le verre, les modules Git et système, les boutons d'action, la liste des projets et les panneaux des plugins.
+- [x] Le thème se choisit dans Paramètres → *Theme*, comme la couleur d'accent et la police. Il est propre à chaque projet (`projects[].theme.name` : `light`, `dark` ou `green` ; un nom inconnu donne le clair) et il est enregistré dans la configuration. Changer de projet change donc aussi de thème.
+- [x] Un thème ne change que les styles (couleurs, ombres, verre), jamais les éléments ni leurs tailles : un test E2E compare la liste des éléments de la toolbar avant et après le changement de thème.
+- La page Paramètres et le rapport de temps gardent leur apparence sombre actuelle dans tous les thèmes.
 
 ## US3.4 Vue compacte et débordement
 **État :** ✅ Fait, 🔍 à recetter sur PC
