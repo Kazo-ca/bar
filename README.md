@@ -125,6 +125,7 @@ Screenshots are written to `doc/screenshots/`.
 
 ## Documentation
 
+- [doc/Naming.md](doc/Naming.md): confirmed Kazo Bar naming conventions and proposals still to decide (French).
 - [doc/Features.md](doc/Features.md): backlog, decisions, open questions and status of every user story (French).
 - [doc/Connexion-OAuth.md](doc/Connexion-OAuth.md): registering the GitHub and Microsoft apps behind the "Sign in" buttons (French).
 - [spikes/window-feasibility/INTEGRATION.md](spikes/window-feasibility/INTEGRATION.md): why the Windows host is WPF, and the manual checks still to run on a PC (French).
