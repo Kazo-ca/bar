@@ -1,6 +1,6 @@
 # Writing a plugin
 
-A DevToolbar plugin is a .NET class that implements `IPlugin` and is registered in the host's
+A Kazo Bar plugin is a .NET class that implements `IPlugin` and is registered in the host's
 dependency injection. There is no loading of external DLLs yet (see US2.1 in [Features.md](Features.md)):
 a plugin is compiled with the host, usually in `src/Kazo.Bar.Plugins` or in your own class library
 referenced by the host.

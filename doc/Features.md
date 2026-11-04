@@ -1,4 +1,4 @@
-# DevToolbar : backlog des fonctionnalités
+# Kazo Bar : backlog des fonctionnalités
 
 Ce document est le **backlog** du projet : il décrit ce que la toolbar doit faire, et indique pour chaque user story ce qui est déjà fait. L'état actuel du logiciel, pour un nouvel utilisateur, est décrit dans le [README](../README.md) (en anglais).
 
@@ -28,7 +28,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | **Hôte** | L'exécutable qui affiche l'interface Blazor : WPF (principal), Web (tests), MAUI (gelé). |
 | **Plugin** | Un module qui ajoute un indicateur et un panneau à la toolbar (Git, Work Items, Temps, CI/CD). |
 | **Pilule** | La forme arrondie de la toolbar et de ses groupes, voir la maquette. |
-| **Configuration utilisateur** | Le fichier JSON unique de l'utilisateur, dans `%APPDATA%\DevToolbar`, qui contient tous les projets et dépôts. |
+| **Configuration utilisateur** | Le fichier JSON unique de l'utilisateur, dans `%APPDATA%\Kazo\Bar`, qui contient tous les projets et dépôts. |
 
 ## Décisions prises
 
@@ -39,7 +39,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | Données sensibles | Les jetons ne vont **pas** dans le JSON en clair. On offre **deux options** : le coffre du système (Gestionnaire d'identification Windows) ou un fichier chiffré localement. | 3 nov. 2026 |
 | Authentification | On suit la méthode **recommandée par chaque fournisseur** (OAuth en général). Le PAT reste possible pour démarrer. | 3 nov. 2026 |
 | Projet et dépôt | On crée un projet et on l'associe à un dépôt et à son dossier local. Le modèle permet plusieurs dépôts par projet, mais la gestion de plusieurs dépôts est un **ajout pour plus tard** : la priorité est le cas un projet = un dépôt. | 3 nov. 2026 |
-| Stockage | Fichiers JSON dans `%APPDATA%\DevToolbar` pour l'instant. Chaque fichier porte une propriété de **version de schéma** et doit pouvoir être migré (vers un autre format ou une base plus tard). SQLite n'est plus requis. | 3 nov. 2026 |
+| Stockage | Fichiers JSON dans `%APPDATA%\Kazo\Bar` pour l'instant. Chaque fichier porte une propriété de **version de schéma** et doit pouvoir être migré (vers un autre format ou une base plus tard). SQLite n'est plus requis. | 3 nov. 2026 |
 | Work items | Configurables **par dépôt** : Azure DevOps (cloud) et GitHub Issues. Authentification par PAT pour commencer. | 3 nov. 2026 |
 | Suivi GitHub (F7) | Configurable **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux. | 3 nov. 2026 |
 | Git | État lu dans le dossier local du dépôt avec **LibGit2Sharp** (pas de la configuration). | 3 nov. 2026 |
@@ -222,7 +222,7 @@ public interface IProcessService
 **Afin de** savoir où elle se trouve et de pouvoir la sauvegarder facilement.
 
 **Critères d'acceptation :**
-- [x] La configuration est lue depuis `%APPDATA%\DevToolbar\config.json` (`UserConfigurationStore`, `src/Kazo.Bar.Infrastructure/Configuration/`).
+- [x] La configuration est lue depuis `%APPDATA%\Kazo\Bar\config.json` (`UserConfigurationStore`, `src/Kazo.Bar.Infrastructure/Configuration/`).
 - [x] Un seul fichier contient tout : `settings` (réglages globaux) et `projects`. L'ancien `global-settings.json` est fusionné au premier lancement puis déplacé dans `backups\`.
 - [x] Les surcharges par `.devtoolbar.json` dans le dossier du projet sont **retirées** de l'hôte WPF (l'hôte MAUI gelé garde son ancien code).
 - [x] Chaque dépôt déclare son dossier local (`localPath`).
@@ -269,7 +269,7 @@ Forme actuelle (schéma 1). Les blocs `workItems` et `github` d'un dépôt sont 
 
 **Critères d'acceptation :**
 - [x] Les secrets sont rangés sous une référence (`secretRef`) via `ISecretStore` ; la configuration ne garde que la référence. Les fournisseurs (US5.2, US7.1) proposent une référence par dépôt et par service.
-- [x] L'utilisateur choisit où sont stockés ses secrets dans Paramètres (« Access tokens ») : Gestionnaire d'identification Windows (`DevToolbar:<ref>`), ou `%APPDATA%\DevToolbar\secrets.json` chiffré par DPAPI pour son compte Windows. Changer de choix déplace les secrets existants.
+- [x] L'utilisateur choisit où sont stockés ses secrets dans Paramètres (« Access tokens ») : Gestionnaire d'identification Windows (`Kazo.Bar:<ref>`), ou `%APPDATA%\Kazo\Bar\secrets.json` chiffré par DPAPI pour son compte Windows. Changer de choix déplace les secrets existants.
 - [x] Chaque fournisseur utilise la méthode d'authentification qu'il recommande : « Sign in with GitHub » et « Sign in with Microsoft » (flux *device code* OAuth 2.0, RFC 8628) à côté du champ du jeton, dans les réglages des plugins Work Items et CI/CD. Le PAT reste possible. La connexion est rangée sous la même référence (`secretRef`), dans un petit objet JSON (`{"kind":"oauth", …}`) : le jeton d'accès GitHub (qui n'expire pas), ou le seul *refresh token* Microsoft. Le jeton d'accès Microsoft reste en mémoire et il est renouvelé deux minutes avant son expiration, ce qui garde la valeur sous la limite de 2 560 octets du Gestionnaire d'identification (`AccessTokenResolver`, `DeviceCodeSignInService`, `src/Kazo.Bar.Infrastructure/Auth/`).
 - [x] Les applications OAuth se déclarent une fois dans Paramètres → *Sign-in apps* (`settings.oauth.github.clientId`, `settings.oauth.azureDevOps.clientId` et `tenant`). Un identifiant client est public, aucun secret client n'est demandé. La marche à suivre est dans [Connexion-OAuth.md](Connexion-OAuth.md).
 - [ ] Recette sur PC : connexion réelle à GitHub et à Azure DevOps avec les applications déclarées.
@@ -285,7 +285,7 @@ Forme actuelle (schéma 1). Les blocs `workItems` et `github` d'un dépôt sont 
 
 **Critères d'acceptation :**
 - [x] Chaque fichier JSON écrit par l'application contient `schemaVersion` (`config.json`, `secrets.json`, `data\*.json`).
-- [x] Au chargement, un fichier d'ancienne version est migré puis réécrit ; une copie de l'original est conservée dans `%APPDATA%\DevToolbar\backups\` (`config.v0.<date>.json`). Les migrations travaillent sur l'arbre JSON (`IJsonMigration`, `VersionedJson`).
+- [x] Au chargement, un fichier d'ancienne version est migré puis réécrit ; une copie de l'original est conservée dans `%APPDATA%\Kazo\Bar\backups\` (`config.v0.<date>.json`). Les migrations travaillent sur l'arbre JSON (`IJsonMigration`, `VersionedJson`).
 - [x] Un fichier illisible ou écrit par une version plus récente n'est jamais écrasé : l'application démarre sur des valeurs par défaut et le signale dans le journal.
 - [x] L'accès aux données passe par `IStorageService`, pour pouvoir changer de format (base de données) plus tard.
 
@@ -628,10 +628,10 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 **État :** ✅ Fait, 🔍 à recetter sur PC
 
 **Critères d'acceptation :**
-- [x] Configuration et paramètres en JSON dans `%APPDATA%\DevToolbar`.
+- [x] Configuration et paramètres en JSON dans `%APPDATA%\Kazo\Bar`.
 - [x] Entrées de temps et absences qualifiées en JSON dans le même dossier, avec `schemaVersion` (voir US2.5) : un fichier par mois `data\time-yyyy-MM.json`, une valeur par jour (`yyyy-MM-dd` : arrivée, dernier verrouillage, entrées, absences), et `data\time-tracking.json` pour le dernier signe de vie.
 - [x] États « lu » du suivi GitHub : `data\github-actions.json` (voir US7.2).
-- [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\DevToolbar\data\<espace>.json` par espace de noms. (La migration SQLite de `Kazo.Bar.Core/Data` reste inutilisée.)
+- [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\Kazo\Bar\data\<espace>.json` par espace de noms. (La migration SQLite de `Kazo.Bar.Core/Data` reste inutilisée.)
 
 ## US8.4 Position et ancrage de la toolbar
 **État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC

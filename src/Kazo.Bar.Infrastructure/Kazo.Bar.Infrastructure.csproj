@@ -2,7 +2,7 @@
 
   <!--
     Real (non-simulated) services shared by the desktop hosts: versioned JSON
-    storage in %APPDATA%\DevToolbar, the single user configuration file and its
+    storage in %APPDATA%\Kazo\Bar, the single user configuration file and its
     migrations. No UI and no host dependency, so it is unit-tested on Linux.
   -->
   <PropertyGroup>

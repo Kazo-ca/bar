@@ -12,7 +12,7 @@ n'est demandé ni enregistré.
 ## GitHub
 
 1. Sur GitHub : *Settings* → *Developer settings* → *OAuth Apps* → *New OAuth App*.
-2. *Application name* : `DevToolbar` ; *Homepage URL* : l'adresse du dépôt ; *Authorization callback URL* :
+2. *Application name* : `Kazo Bar` ; *Homepage URL* : l'adresse du dépôt ; *Authorization callback URL* :
    la même adresse (elle n'est pas utilisée par le flux *device code*, mais GitHub l'exige).
 3. Cocher **Enable Device Flow**, puis *Register application*.
 4. Copier le **Client ID** (il commence par `Ov23li…`) dans Paramètres → *Sign-in apps* → *GitHub client ID*.
@@ -23,7 +23,7 @@ privés. Le jeton d'une OAuth App n'expire pas ; il se révoque depuis *Settings
 ## Azure DevOps (Microsoft Entra ID)
 
 1. Dans le [portail Azure](https://portal.azure.com) : *Microsoft Entra ID* → *App registrations* → *New registration*.
-2. *Name* : `DevToolbar` ; *Supported account types* : comptes de votre organisation (ou multi-locataires) ;
+2. *Name* : `Kazo Bar` ; *Supported account types* : comptes de votre organisation (ou multi-locataires) ;
    pas d'URI de redirection.
 3. *Authentication* → *Advanced settings* → **Allow public client flows** : *Yes*.
 4. *API permissions* → *Add a permission* → *Azure DevOps* → *Delegated* → `user_impersonation`.

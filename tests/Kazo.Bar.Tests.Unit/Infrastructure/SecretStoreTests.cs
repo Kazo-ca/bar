@@ -128,3 +128,59 @@ public class SecretStoreTests
         Assert.That(json, Does.Contain("\"secretStore\":\"EncryptedFile\""));
     }
 }
+
+[TestFixture]
+public class CredentialManagerLegacyPrefixTests
+{
+    private sealed class FakeCredentialApi : Kazo.Bar.Infrastructure.Secrets.CredentialManagerSecretStore.ICredentialApi
+    {
+        public Dictionary<string, string> Targets { get; } = new(StringComparer.Ordinal);
+        public string? Read(string target, string secretRef) => Targets.GetValueOrDefault(target);
+        public void Write(string target, string secretRef, string secret) => Targets[target] = secret;
+        public bool Delete(string target, string secretRef) => Targets.Remove(target);
+        public IReadOnlyList<string> Enumerate(string prefix) =>
+            Targets.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).Select(k => k[prefix.Length..]).ToList();
+    }
+
+    [Test]
+    public async Task LegacySecrets_MoveToTheKazoBarPrefix_AndNewerValuesWin()
+    {
+        var api = new FakeCredentialApi();
+        api.Targets["DevToolbar:github-pat"] = "old-token";
+        api.Targets["DevToolbar:ado-pat"] = "stale";
+        api.Targets["Kazo.Bar:ado-pat"] = "current";
+        api.Targets["OtherApp:x"] = "untouched";
+        var store = new Kazo.Bar.Infrastructure.Secrets.CredentialManagerSecretStore(api);
+
+        var moved = store.MigrateLegacySecrets();
+
+        Assert.That(moved, Is.EqualTo(1));
+        Assert.That(await store.GetAsync("github-pat"), Is.EqualTo("old-token"));
+        Assert.That(await store.GetAsync("ado-pat"), Is.EqualTo("current"));
+        Assert.That(api.Targets.Keys.Where(k => k.StartsWith("DevToolbar:")), Is.Empty);
+        Assert.That(api.Targets["OtherApp:x"], Is.EqualTo("untouched"));
+        Assert.That(await store.ListAsync(), Is.EquivalentTo(new[] { "github-pat", "ado-pat" }));
+        Assert.That(store.MigrateLegacySecrets(), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void LegacySecret_IsKept_WhenSavingUnderTheNewNameFails()
+    {
+        var api = new FailingWriteApi();
+        api.Targets["DevToolbar:github-pat"] = "old-token";
+        var store = new Kazo.Bar.Infrastructure.Secrets.CredentialManagerSecretStore(api);
+
+        Assert.Throws<System.ComponentModel.Win32Exception>(() => store.MigrateLegacySecrets());
+        Assert.That(api.Targets["DevToolbar:github-pat"], Is.EqualTo("old-token"));
+    }
+
+    private sealed class FailingWriteApi : Kazo.Bar.Infrastructure.Secrets.CredentialManagerSecretStore.ICredentialApi
+    {
+        public Dictionary<string, string> Targets { get; } = new(StringComparer.Ordinal);
+        public string? Read(string target, string secretRef) => Targets.GetValueOrDefault(target);
+        public void Write(string target, string secretRef, string secret) => throw new System.ComponentModel.Win32Exception(5);
+        public bool Delete(string target, string secretRef) => Targets.Remove(target);
+        public IReadOnlyList<string> Enumerate(string prefix) =>
+            Targets.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).Select(k => k[prefix.Length..]).ToList();
+    }
+}

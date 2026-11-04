@@ -2,7 +2,7 @@ namespace Kazo.Bar.Tests.Unit.Infrastructure;
 
 using Kazo.Bar.Infrastructure.Storage;
 
-/// <summary>A temporary folder standing in for %APPDATA%\DevToolbar, deleted after the test.</summary>
+/// <summary>A temporary folder standing in for %APPDATA%\Kazo\Bar, deleted after the test.</summary>
 internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()

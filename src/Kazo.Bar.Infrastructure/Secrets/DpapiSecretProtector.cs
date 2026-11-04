@@ -12,6 +12,7 @@ using System.Text;
 public sealed class DpapiSecretProtector : ISecretProtector
 {
     /// <summary>Extra entropy so other applications using DPAPI for this user cannot read Kazo Bar's values by accident.</summary>
+    // Never change this value, even after the Kazo Bar rename: existing secrets.json values would no longer decrypt.
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("DevToolbar.Secrets.v1");
 
     public byte[] Protect(byte[] plain) => ProtectedData.Protect(plain, Entropy, DataProtectionScope.CurrentUser);

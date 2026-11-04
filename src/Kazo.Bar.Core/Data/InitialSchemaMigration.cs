@@ -3,7 +3,7 @@ namespace Kazo.Bar.Core.Data;
 /// <summary>
 /// Initial SQLite schema migration (US8.3).
 /// Creates the core tables for time tracking, plugin data, and configuration.
-/// Target: %APPDATA%\DevToolbar\data.db
+/// Target: %APPDATA%\Kazo\Bar\data.db
 /// </summary>
 public class InitialSchemaMigration : IDbMigration
 {

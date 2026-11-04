@@ -15,8 +15,8 @@ This README describes **what the software does today**. The backlog (what it sho
 | Toolbar modules | Resizable modules (Git today) can be widened by dragging their right edge; a right click resets the width or moves the module left/right in its zone. Order and widths are saved in the configuration. Inside a narrow module, labels hide first. System zone modules that still do not fit move into a "»" menu that opens their panel. |
 | Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token or an OAuth sign-in (GitHub, Microsoft). Simulated in the Web host. Not yet checked with real tokens on a PC. |
 | CI/CD (GitHub Actions) | Real in the Windows host: workflow runs of each tracked repository are polled in the background (every 60 s by default) and the read state is saved. Agent sessions are not tracked yet (no public GitHub API). Simulated in the Web host. |
-| Time tracking and work day | Real in the Windows host: the timer freezes on session lock, sleep or keyboard/mouse inactivity (15 min by default, global or per repository), and on return the absence is shown to be labelled (meeting, lunch, worked, other, removed). The lunch window and a daily meeting are recognised automatically. First activity and last lock of each day are recorded. Data in `%APPDATA%\DevToolbar\data\time-yyyy-MM.json`. The Web host uses a simulated sample day. |
-| Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. Plugin data (time entries, GitHub Actions read states) goes through a JSON `IStorageService` in `data\`. |
+| Time tracking and work day | Real in the Windows host: the timer freezes on session lock, sleep or keyboard/mouse inactivity (15 min by default, global or per repository), and on return the absence is shown to be labelled (meeting, lunch, worked, other, removed). The lunch window and a daily meeting are recognised automatically. First activity and last lock of each day are recorded. Data in `%APPDATA%\Kazo\Bar\data\time-yyyy-MM.json`. The Web host uses a simulated sample day. |
+| Configuration and storage | One file per user, `%APPDATA%\Kazo\Bar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. Plugin data (time entries, GitHub Actions read states) goes through a JSON `IStorageService` in `data\`. |
 | Access tokens | Stored outside the configuration, in Windows Credential Manager or a DPAPI-encrypted `secrets.json`, chosen in Settings. The work items and GitHub providers read their token from there. |
 | MAUI host | Frozen. Kept in the solution, no new features. |
 
@@ -58,7 +58,7 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Projects**: the left pill lists projects; switching updates plugins, actions and accent color. Settings → *New project* creates a project linked to a repository's local folder (*Browse…* opens the Windows folder dialog).
 - **Git**: the module shows the repository name first, then the branch and, when the repository has worktrees, the current worktree. Clicking it opens one menu listing the project's repositories, each with its worktrees as small links underneath; picking one makes status and Pull/Push run in that folder. Number of modified files and commits to push/pull are read from the folder. Repositories are managed in the plugin configuration window.
 - **Toolbar layout**: drag the right edge of the Git module to widen it; right-click any module to reset its width or move it left/right. Settings → *Toolbar Modules* lists the order and resets order or widths. Plugins opt in to resizing with `IPlugin.Layout => PluginLayout.ResizableWidth(default, min, max)`.
-- **Configuration file**: everything is in `%APPDATA%\DevToolbar\config.json` (shown in Settings). A file that cannot be read, or that was written by a newer version, is never overwritten.
+- **Configuration file**: everything is in `%APPDATA%\Kazo\Bar\config.json` (shown in Settings). A file that cannot be read, or that was written by a newer version, is never overwritten.
 - **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens. A token typed in a plugin's settings is saved there and never shown again.
 - **Sign in with GitHub / Microsoft**: instead of pasting a token, sign in with the OAuth device flow from the plugin settings. Register an OAuth app once per provider and paste its client ID in Settings → *Sign-in apps*; see [doc/Connexion-OAuth.md](doc/Connexion-OAuth.md) (French). Microsoft access tokens are renewed automatically.
 - **Work items**: in the Work Items plugin settings, pick Azure DevOps (organization + project) or GitHub Issues (`owner/name`) for a repository and paste a token. The popover lists your open items, searches by title or number and links to the item on the web.
@@ -90,9 +90,9 @@ The MAUI and Windows projects only build on Windows (or on Linux with `-p:Enable
 ```powershell
 dotnet run --project src/Kazo.Bar.Windows
 ```
-The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF `BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through, so clicks and the mouse wheel reach the application under the empty areas around the pill and its menus. To keep that true, `src/Kazo.Bar.Windows/wwwroot/css/wpf-host.css` removes every outer `box-shadow`. Startup and crash diagnostics go to `%LOCALAPPDATA%\DevToolbar\logs\windows-host.log`. Pull and Push need Git on the `PATH`.
+The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF `BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through, so clicks and the mouse wheel reach the application under the empty areas around the pill and its menus. To keep that true, `src/Kazo.Bar.Windows/wwwroot/css/wpf-host.css` removes every outer `box-shadow`. Startup and crash diagnostics go to `%LOCALAPPDATA%\Kazo\Bar\logs\windows-host.log`. Pull and Push need Git on the `PATH`.
 
-Files written for the current user, all in `%APPDATA%\DevToolbar`:
+Files written for the current user, all in `%APPDATA%\Kazo\Bar`:
 
 | File | Content |
 |---|---|
@@ -100,6 +100,8 @@ Files written for the current user, all in `%APPDATA%\DevToolbar`:
 | `secrets.json` | Only when *Encrypted file* is the token store: values encrypted with DPAPI. |
 | `data\*.json` | Plugin data, one file per namespace. |
 | `backups\` | Copies taken before a migration, or of a file that could not be read. |
+
+Upgrading from the DevToolbar name: on first start, the Windows host copies `%APPDATA%\DevToolbar` to `%APPDATA%\Kazo\Bar` (only when the new folder is empty), then leaves `migrated-to-kazo-bar.txt` in the old folder, which is kept as a backup. Credential Manager secrets move from `DevToolbar:<ref>` to `Kazo.Bar:<ref>`. The frozen MAUI host still uses `%APPDATA%\DevToolbar`.
 
 ### Run the Web test host
 ```bash
