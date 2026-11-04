@@ -2,7 +2,7 @@ namespace Kazo.Bar.Tests.Unit.Infrastructure;
 
 using Kazo.Bar.Infrastructure.Storage;
 
-/// <summary>A temporary folder standing in for %APPDATA%\Kazo Bar, deleted after the test.</summary>
+/// <summary>A temporary folder standing in for %APPDATA%\DevToolbar, deleted after the test.</summary>
 internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()
@@ -29,7 +29,14 @@ internal sealed class TempDirectory : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(Root, recursive: true); }
-        catch (IOException) { }
+        if (!Directory.Exists(Root)) return;
+        try
+        {
+            // Git marks .git/objects files read-only; Windows refuses to delete those.
+            foreach (var file in Directory.EnumerateFiles(Root, "*", SearchOption.AllDirectories))
+                File.SetAttributes(file, FileAttributes.Normal);
+            Directory.Delete(Root, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 }

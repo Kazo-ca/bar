@@ -89,7 +89,7 @@ public static class Program
         services.AddSingleton<IFileSystemService, WindowsFileSystemService>();
         services.AddSingleton<IScriptService, Kazo.Bar.Infrastructure.Processes.ProcessScriptService>();
 
-        // Single per-user configuration file and versioned JSON data in %APPDATA%\Kazo Bar (US2.3, US2.5, US8.3).
+        // Single per-user configuration file and versioned JSON data in %APPDATA%\DevToolbar (US2.3, US2.5, US8.3).
         services.AddSingleton(AppDataPaths.ForCurrentUser());
         services.AddSingleton<UserConfigurationStore>();
         services.AddSingleton<ISettingsService, UserConfigSettingsService>();

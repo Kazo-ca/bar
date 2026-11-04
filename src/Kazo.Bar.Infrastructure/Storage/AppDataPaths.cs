@@ -2,7 +2,7 @@ namespace Kazo.Bar.Infrastructure.Storage;
 
 /// <summary>
 /// Locations of every file Kazo Bar writes for the current user.
-/// The root is <c>%APPDATA%\Kazo Bar</c> in the hosts; tests pass a temporary folder.
+/// The root is <c>%APPDATA%\DevToolbar</c> in the hosts; tests pass a temporary folder.
 /// </summary>
 public sealed class AppDataPaths
 {
