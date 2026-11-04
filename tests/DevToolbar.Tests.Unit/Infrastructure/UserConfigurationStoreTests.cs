@@ -33,6 +33,23 @@ public class UserConfigurationStoreTests
     }
 
     [Test]
+    public async Task RemovedTaskbarReplacementSetting_IsIgnored_AndDroppedOnSave()
+    {
+        // US8.5: "taskbarReplacementMode" was removed on 2026-11-04; files that still have it must load.
+        using var temp = new TempDirectory();
+        temp.Write("config.json", """
+            { "schemaVersion": 1, "settings": { "toolbarHeight": 64, "taskbarReplacementMode": true, "showActiveWindows": true }, "projects": [] }
+            """);
+
+        var store = new UserConfigurationStore(temp.Paths);
+        await store.UpdateAsync(c => c.Settings.ToolbarHeight = 70);
+
+        Assert.That(store.LoadProblem, Is.Null);
+        Assert.That(store.Current.Settings.ShowActiveWindows, Is.True);
+        Assert.That(File.ReadAllText(temp.Paths.ConfigFile), Does.Not.Contain("taskbarReplacementMode"));
+    }
+
+    [Test]
     public void LegacyFiles_AreMigrated_MergedIntoOneFile_AndBackedUp()
     {
         using var temp = new TempDirectory();
