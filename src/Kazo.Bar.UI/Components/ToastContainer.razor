@@ -1,0 +1,54 @@
+@using Kazo.Bar.Core.Interfaces
+@implements IDisposable
+@inject INotificationService NotificationService
+
+<div class="toast-container">
+    @foreach (var toast in _toasts)
+    {
+        <div class="toast toast-@toast.Level.ToString().ToLowerInvariant()" @key="toast.Id">
+            @if (!string.IsNullOrEmpty(toast.Title))
+            {
+                <div class="toast-title">@toast.Title</div>
+            }
+            <div class="toast-message">@toast.Message</div>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<ToastNotification> _toasts = new();
+    private System.Threading.Timer? _cleanupTimer;
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotification += HandleNotification;
+        _cleanupTimer = new System.Threading.Timer(_ => CleanupOldToasts(), null, 3000, 3000);
+    }
+
+    private void HandleNotification(ToastNotification notification)
+    {
+        InvokeAsync(() =>
+        {
+            _toasts.Add(notification);
+            StateHasChanged();
+        });
+    }
+
+    private void CleanupOldToasts()
+    {
+        InvokeAsync(() =>
+        {
+            var cutoff = DateTime.UtcNow.AddSeconds(-5);
+            if (_toasts.RemoveAll(t => t.CreatedAt < cutoff) > 0)
+            {
+                StateHasChanged();
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnNotification -= HandleNotification;
+        _cleanupTimer?.Dispose();
+    }
+}

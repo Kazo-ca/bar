@@ -1,0 +1,35 @@
+@using Kazo.Bar.Core.Interfaces
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+@* Drag handle shown at the right end of the pill on hover (desktop hosts only). *@
+@if (Drag?.CanDrag == true)
+{
+    <div class="toolbar-drag-handle" title="Move toolbar" aria-label="Move toolbar" role="button"
+         @onpointerdown="OnPointerDown">
+        <span></span><span></span><span></span>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IWindowDragService? Drag { get; set; }
+
+    private async Task OnPointerDown(PointerEventArgs e)
+    {
+        if (Drag == null || e.Button != 0) return;
+        await Drag.DragAsync();
+        await KeepVisibleAsync();
+    }
+
+    /// <summary>After a move (or at startup), pull the pill back inside the screen's work area.</summary>
+    public async Task KeepVisibleAsync()
+    {
+        if (Drag?.CanDrag != true) return;
+        try
+        {
+            var r = await JS.InvokeAsync<double[]>("KazoBar.getRect", ".toolbar-shell");
+            if (r is { Length: 4 }) Drag.KeepInWorkArea(r[0], r[1], r[2], r[3]);
+        }
+        catch (JSException) { }
+    }
+}

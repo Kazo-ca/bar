@@ -34,7 +34,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 
 | Sujet | Décision | Date |
 |---|---|---|
-| Hôte Windows | WPF (`src/DevToolbar.Windows`) est la voie principale. MAUI est **gelé** : il reste dans la solution mais ne reçoit plus de nouvelles fonctions. | 2 et 3 nov. 2026 |
+| Hôte Windows | WPF (`src/Kazo.Bar.Windows`) est la voie principale. MAUI est **gelé** : il reste dans la solution mais ne reçoit plus de nouvelles fonctions. | 2 et 3 nov. 2026 |
 | Configuration | **Un seul fichier de configuration par utilisateur**, qui contient tous les projets et dépôts. Pas de niveaux Global / Type / Projet, pas de `template.json`. | 3 nov. 2026 |
 | Données sensibles | Les jetons ne vont **pas** dans le JSON en clair. On offre **deux options** : le coffre du système (Gestionnaire d'identification Windows) ou un fichier chiffré localement. | 3 nov. 2026 |
 | Authentification | On suit la méthode **recommandée par chaque fournisseur** (OAuth en général). Le PAT reste possible pour démarrer. | 3 nov. 2026 |
@@ -107,15 +107,15 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 
 ```mermaid
 graph TD
-    Core["DevToolbar.Core<br/>interfaces, modèles, événements"]
-    Infra["DevToolbar.Infrastructure<br/>config JSON, migrations, Git, secrets"]
-    UI["DevToolbar.UI<br/>composants Blazor (RCL)"]
-    Plugins["DevToolbar.Plugins<br/>Git, Work Items, Temps, CI/CD"]
-    Windows["DevToolbar.Windows<br/>hôte WPF (principal)"]
-    Web["DevToolbar.Web<br/>hôte de test, services simulés"]
-    Maui["DevToolbar.Maui<br/>hôte MAUI (gelé)"]
-    E2E["DevToolbar.Tests.E2E<br/>NUnit + Playwright"]
-    Unit["DevToolbar.Tests.Unit<br/>NUnit"]
+    Core["Kazo.Bar.Core<br/>interfaces, modèles, événements"]
+    Infra["Kazo.Bar.Infrastructure<br/>config JSON, migrations, Git, secrets"]
+    UI["Kazo.Bar.UI<br/>composants Blazor (RCL)"]
+    Plugins["Kazo.Bar.Plugins<br/>Git, Work Items, Temps, CI/CD"]
+    Windows["Kazo.Bar.Windows<br/>hôte WPF (principal)"]
+    Web["Kazo.Bar.Web<br/>hôte de test, services simulés"]
+    Maui["Kazo.Bar.Maui<br/>hôte MAUI (gelé)"]
+    E2E["Kazo.Bar.Tests.E2E<br/>NUnit + Playwright"]
+    Unit["Kazo.Bar.Tests.Unit<br/>NUnit"]
 
     UI --> Core
     Infra --> Core
@@ -134,18 +134,18 @@ graph TD
 ```
 
 ```text
-DevToolbar.slnx
+Kazo.Bar.slnx
 ├── src
-│   ├── DevToolbar.Core       Interfaces/, Models/, Events/, Layout/, Configuration/, Data/
-│   ├── DevToolbar.Infrastructure  Storage/, Configuration/, Git/, Secrets/ (services réels, testés sous Linux)
-│   ├── DevToolbar.UI         Components/, Layouts/, Pages/, Services/, wwwroot/
-│   ├── DevToolbar.Plugins    Git/, WorkItems/, TimeTracker/, GithubAgents/, Services/PluginLoader.cs
-│   ├── DevToolbar.Windows    Hôte WPF : ToolbarWindow.cs, Program.cs, Services/
-│   ├── DevToolbar.Web        Hôte de test : Mocks/, Program.cs
-│   └── DevToolbar.Maui       Hôte MAUI gelé
+│   ├── Kazo.Bar.Core       Interfaces/, Models/, Events/, Layout/, Configuration/, Data/
+│   ├── Kazo.Bar.Infrastructure  Storage/, Configuration/, Git/, Secrets/ (services réels, testés sous Linux)
+│   ├── Kazo.Bar.UI         Components/, Layouts/, Pages/, Services/, wwwroot/
+│   ├── Kazo.Bar.Plugins    Git/, WorkItems/, TimeTracker/, GithubAgents/, Services/PluginLoader.cs
+│   ├── Kazo.Bar.Windows    Hôte WPF : ToolbarWindow.cs, Program.cs, Services/
+│   ├── Kazo.Bar.Web        Hôte de test : Mocks/, Program.cs
+│   └── Kazo.Bar.Maui       Hôte MAUI gelé
 ├── tests
-│   ├── DevToolbar.Tests.E2E  Drivers/, Scenarios/
-│   └── DevToolbar.Tests.Unit
+│   ├── Kazo.Bar.Tests.E2E  Drivers/, Scenarios/
+│   └── Kazo.Bar.Tests.Unit
 └── spikes/window-feasibility Banc d'essai de la fenêtre transparente (historique)
 ```
 
@@ -159,8 +159,8 @@ Tous les projets ciblent **.NET 10**.
 **Afin de** réutiliser la même interface dans plusieurs hôtes et la tester dans un navigateur.
 
 **Critères d'acceptation :**
-- [x] La solution `DevToolbar.slnx` contient Core, Infrastructure, UI, Plugins, Windows, Web, Maui et les deux projets de tests.
-- [x] `DevToolbar.UI` et `DevToolbar.Plugins` ne référencent que `DevToolbar.Core`.
+- [x] La solution `Kazo.Bar.slnx` contient Core, Infrastructure, UI, Plugins, Windows, Web, Maui et les deux projets de tests.
+- [x] `Kazo.Bar.UI` et `Kazo.Bar.Plugins` ne référencent que `Kazo.Bar.Core`.
 - [x] Chaque hôte référence UI, Plugins et Core.
 - [x] L'hôte Web démarre et affiche la toolbar sans erreur.
 
@@ -168,12 +168,12 @@ Tous les projets ciblent **.NET 10**.
 **État :** ✅ Fait
 
 **En tant qu'** architecte
-**Je veux** que tout accès natif (processus, fichiers, fenêtres, configuration, stockage) passe par une interface de `DevToolbar.Core`
+**Je veux** que tout accès natif (processus, fichiers, fenêtres, configuration, stockage) passe par une interface de `Kazo.Bar.Core`
 **Afin d'** injecter des services réels dans l'hôte WPF et des services simulés dans l'hôte Web.
 
 **Critères d'acceptation :**
-- [x] Interfaces dans `src/DevToolbar.Core/Interfaces/` : `IProcessService`, `IFileSystemService`, `ISettingsService`, `IGlobalSettingsService`, `IScriptService`, `IStorageService`, `IPlugin`, `IPluginLoader`, `IWorkItemProvider`, `ITimeTrackingService`, `ICiCdService`, et les services de fenêtre (`IDockingService`, `IWindowService`, `IWindowDragService`, `IHostSurfaceService`, `IWindowRegionService`, `INativeService`).
-- [x] L'hôte Web n'enregistre que des implémentations simulées (`src/DevToolbar.Web/Mocks/`).
+- [x] Interfaces dans `src/Kazo.Bar.Core/Interfaces/` : `IProcessService`, `IFileSystemService`, `ISettingsService`, `IGlobalSettingsService`, `IScriptService`, `IStorageService`, `IPlugin`, `IPluginLoader`, `IWorkItemProvider`, `ITimeTrackingService`, `ICiCdService`, et les services de fenêtre (`IDockingService`, `IWindowService`, `IWindowDragService`, `IHostSurfaceService`, `IWindowRegionService`, `INativeService`).
+- [x] L'hôte Web n'enregistre que des implémentations simulées (`src/Kazo.Bar.Web/Mocks/`).
 
 ```csharp
 public interface IProcessService
@@ -195,7 +195,7 @@ public interface IProcessService
 **Afin d'** ajouter à la toolbar un outil adapté à mes besoins.
 
 **Critères d'acceptation :**
-- [x] `PluginLoader` (`src/DevToolbar.Plugins/Services/PluginLoader.cs`) liste les plugins enregistrés dans l'injection de dépendances.
+- [x] `PluginLoader` (`src/Kazo.Bar.Plugins/Services/PluginLoader.cs`) liste les plugins enregistrés dans l'injection de dépendances.
 - [x] Chaque plugin a un `UniqueId`, un `Name` et une icône.
 - [x] Un plugin peut afficher un indicateur dans la pilule (`IPluginIndicator`) et une fenêtre de configuration (`IConfigurablePlugin`).
 - [x] Un plugin déclare comment son module prend de la place avec `IPlugin.Layout` (`PluginLayout`) : fixe par défaut, ou `PluginLayout.ResizableWidth(défaut, min, max)` pour que l'utilisateur puisse changer sa largeur (US3.6).
@@ -222,7 +222,7 @@ public interface IProcessService
 **Afin de** savoir où elle se trouve et de pouvoir la sauvegarder facilement.
 
 **Critères d'acceptation :**
-- [x] La configuration est lue depuis `%APPDATA%\DevToolbar\config.json` (`UserConfigurationStore`, `src/DevToolbar.Infrastructure/Configuration/`).
+- [x] La configuration est lue depuis `%APPDATA%\DevToolbar\config.json` (`UserConfigurationStore`, `src/Kazo.Bar.Infrastructure/Configuration/`).
 - [x] Un seul fichier contient tout : `settings` (réglages globaux) et `projects`. L'ancien `global-settings.json` est fusionné au premier lancement puis déplacé dans `backups\`.
 - [x] Les surcharges par `.devtoolbar.json` dans le dossier du projet sont **retirées** de l'hôte WPF (l'hôte MAUI gelé garde son ancien code).
 - [x] Chaque dépôt déclare son dossier local (`localPath`).
@@ -270,7 +270,7 @@ Forme actuelle (schéma 1). Les blocs `workItems` et `github` d'un dépôt sont 
 **Critères d'acceptation :**
 - [x] Les secrets sont rangés sous une référence (`secretRef`) via `ISecretStore` ; la configuration ne garde que la référence. Les fournisseurs (US5.2, US7.1) proposent une référence par dépôt et par service.
 - [x] L'utilisateur choisit où sont stockés ses secrets dans Paramètres (« Access tokens ») : Gestionnaire d'identification Windows (`DevToolbar:<ref>`), ou `%APPDATA%\DevToolbar\secrets.json` chiffré par DPAPI pour son compte Windows. Changer de choix déplace les secrets existants.
-- [x] Chaque fournisseur utilise la méthode d'authentification qu'il recommande : « Sign in with GitHub » et « Sign in with Microsoft » (flux *device code* OAuth 2.0, RFC 8628) à côté du champ du jeton, dans les réglages des plugins Work Items et CI/CD. Le PAT reste possible. La connexion est rangée sous la même référence (`secretRef`), dans un petit objet JSON (`{"kind":"oauth", …}`) : le jeton d'accès GitHub (qui n'expire pas), ou le seul *refresh token* Microsoft. Le jeton d'accès Microsoft reste en mémoire et il est renouvelé deux minutes avant son expiration, ce qui garde la valeur sous la limite de 2 560 octets du Gestionnaire d'identification (`AccessTokenResolver`, `DeviceCodeSignInService`, `src/DevToolbar.Infrastructure/Auth/`).
+- [x] Chaque fournisseur utilise la méthode d'authentification qu'il recommande : « Sign in with GitHub » et « Sign in with Microsoft » (flux *device code* OAuth 2.0, RFC 8628) à côté du champ du jeton, dans les réglages des plugins Work Items et CI/CD. Le PAT reste possible. La connexion est rangée sous la même référence (`secretRef`), dans un petit objet JSON (`{"kind":"oauth", …}`) : le jeton d'accès GitHub (qui n'expire pas), ou le seul *refresh token* Microsoft. Le jeton d'accès Microsoft reste en mémoire et il est renouvelé deux minutes avant son expiration, ce qui garde la valeur sous la limite de 2 560 octets du Gestionnaire d'identification (`AccessTokenResolver`, `DeviceCodeSignInService`, `src/Kazo.Bar.Infrastructure/Auth/`).
 - [x] Les applications OAuth se déclarent une fois dans Paramètres → *Sign-in apps* (`settings.oauth.github.clientId`, `settings.oauth.azureDevOps.clientId` et `tenant`). Un identifiant client est public, aucun secret client n'est demandé. La marche à suivre est dans [Connexion-OAuth.md](Connexion-OAuth.md).
 - [ ] Recette sur PC : connexion réelle à GitHub et à Azure DevOps avec les applications déclarées.
 - [x] Les jetons saisis dans les réglages des plugins ne sont jamais réaffichés : le champ (`SecretField`) affiche « ●●●●●●●● saved », ou « ✓ Signed in with GitHub / Microsoft » après une connexion, avec remplacer / supprimer.
@@ -304,7 +304,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 
 **Critères d'acceptation :**
 - [x] De gauche à droite : projet et Git, actions rapides, puis groupe système (indicateurs des plugins, temps, rapports, paramètres).
-- [x] `ProjectSelector`, `PluginZone`, `ActionDeck` et la poignée de déplacement sont des composants de `DevToolbar.UI`.
+- [x] `ProjectSelector`, `PluginZone`, `ActionDeck` et la poignée de déplacement sont des composants de `Kazo.Bar.UI`.
 - [x] Les menus s'ouvrent sous la toolbar, ou au-dessus si elle est ancrée en bas.
 - [x] Les menus se ferment par un clic extérieur, `Échap` (le focus revient au déclencheur) ou quand une autre application est activée.
 
@@ -352,7 +352,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Afin d'** avoir une interface propre.
 
 **Critères d'acceptation :**
-- [x] Le bouton 🧪 « Test Dropdown » n'est rendu que si `DevToolbar.UI` est compilé en `Debug` (`DebugFeatures.Enabled`, basé sur `#if DEBUG`).
+- [x] Le bouton 🧪 « Test Dropdown » n'est rendu que si `Kazo.Bar.UI` est compilé en `Debug` (`DebugFeatures.Enabled`, basé sur `#if DEBUG`).
 - [x] Toute future fonction de debug suit la même règle : tester `DebugFeatures.Enabled` au lieu d'écrire `#if DEBUG` dans chaque composant.
 
 ## US3.6 Modules redimensionnables
@@ -495,7 +495,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [ ] Recette sur PC avec un vrai PAT Azure DevOps et GitHub.
 
 ## US5.3 Suivi du temps et inactivité
-**État :** ✅ Réel dans l'hôte WPF (`TimeTrackingService`, `src/DevToolbar.Infrastructure/TimeTracking/`), 🔍 à recetter sur PC. L'hôte Web garde un service simulé avec une journée d'exemple.
+**État :** ✅ Réel dans l'hôte WPF (`TimeTrackingService`, `src/Kazo.Bar.Infrastructure/TimeTracking/`), 🔍 à recetter sur PC. L'hôte Web garde un service simulé avec une journée d'exemple.
 
 **En tant qu'** employé ou travailleur autonome
 **Je veux** que le temps soit suivi automatiquement et que mes absences soient détectées
@@ -564,10 +564,10 @@ Règles dans `config.json` (ajout compatible avec le schéma 1, les valeurs abse
 **Afin de** valider l'interface sans lancer Windows.
 
 **Critères d'acceptation :**
-- [x] `DevToolbar.Web` utilise uniquement des services simulés (aucun processus réel n'est lancé).
-- [x] `DevToolbar.Tests.E2E` démarre l'hôte Web et vérifie chaque US visible (`FeatureSpecTests`, `ToolbarUiTests`, `PluginSettingsTests`).
+- [x] `Kazo.Bar.Web` utilise uniquement des services simulés (aucun processus réel n'est lancé).
+- [x] `Kazo.Bar.Tests.E2E` démarre l'hôte Web et vérifie chaque US visible (`FeatureSpecTests`, `ToolbarUiTests`, `PluginSettingsTests`).
 - [x] `ScreenshotTests` régénère les captures de `doc/screenshots/`.
-- [x] `DevToolbar.Tests.Unit` couvre le plugin Git, la négociation de taille de l'hôte, la configuration et ses migrations, le stockage JSON, Git réel (dépôts temporaires) les secrets, et les fournisseurs (réponses HTTP simulées).
+- [x] `Kazo.Bar.Tests.Unit` couvre le plugin Git, la négociation de taille de l'hôte, la configuration et ses migrations, le stockage JSON, Git réel (dépôts temporaires) les secrets, et les fournisseurs (réponses HTTP simulées).
 
 ## US6.2 Intégration continue
 **État :** ⬜ À faire, obligatoire pour la version finale
@@ -612,7 +612,7 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 
 **Critères d'acceptation :**
 - [x] Fenêtre sans bordure ni barre de titre, toujours au premier plan.
-- [x] Fond transparent : les zones vides autour de la pilule laissent passer les clics et la molette vers l'application en dessous (aucune ombre extérieure, voir `src/DevToolbar.Windows/wwwroot/css/wpf-host.css`).
+- [x] Fond transparent : les zones vides autour de la pilule laissent passer les clics et la molette vers l'application en dessous (aucune ombre extérieure, voir `src/Kazo.Bar.Windows/wwwroot/css/wpf-host.css`).
 - [ ] Recette sur PC : clic au travers, vraie molette, premier clic extérieur avec un menu ouvert, DPI et plusieurs écrans.
 
 ## US8.2 Zone de notification
@@ -631,7 +631,7 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 - [x] Configuration et paramètres en JSON dans `%APPDATA%\DevToolbar`.
 - [x] Entrées de temps et absences qualifiées en JSON dans le même dossier, avec `schemaVersion` (voir US2.5) : un fichier par mois `data\time-yyyy-MM.json`, une valeur par jour (`yyyy-MM-dd` : arrivée, dernier verrouillage, entrées, absences), et `data\time-tracking.json` pour le dernier signe de vie.
 - [x] États « lu » du suivi GitHub : `data\github-actions.json` (voir US7.2).
-- [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\DevToolbar\data\<espace>.json` par espace de noms. (La migration SQLite de `DevToolbar.Core/Data` reste inutilisée.)
+- [x] L'interface `IStorageService` a une implémentation réelle : `JsonStorageService`, un fichier `%APPDATA%\DevToolbar\data\<espace>.json` par espace de noms. (La migration SQLite de `Kazo.Bar.Core/Data` reste inutilisée.)
 
 ## US8.4 Position et ancrage de la toolbar
 **État :** ✅ Fait dans l'hôte WPF, 🔍 à recetter sur PC
@@ -660,7 +660,7 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 ## US9.1 Hôte WPF principal
 **État :** ✅ Fait, 🔍 à recetter sur PC
 
-- [x] `src/DevToolbar.Windows` : fenêtre WPF transparente (`AllowsTransparency`), `BlazorWebView` WPF officiel 10.0.110, une seule fenêtre.
+- [x] `src/Kazo.Bar.Windows` : fenêtre WPF transparente (`AllowsTransparency`), `BlazorWebView` WPF officiel 10.0.110, une seule fenêtre.
 - [x] Routes `/` (toolbar) et `/settings`.
 - [x] Services Windows réels pour processus, fichiers, scripts, fenêtres, configuration.
 - Historique et preuves du choix : [`spikes/window-feasibility/INTEGRATION.md`](../spikes/window-feasibility/INTEGRATION.md).
@@ -668,7 +668,7 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 ## US9.2 Hôte MAUI gelé
 **État :** 🧊 Gelé
 
-`src/DevToolbar.Maui` reste dans la solution mais ne reçoit plus de nouvelles fonctions. Il n'est pas compilé dans le conteneur Linux et n'est pas recetté.
+`src/Kazo.Bar.Maui` reste dans la solution mais ne reçoit plus de nouvelles fonctions. Il n'est pas compilé dans le conteneur Linux et n'est pas recetté.
 
 ---
 

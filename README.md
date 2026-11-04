@@ -1,4 +1,4 @@
-# DevToolbar
+# Kazo Bar
 
 A small always-on-top developer toolbar for Windows, built with .NET 10 and Blazor. It shows the active project and its Git state, quick action buttons, plugin indicators (work items, time tracking, CI/CD) and a settings page.
 
@@ -24,15 +24,15 @@ This README describes **what the software does today**. The backlog (what it sho
 
 | Project | Type | Role |
 |---|---|---|
-| `src/DevToolbar.Core` | Class library | Interfaces, models, events. No UI or native dependency. |
-| `src/DevToolbar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores, OAuth device flow, Azure DevOps and GitHub REST clients. |
-| `src/DevToolbar.UI` | Razor class library | Blazor components, layout, pages, CSS, JS. |
-| `src/DevToolbar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. To write your own, see [doc/Writing-a-plugin.md](doc/Writing-a-plugin.md). |
-| `src/DevToolbar.Windows` | WPF + Blazor Hybrid | **Main Windows host**: transparent, click-through toolbar window. |
-| `src/DevToolbar.Web` | Blazor Web App | Test host with simulated services, used by the Playwright tests. |
-| `src/DevToolbar.Maui` | MAUI Blazor Hybrid | Original Windows host, frozen. |
-| `tests/DevToolbar.Tests.E2E` | NUnit + Playwright | UI tests against the Web host, and screenshot capture. |
-| `tests/DevToolbar.Tests.Unit` | NUnit | Unit tests (Git plugin and real Git on temporary repositories, configuration and migrations, storage, secrets, host sizing). |
+| `src/Kazo.Bar.Core` | Class library | Interfaces, models, events. No UI or native dependency. |
+| `src/Kazo.Bar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores, OAuth device flow, Azure DevOps and GitHub REST clients. |
+| `src/Kazo.Bar.UI` | Razor class library | Blazor components, layout, pages, CSS, JS. |
+| `src/Kazo.Bar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. To write your own, see [doc/Writing-a-plugin.md](doc/Writing-a-plugin.md). |
+| `src/Kazo.Bar.Windows` | WPF + Blazor Hybrid | **Main Windows host**: transparent, click-through toolbar window. |
+| `src/Kazo.Bar.Web` | Blazor Web App | Test host with simulated services, used by the Playwright tests. |
+| `src/Kazo.Bar.Maui` | MAUI Blazor Hybrid | Original Windows host, frozen. |
+| `tests/Kazo.Bar.Tests.E2E` | NUnit + Playwright | UI tests against the Web host, and screenshot capture. |
+| `tests/Kazo.Bar.Tests.Unit` | NUnit | Unit tests (Git plugin and real Git on temporary repositories, configuration and migrations, storage, secrets, host sizing). |
 
 All projects target .NET 10. `spikes/window-feasibility/` keeps the experiment that led to the WPF host.
 
@@ -82,15 +82,15 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 
 ### Build
 ```bash
-dotnet build DevToolbar.slnx
+dotnet build Kazo.Bar.slnx
 ```
-The MAUI and Windows projects only build on Windows (or on Linux with `-p:EnableWindowsTargeting=true` for `DevToolbar.Windows`).
+The MAUI and Windows projects only build on Windows (or on Linux with `-p:EnableWindowsTargeting=true` for `Kazo.Bar.Windows`).
 
 ### Run the Windows host
 ```powershell
-dotnet run --project src/DevToolbar.Windows
+dotnet run --project src/Kazo.Bar.Windows
 ```
-The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF `BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through, so clicks and the mouse wheel reach the application under the empty areas around the pill and its menus. To keep that true, `src/DevToolbar.Windows/wwwroot/css/wpf-host.css` removes every outer `box-shadow`. Startup and crash diagnostics go to `%LOCALAPPDATA%\DevToolbar\logs\windows-host.log`. Pull and Push need Git on the `PATH`.
+The toolbar is a WPF layered window (`AllowsTransparency`) hosting the official WPF `BlazorWebView` (WebView2 composition control). Pixels with alpha 0 are click-through, so clicks and the mouse wheel reach the application under the empty areas around the pill and its menus. To keep that true, `src/Kazo.Bar.Windows/wwwroot/css/wpf-host.css` removes every outer `box-shadow`. Startup and crash diagnostics go to `%LOCALAPPDATA%\DevToolbar\logs\windows-host.log`. Pull and Push need Git on the `PATH`.
 
 Files written for the current user, all in `%APPDATA%\DevToolbar`:
 
@@ -103,23 +103,23 @@ Files written for the current user, all in `%APPDATA%\DevToolbar`:
 
 ### Run the Web test host
 ```bash
-dotnet run --project src/DevToolbar.Web
+dotnet run --project src/Kazo.Bar.Web
 ```
 Then open `http://localhost:5028`. All services are simulated; nothing is launched on your machine.
 
 ### Run the tests
 ```bash
 # First time: install the Playwright browser (the path depends on the build configuration)
-dotnet build tests/DevToolbar.Tests.E2E
-pwsh tests/DevToolbar.Tests.E2E/bin/Debug/net10.0/playwright.ps1 install chromium
+dotnet build tests/Kazo.Bar.Tests.E2E
+pwsh tests/Kazo.Bar.Tests.E2E/bin/Debug/net10.0/playwright.ps1 install chromium
 
-dotnet test tests/DevToolbar.Tests.Unit
-dotnet test tests/DevToolbar.Tests.E2E
+dotnet test tests/Kazo.Bar.Tests.Unit
+dotnet test tests/Kazo.Bar.Tests.E2E
 ```
 
 ### Refresh the screenshots
 ```bash
-dotnet test tests/DevToolbar.Tests.E2E --filter "FullyQualifiedName~ScreenshotTests"
+dotnet test tests/Kazo.Bar.Tests.E2E --filter "FullyQualifiedName~ScreenshotTests"
 ```
 Screenshots are written to `doc/screenshots/`.
 

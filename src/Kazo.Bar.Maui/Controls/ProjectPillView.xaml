@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Kazo.Bar.Maui.ViewModels"
+    x:Class="Kazo.Bar.Maui.Controls.ProjectPillView"
+    x:DataType="vm:ToolbarViewModel">
+
+    <!--
+        Zone 1: Project selector pill.
+        Blue gradient pill with GitHub-style icon + project name.
+        Tapping opens the project dropdown in the parent page.
+    -->
+    <ContentView.GestureRecognizers>
+        <TapGestureRecognizer Command="{Binding ToggleDropdownCommand}" />
+    </ContentView.GestureRecognizers>
+
+    <Border 
+        StrokeShape="RoundRectangle 28"
+        HeightRequest="44"
+        Background="{DynamicResource ProjectPillBackground}"
+        Padding="16,0,24,0">
+
+        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+            <!-- GitHub-style icon (using Segoe MDL2 placeholder — replace with SVG) -->
+            <Label 
+                Text="&#xE895;" 
+                FontFamily="Segoe MDL2 Assets" 
+                FontSize="18"
+                TextColor="{DynamicResource ProjectPillTextColor}" 
+                VerticalOptions="Center" />
+
+            <!-- Project name with ellipsis for overflow -->
+            <Label 
+                Text="{Binding ProjectName}" 
+                FontSize="15"
+                FontAttributes="Bold"
+                TextColor="{DynamicResource ProjectPillTextColor}"
+                VerticalOptions="Center"
+                LineBreakMode="TailTruncation" 
+                MaximumWidthRequest="160" />
+
+            <!-- Dropdown chevron -->
+            <Label 
+                Text="&#xE70D;" 
+                FontFamily="Segoe MDL2 Assets" 
+                FontSize="10"
+                TextColor="{DynamicResource ProjectPillTextColor}" 
+                VerticalOptions="Center"
+                Opacity="0.7" />
+        </HorizontalStackLayout>
+    </Border>
+
+</ContentView>

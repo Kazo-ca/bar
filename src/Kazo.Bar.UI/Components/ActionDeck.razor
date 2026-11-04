@@ -1,0 +1,186 @@
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.Core.Models
+@using Kazo.Bar.UI.Services
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*
+    Quick actions (US4.1) with overflow (US3.4): as many round buttons as fit in the zone,
+    the others in a "…" menu. The available width comes from a ResizeObserver (action-overflow.js).
+*@
+<div class="action-deck-host" @ref="_host">
+    <div class="action-deck">
+        @if (Actions != null)
+        {
+            var layout = Layout;
+            @for (var i = 0; i < layout.Visible; i++)
+            {
+                var action = Actions[i];
+                <div class="action-slot" data-action-index="@i">
+                    @if (action.ActionType == ActionType.Process && !string.IsNullOrEmpty(action.WindowTitleRegex))
+                    {
+                        <SmartProcessButton Action="@action" />
+                    }
+                    else
+                    {
+                        <button class="action-button" @onclick="() => OnActionClick(action)" title="@action.Label">
+                            <span class="action-icon">@action.Icon</span>
+                            <span class="action-label">@action.Label</span>
+                        </button>
+                    }
+                </div>
+            }
+            @if (layout.Hidden > 0)
+            {
+                <div class="action-overflow" data-popup-root="action-overflow">
+                    <button @ref="_overflowTrigger" class="action-button action-overflow-trigger" data-testid="action-overflow"
+                            title="@($"{layout.Hidden} more action(s)")" aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")"
+                            @onclick="ToggleMenu">
+                        <span class="action-icon">…</span>
+                        <span class="action-label">More actions</span>
+                    </button>
+                    @if (_menuOpen)
+                    {
+                        <div class="action-overflow-menu" role="menu" data-testid="action-overflow-menu">
+                            @foreach (var action in Actions.Skip(layout.Visible))
+                            {
+                                <button class="action-overflow-item" role="menuitem" title="@action.Label" @onclick="() => OnMenuItemClick(action)">
+                                    <span class="action-overflow-icon">@action.Icon</span>
+                                    <span class="action-overflow-label">@action.Label</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<ActionConfig>? Actions { get; set; }
+
+    [Parameter]
+    public EventCallback<ActionConfig> OnActionClicked { get; set; }
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    [Inject] private IWindowRegionService RegionService { get; set; } = default!;
+
+    private const int MenuRegionHeight = 260;
+
+    private ElementReference _host;
+    private ElementReference _overflowTrigger;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ActionDeck>? _self;
+    /// <summary>Unknown until measured: show everything (prerender, hosts without JS).</summary>
+    private int? _availableWidth;
+    private readonly Dictionary<int, int> _widths = new();
+    private List<ActionConfig>? _measuredFor;
+    private bool _menuOpen;
+
+    private ActionOverflow.Layout Layout =>
+        ActionOverflow.Fit(Actions?.Count ?? 0, _availableWidth, i => _widths.TryGetValue(i, out var w) ? w : null);
+
+    protected override void OnParametersSet()
+    {
+        // Another project: other actions, other widths.
+        if (!ReferenceEquals(_measuredFor, Actions))
+        {
+            _measuredFor = Actions;
+            _widths.Clear();
+            CloseMenu();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Kazo.Bar.UI/js/action-overflow.js");
+            await _module.InvokeVoidAsync("observe", _host, _self);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException)
+        {
+            // Prerendering or the circuit went away: keep every action visible.
+        }
+    }
+
+    [JSInvokable]
+    public Task OnMeasured(int availableWidth, int[] indexes, int[] widths)
+    {
+        _availableWidth = availableWidth;
+        for (var i = 0; i < Math.Min(indexes.Length, widths.Length); i++)
+            _widths[indexes[i]] = widths[i];
+        if (_menuOpen && Layout.Hidden == 0)
+            CloseMenu();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnActionClick(ActionConfig action) => await OnActionClicked.InvokeAsync(action);
+
+    private async Task OnMenuItemClick(ActionConfig action)
+    {
+        CloseMenu();
+        await OnActionClicked.InvokeAsync(action);
+    }
+
+    private void ToggleMenu()
+    {
+        if (_menuOpen)
+        {
+            CloseMenu();
+            return;
+        }
+        _menuOpen = true;
+        RegionService.ExpandRegion(MenuRegionHeight);
+    }
+
+    private void CloseMenu()
+    {
+        if (!_menuOpen) return;
+        _menuOpen = false;
+        RegionService.CollapseRegion();
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!_menuOpen || !request.AppliesTo("action-overflow")) return;
+        _ = InvokeAsync(async () =>
+        {
+            CloseMenu();
+            StateHasChanged();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _overflowTrigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
+        if (_module != null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("unobserve", _host);
+                await _module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException or ObjectDisposedException)
+            {
+                // Circuit already gone.
+            }
+        }
+        _self?.Dispose();
+    }
+}

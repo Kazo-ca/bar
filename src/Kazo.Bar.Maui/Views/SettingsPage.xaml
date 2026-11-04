@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Kazo.Bar.Maui.ViewModels"
+    x:Class="Kazo.Bar.Maui.Views.SettingsPage"
+    x:DataType="vm:SettingsViewModel"
+    Title="Kazo Bar Settings"
+    BackgroundColor="#F0F2F5">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="24" Padding="28">
+
+            <!-- ═══ Header ═══ -->
+            <Label 
+                Text="Settings" 
+                FontSize="28" 
+                FontAttributes="Bold" 
+                TextColor="#1A1A2E" />
+
+            <!-- ═══ Theme Section ═══ -->
+            <Border 
+                StrokeShape="RoundRectangle 16" 
+                BackgroundColor="White"
+                Stroke="#E0E0E0" StrokeThickness="1"
+                Padding="20">
+                <VerticalStackLayout Spacing="16">
+                    <Label Text="Theme" FontSize="18" FontAttributes="Bold" TextColor="#1A1A2E" />
+                    <Label Text="Choose the visual theme for the toolbar." FontSize="13" TextColor="#666" />
+
+                    <HorizontalStackLayout Spacing="12">
+                        <!-- Light Theme Card -->
+                        <Border 
+                            StrokeShape="RoundRectangle 12"
+                            WidthRequest="110" HeightRequest="80"
+                            Stroke="{Binding IsLightTheme, Converter={StaticResource BoolToStrokeConverter}, ConverterParameter=Light}"
+                            StrokeThickness="2"
+                            Padding="12">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#C8D5E0" Offset="0" />
+                                    <GradientStop Color="#DBE0EA" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SetThemeCommand}" CommandParameter="Light" />
+                            </Border.GestureRecognizers>
+                            <VerticalStackLayout VerticalOptions="End">
+                                <Label Text="Light" FontSize="13" FontAttributes="Bold" TextColor="White" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <!-- Dark Theme Card -->
+                        <Border 
+                            StrokeShape="RoundRectangle 12"
+                            WidthRequest="110" HeightRequest="80"
+                            Stroke="{Binding IsDarkTheme, Converter={StaticResource BoolToStrokeConverter}, ConverterParameter=Dark}"
+                            StrokeThickness="2"
+                            Padding="12">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#1E222A" Offset="0" />
+                                    <GradientStop Color="#181C24" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SetThemeCommand}" CommandParameter="Dark" />
+                            </Border.GestureRecognizers>
+                            <VerticalStackLayout VerticalOptions="End">
+                                <Label Text="Dark" FontSize="13" FontAttributes="Bold" TextColor="White" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <!-- Green Theme Card -->
+                        <Border 
+                            StrokeShape="RoundRectangle 12"
+                            WidthRequest="110" HeightRequest="80"
+                            Stroke="{Binding IsGreenTheme, Converter={StaticResource BoolToStrokeConverter}, ConverterParameter=Green}"
+                            StrokeThickness="2"
+                            Padding="12">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#4B8246" Offset="0" />
+                                    <GradientStop Color="#376A32" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SetThemeCommand}" CommandParameter="Green" />
+                            </Border.GestureRecognizers>
+                            <VerticalStackLayout VerticalOptions="End">
+                                <Label Text="Green" FontSize="13" FontAttributes="Bold" TextColor="White" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ═══ General Section ═══ -->
+            <Border 
+                StrokeShape="RoundRectangle 16" 
+                BackgroundColor="White"
+                Stroke="#E0E0E0" StrokeThickness="1"
+                Padding="20">
+                <VerticalStackLayout Spacing="16">
+                    <Label Text="General" FontSize="18" FontAttributes="Bold" TextColor="#1A1A2E" />
+
+                    <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                        <Label Text="Always on top" FontSize="14" TextColor="#333" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="True" OnColor="#5EA0F4" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                        <Label Text="Start with Windows" FontSize="14" TextColor="#333" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="False" OnColor="#5EA0F4" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                        <Label Text="Show timer" FontSize="14" TextColor="#333" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="True" OnColor="#5EA0F4" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ═══ About Section ═══ -->
+            <Border 
+                StrokeShape="RoundRectangle 16" 
+                BackgroundColor="White"
+                Stroke="#E0E0E0" StrokeThickness="1"
+                Padding="20">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="About" FontSize="18" FontAttributes="Bold" TextColor="#1A1A2E" />
+                    <Label Text="Kazo Bar v1.0" FontSize="13" TextColor="#666" />
+                    <Label Text="A developer productivity toolbar for Windows." FontSize="13" TextColor="#999" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ═══ Close Button ═══ -->
+            <Button 
+                Text="Close" 
+                Command="{Binding CloseCommand}"
+                BackgroundColor="#5EA0F4"
+                TextColor="White"
+                FontAttributes="Bold"
+                CornerRadius="12"
+                HeightRequest="44"
+                HorizontalOptions="End"
+                WidthRequest="120" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

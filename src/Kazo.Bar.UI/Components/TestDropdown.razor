@@ -1,0 +1,77 @@
+@using Kazo.Bar.Core.Interfaces
+
+@using Kazo.Bar.UI.Services
+@inject IWindowRegionService RegionService
+@implements IDisposable
+
+<div class="test-dropdown-wrapper" style="position: relative;" data-popup-root="test-dropdown">
+    <button @ref="_trigger" class="system-btn" @onclick="ToggleDropdown" title="Test Dropdown">🧪</button>
+
+    @if (_isOpen)
+    {
+        <div class="test-dropdown-panel">
+            <div class="test-dropdown-header">
+                <strong>Test Dropdown</strong>
+                <button class="test-dropdown-close" @onclick="CloseDropdown">✕</button>
+            </div>
+            <ul class="test-dropdown-list">
+                <li>Item 1 — Hello World</li>
+                <li>Item 2 — Region Expand works!</li>
+                <li>Item 3 — Click-through test</li>
+                <li>Item 4 — Overflow test</li>
+                <li>Item 5 — Bottom item</li>
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isOpen;
+    private ElementReference _trigger;
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!_isOpen || !request.AppliesTo("test-dropdown")) return;
+        _ = InvokeAsync(async () =>
+        {
+            CloseDropdown();
+            StateHasChanged();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
+    }
+
+    private void ToggleDropdown()
+    {
+        _isOpen = !_isOpen;
+        if (_isOpen)
+        {
+            // Expand visible window region to show the dropdown panel
+            RegionService.ExpandRegion(300);
+        }
+        else
+        {
+            RegionService.CollapseRegion();
+        }
+    }
+
+    private void CloseDropdown()
+    {
+        _isOpen = false;
+        RegionService.CollapseRegion();
+    }
+}

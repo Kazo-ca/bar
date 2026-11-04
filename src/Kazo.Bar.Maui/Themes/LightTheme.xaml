@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Kazo.Bar.Maui.Themes.LightTheme">
+
+    <!-- ═══ Shell (outer glass capsule) ═══ -->
+    <LinearGradientBrush x:Key="ShellBackground" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#BEC8D5E0" Offset="0" />
+        <GradientStop Color="#C8DBE0EA" Offset="1" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="ShellBorder" Color="#73FFFFFF" />
+
+    <!-- ═══ Project Pill (Zone 1 — blue) ═══ -->
+    <LinearGradientBrush x:Key="ProjectPillBackground" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#5EA0F4" Offset="0" />
+        <GradientStop Color="#3878E4" Offset="1" />
+    </LinearGradientBrush>
+    <Color x:Key="ProjectPillTextColor">#FFFFFF</Color>
+
+    <!-- ═══ Git Branch Pill (Zone 2 — dark slate) ═══ -->
+    <LinearGradientBrush x:Key="GitPillBackground" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#DC4A5A6E" Offset="0" />
+        <GradientStop Color="#EB3A4858" Offset="1" />
+    </LinearGradientBrush>
+    <Color x:Key="GitPillTextColor">#E6FFFFFF</Color>
+
+    <!-- ═══ Action Buttons (Zone 3 — glass circles) ═══ -->
+    <SolidColorBrush x:Key="ActionButtonBackground" Color="#3CFFFFFF" />
+    <Color x:Key="ActionButtonForegroundColor">#505A69</Color>
+    <SolidColorBrush x:Key="ActionButtonHoverBackground" Color="#78FFFFFF" />
+    <SolidColorBrush x:Key="ActionButtonBorder" Color="#28FFFFFF" />
+
+    <!-- ═══ System Pill (Zone 4 — dark) ═══ -->
+    <LinearGradientBrush x:Key="SystemPillBackground" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#DC4A5058" Offset="0" />
+        <GradientStop Color="#F03A4048" Offset="1" />
+    </LinearGradientBrush>
+    <Color x:Key="SystemPillTextColor">#DCFFFFFF</Color>
+    <Color x:Key="SystemPillSecondaryColor">#8CFFFFFF</Color>
+
+    <!-- ═══ Dropdown / Flyout ═══ -->
+    <SolidColorBrush x:Key="DropdownBackground" Color="#F53A4050" />
+    <SolidColorBrush x:Key="DropdownBorder" Color="#28FFFFFF" />
+    <SolidColorBrush x:Key="DropdownItemHover" Color="#14FFFFFF" />
+    <Color x:Key="DropdownTextColor">#E6FFFFFF</Color>
+
+</ResourceDictionary>
