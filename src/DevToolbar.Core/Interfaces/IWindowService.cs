@@ -4,7 +4,7 @@ using DevToolbar.Core.Models;
 
 /// <summary>
 /// Service for listing open windows and activating them.
-/// Used by the taskbar replacement feature.
+/// Used by the active windows module (US8.5).
 /// </summary>
 public interface IWindowService
 {

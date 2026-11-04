@@ -2,7 +2,7 @@ namespace DevToolbar.Core.Models;
 
 /// <summary>
 /// Represents a visible window on the desktop.
-/// Used by the taskbar replacement feature to show open applications.
+/// Used by the active windows module (US8.5) to show open applications.
 /// </summary>
 public class WindowInfo
 {
