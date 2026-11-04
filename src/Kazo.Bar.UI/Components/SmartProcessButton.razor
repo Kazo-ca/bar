@@ -1,0 +1,143 @@
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.Core.Models
+@using Kazo.Bar.UI.Services
+@implements IDisposable
+@inject IProcessService ProcessService
+@inject INotificationService NotificationService
+
+@* US4.2 Smart Focus: activate the program's window if it is open, launch it otherwise.
+   Several matching windows: a menu lets the user pick one (or launch a new instance). *@
+<div class="smart-process @(_choices != null ? "open" : "")" data-popup-root="@PopupRoot">
+    <button @ref="_trigger" class="smart-process-btn @(_isFocused ? "focused" : "")"
+            @onclick="HandleClick" @onclick:stopPropagation="true"
+            title="@(Action?.Label ?? "Process")"
+            aria-haspopup="true" aria-expanded="@(_choices != null ? "true" : "false")">
+        <span class="smart-process-icon">@(Action?.Icon ?? "▶")</span>
+        <span class="smart-process-label">@(Action?.Label ?? "Launch")</span>
+        @if (_isFocused)
+        {
+            <span class="smart-process-badge">Active</span>
+        }
+    </button>
+
+    @if (_choices != null)
+    {
+        <div class="smart-process-menu" role="menu" aria-label="Choose a window">
+            <div class="smart-process-menu-title">@_choices.Count windows match</div>
+            @foreach (var window in _choices)
+            {
+                <button class="smart-process-menu-item" role="menuitem" title="@window.Title"
+                        @onclick="() => Focus(window)" @onclick:stopPropagation="true">
+                    <span class="smart-process-menu-text">@window.Title</span>
+                    @if (!string.IsNullOrEmpty(window.ProcessName))
+                    {
+                        <span class="smart-process-menu-process">@window.ProcessName</span>
+                    }
+                </button>
+            }
+            <button class="smart-process-menu-item smart-process-menu-launch" role="menuitem"
+                    @onclick="LaunchFromMenuAsync" @onclick:stopPropagation="true">
+                <span class="smart-process-menu-text">＋ Launch a new one</span>
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public ActionConfig? Action { get; set; }
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    private bool _isFocused;
+    private IReadOnlyList<WindowMatch>? _choices;
+    private ElementReference _trigger;
+    private readonly string _popupId = Guid.NewGuid().ToString("N")[..8];
+
+    private string PopupRoot => $"smart-focus-{_popupId}";
+
+    protected override void OnInitialized()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+    }
+
+    private async Task HandleClick()
+    {
+        if (Action == null) return;
+        if (_choices != null)
+        {
+            _choices = null; // Second click on the trigger closes the menu.
+            return;
+        }
+
+        try
+        {
+            if (!string.IsNullOrEmpty(Action.WindowTitleRegex))
+            {
+                var windows = ProcessService.FindWindowsByTitle(Action.WindowTitleRegex);
+                if (windows.Count > 1)
+                {
+                    _choices = windows;
+                    return;
+                }
+                if (windows.Count == 1 && Focus(windows[0]))
+                    return;
+            }
+            await LaunchAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed: {ex.Message}", "Error");
+        }
+    }
+
+    private bool Focus(WindowMatch window)
+    {
+        _choices = null;
+        _isFocused = ProcessService.FocusWindow(window);
+        if (_isFocused)
+            NotificationService.ShowInfo($"Focused {Action?.Label}", "Smart Focus");
+        else
+            NotificationService.ShowWarning($"The window \"{window.Title}\" is no longer open.", "Smart Focus");
+        return _isFocused;
+    }
+
+    private async Task LaunchFromMenuAsync()
+    {
+        _choices = null;
+        try
+        {
+            await LaunchAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Failed: {ex.Message}", "Error");
+        }
+    }
+
+    private async Task LaunchAsync()
+    {
+        await ProcessService.StartProcessAsync(Action!.ProcessPath, Action.Arguments);
+        _isFocused = false;
+        NotificationService.ShowSuccess($"Launched {Action.Label}", "Action");
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (_choices == null || !request.AppliesTo(PopupRoot)) return;
+        _ = InvokeAsync(async () =>
+        {
+            _choices = null;
+            StateHasChanged();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
+    }
+}

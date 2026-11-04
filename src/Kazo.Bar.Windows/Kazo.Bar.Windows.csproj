@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!--
+    Windows desktop host (WPF) for the toolbar.
+    Parallel to Kazo.Bar.Maui: same Razor UI, Core and Plugins, but hosted in a
+    WPF layered window (AllowsTransparency) with the official WPF BlazorWebView,
+    which renders through WebView2CompositionControl. Pixels with alpha 0 are
+    click-through to the windows below; no SetWindowRgn, no input mask, no polling.
+    See spikes/window-feasibility/INTEGRATION.md.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Versioned TFM required: WebView2CompositionControl uses Windows.Graphics.Capture
+         (Microsoft.Windows.SDK.NET). With plain net10.0-windows the process dies at startup
+         (same failure as the spike's first run). Same values as the spike. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <WindowsSdkPackageVersion>10.0.19041.57</WindowsSdkPackageVersion>
+    <UseWPF>true</UseWPF>
+    <!-- System.Drawing (window icons in WindowsWindowService). -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Kazo.Bar.Windows</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Kazo.Bar.Windows</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>Kazo.Bar.Windows.Program</StartupObject>
+    <!-- Allow building/compile-checking from non-Windows machines (CI, Linux). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF implicit usings omit System.IO (needed by the linked shared services);
+         keep WinForms/System.Drawing out of the global namespace to avoid WPF ambiguities. -->
+    <Using Include="System.IO" />
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 10.0.110: first version audited in the spike; uses WebView2CompositionControl. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.110" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kazo.Bar.Core\Kazo.Bar.Core.csproj" />
+    <ProjectReference Include="..\Kazo.Bar.Infrastructure\Kazo.Bar.Infrastructure.csproj" />
+    <ProjectReference Include="..\Kazo.Bar.UI\Kazo.Bar.UI.csproj" />
+    <ProjectReference Include="..\Kazo.Bar.Plugins\Kazo.Bar.Plugins.csproj" />
+  </ItemGroup>
+
+  <!--
+    Host-neutral Windows services are shared with the MAUI host by linking the
+    source files (single source of truth, MAUI project left untouched).
+    They depend only on Core, System.* and Win32 P/Invoke.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Kazo.Bar.Maui\Services\WindowsFileSystemService.cs" Link="Shared\WindowsFileSystemService.cs" />
+    <Compile Include="..\Kazo.Bar.Maui\Services\WindowsProcessService.cs" Link="Shared\WindowsProcessService.cs" />
+    <Compile Include="..\Kazo.Bar.Maui\Services\MauiMocks.cs" Link="Shared\MauiMocks.cs" />
+    <Compile Include="..\Kazo.Bar.Maui\Platforms\Windows\Services\WindowsWindowService.cs" Link="Shared\WindowsWindowService.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

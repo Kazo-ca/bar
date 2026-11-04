@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.2" />
+	</ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kazo.Bar.Core\Kazo.Bar.Core.csproj" />
+    <ProjectReference Include="..\Kazo.Bar.UI\Kazo.Bar.UI.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

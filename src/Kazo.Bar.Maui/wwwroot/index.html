@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kazo Bar</title>
+    <link rel="stylesheet" href="_content/Kazo.Bar.UI/css/toolbar.css" />
+    <style>
+        /* MAUI-only: stretch toolbar to fill the window (SetWindowRgn clips the shape) */
+        .toolbar-shell {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+        }
+    </style>
+</head>
+<body style="background: rgb(200, 207, 218); margin: 0; padding: 0;">
+    <div id="app">Loading...</div>
+
+    <div id="blazor-error-ui" style="display: none;">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_content/Kazo.Bar.UI/js/toolbar-interop.js"></script>
+    <script src="_framework/blazor.webview.js"></script>
+</body>
+</html>

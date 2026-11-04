@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Kazo.Bar.Core/Kazo.Bar.Core.csproj" />
+    <Project Path="src/Kazo.Bar.Infrastructure/Kazo.Bar.Infrastructure.csproj" />
+    <Project Path="src/Kazo.Bar.Maui/Kazo.Bar.Maui.csproj" />
+    <Project Path="src/Kazo.Bar.Plugins/Kazo.Bar.Plugins.csproj" />
+    <Project Path="src/Kazo.Bar.UI/Kazo.Bar.UI.csproj" />
+    <Project Path="src/Kazo.Bar.Web/Kazo.Bar.Web.csproj" />
+    <Project Path="src/Kazo.Bar.Windows/Kazo.Bar.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Kazo.Bar.Tests.E2E/Kazo.Bar.Tests.E2E.csproj" />
+    <Project Path="tests/Kazo.Bar.Tests.Unit/Kazo.Bar.Tests.Unit.csproj" />
+  </Folder>
+</Solution>

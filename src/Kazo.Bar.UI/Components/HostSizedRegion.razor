@@ -1,0 +1,94 @@
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.Core.Models
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IServiceProvider Services
+@inject IJSRuntime JS
+
+@*
+    Wraps content that may need more room than the host window has (pages, panels).
+    The region measures its content and declares the surface it needs to the host
+    (IHostSurfaceService), which grows its window as far as the screen allows;
+    whatever still does not fit scrolls inside the region (class "host-sized").
+    Hosts without the service: plain CSS scrolling, no JS.
+    Regions laid out from the window bottom (panels opening upward) add data-host-anchor="bottom".
+*@
+<div @ref="_outer" class="host-sized @Class" data-host-size-id="@Id" @attributes="AdditionalAttributes">
+    <div @ref="_inner" class="host-sized-content">@ChildContent</div>
+</div>
+
+@code {
+    /// <summary>Stable id of the request on the host (one request per id).</summary>
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private ElementReference _outer;
+    private ElementReference _inner;
+    private IHostSurfaceService? _surface;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<HostSizedRegion>? _self;
+    private bool _disposed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _surface = Services.GetService(typeof(IHostSurfaceService)) as IHostSurfaceService;
+        if (_surface == null || string.IsNullOrWhiteSpace(Id)) return;
+
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Kazo.Bar.UI/js/host-surface.js");
+            if (_disposed) return;
+            _self = DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("observe", Id, _outer, _inner, _self);
+            _surface.Changed += OnSurfaceChanged;
+            await PushAvailableAsync();
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { /* sizing is best effort: CSS scrolling still applies */ }
+    }
+
+    /// <summary>Page → host: the surface this region needs (CSS px).</summary>
+    [JSInvokable]
+    public void OnMeasured(double width, double height)
+    {
+        if (_disposed) return;
+        _surface?.RequestSize(Id, new SurfaceSize(width, height));
+    }
+
+    private void OnSurfaceChanged() => _ = InvokeAsync(PushAvailableAsync);
+
+    /// <summary>Host → page: what the host can give; the region re-measures afterwards.</summary>
+    private async Task PushAvailableAsync()
+    {
+        if (_module == null || _surface == null || _disposed) return;
+        var available = _surface.Available;
+        if (double.IsInfinity(available.Width) || double.IsInfinity(available.Height)) return;
+        try { await _module.InvokeVoidAsync("setAvailable", Id, available.Width, available.Height); }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_surface != null)
+        {
+            _surface.Changed -= OnSurfaceChanged;
+            _surface.ReleaseSize(Id);
+        }
+        if (_module != null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("unobserve", Id);
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+            catch (JSException) { }
+        }
+        _self?.Dispose();
+    }
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kazo.Bar.UI\Kazo.Bar.UI.csproj" />
+    <ProjectReference Include="..\Kazo.Bar.Plugins\Kazo.Bar.Plugins.csproj" />
+    <ProjectReference Include="..\Kazo.Bar.Core\Kazo.Bar.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+</Project>

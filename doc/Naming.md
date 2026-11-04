@@ -24,7 +24,7 @@ ancien hôte MAUI gelé (voir le [README](../README.md)).
 
 | Emplacement | Proposition | Point à valider |
 |---|---|---|
-| Exécutable Windows | `Kazo.Bar.Windows.exe` | Conserver le suffixe de l'hôte, comme l'actuel `DevToolbar.Windows.exe` défini par son [assemblage](../src/DevToolbar.Windows/DevToolbar.Windows.csproj). |
+| Exécutable Windows | `Kazo.Bar.Windows.exe` | Conserver le suffixe de l'hôte, comme l'actuel `DevToolbar.Windows.exe` défini par son [assemblage](../src/Kazo.Bar.Windows/Kazo.Bar.Windows.csproj). |
 | Raccourci et entrée du menu Démarrer | `Kazo Bar` | Utiliser le nom affiché ; décider aussi du nom présenté dans la liste des applications installées. |
 | Identité de l'application et de l'installateur | `ca.kazo.bar` comme candidat d'identifiant stable | Choisir le format de distribution avant de fixer ses identifiants. L'identité de l'éditeur doit correspondre à la signature réelle ; elle ne se déduit pas de l'URL. Aucun installateur WPF n'est défini dans le dépôt actuel. |
 | Configuration et données utilisateur | `%APPDATA%\Kazo\Bar\` | Conserver `config.json`, `data\`, `backups\` et, si le stockage chiffré est choisi, `secrets.json`, comme sous l'actuelle racine `%APPDATA%\DevToolbar\`. |
@@ -34,7 +34,7 @@ ancien hôte MAUI gelé (voir le [README](../README.md)).
 La configuration WPF actuelle est **un seul `config.json` par utilisateur** ; les
 préférences sont intégrées à ce fichier. Les anciens `global-settings.json` et
 `.devtoolbar.json` ne justifient donc pas de nouveaux noms de fichiers dans les
-projets. Voir les [chemins actuels](../src/DevToolbar.Infrastructure/Storage/AppDataPaths.cs)
+projets. Voir les [chemins actuels](../src/Kazo.Bar.Infrastructure/Storage/AppDataPaths.cs)
 et le [backlog](Features.md).
 
 ## Avant toute mise en œuvre

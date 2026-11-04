@@ -2,14 +2,14 @@
 
 A DevToolbar plugin is a .NET class that implements `IPlugin` and is registered in the host's
 dependency injection. There is no loading of external DLLs yet (see US2.1 in [Features.md](Features.md)):
-a plugin is compiled with the host, usually in `src/DevToolbar.Plugins` or in your own class library
+a plugin is compiled with the host, usually in `src/Kazo.Bar.Plugins` or in your own class library
 referenced by the host.
 
 ## The contract
 
 | Interface | Required | What it gives the plugin |
 |---|---|---|
-| `IPlugin` (`DevToolbar.Core.Interfaces`) | Yes | Identity, project changes, the popover content, the module layout. |
+| `IPlugin` (`Kazo.Bar.Core.Interfaces`) | Yes | Identity, project changes, the popover content, the module layout. |
 | `IPluginIndicator` | To appear in the toolbar | A compact indicator in the system zone: icon, short text, badge, status colour. Clicking it opens the popover with `Render()`. |
 | `IConfigurablePlugin` | No | A settings panel in the plugin configuration window (Settings → Plugins → ⚙). |
 
@@ -40,7 +40,7 @@ referenced by the host.
 ### `IConfigurablePlugin`
 
 `SettingsComponentType` is a Razor component that derives from
-`DevToolbar.Core.Components.PluginSettingsComponentBase`. The window passes it:
+`Kazo.Bar.Core.Components.PluginSettingsComponentBase`. The window passes it:
 
 - `Project`: the project being edited;
 - `OnProjectChanged`: invoke it after changing `Project`; the host saves `config.json` and refreshes the toolbar.
@@ -50,7 +50,7 @@ referenced by the host.
 | Data | Where |
 |---|---|
 | Per-project or per-repository settings | In the project (`ProjectConfig`, `GitRepository`), saved through `OnProjectChanged`. Adding an optional property does not need a schema version change; renaming or removing one needs a migration (US2.5). |
-| Tokens and passwords | **Never** in `config.json`. Store a `secretRef` in the configuration and the secret in `ISecretStore` (Credential Manager or DPAPI file, US2.4). The `SecretField` component (`DevToolbar.Plugins.Shared`) does the masked input. |
+| Tokens and passwords | **Never** in `config.json`. Store a `secretRef` in the configuration and the secret in `ISecretStore` (Credential Manager or DPAPI file, US2.4). The `SecretField` component (`Kazo.Bar.Plugins.Shared`) does the masked input. |
 | History, caches, read states | `IStorageService` (`JsonStorageService`): one file `data\<namespace>.json` per namespace, with a `schemaVersion`. Use your plugin id as namespace. |
 | Messages to the user | `INotificationService` (toasts). Catch provider errors and show them instead of throwing from `OnProjectChangedAsync` or `Render`. |
 
@@ -59,10 +59,10 @@ referenced by the host.
 Add it to each host's dependency injection, next to the built-in plugins:
 
 ```csharp
-// src/DevToolbar.Windows/Program.cs (real services)
+// src/Kazo.Bar.Windows/Program.cs (real services)
 services.AddSingleton<IPlugin, BuildCounterPlugin>();
 
-// src/DevToolbar.Web/Program.cs (test host used by Playwright; register mocks for its services)
+// src/Kazo.Bar.Web/Program.cs (test host used by Playwright; register mocks for its services)
 builder.Services.AddSingleton<IPlugin, BuildCounterPlugin>();
 ```
 
@@ -73,11 +73,11 @@ Settings → Plugins (this writes its id to `enabledPlugins`) and can move its m
 ## Example
 
 A plugin that counts the project's actions and shows them in its popover. The same code is compiled and
-checked by `tests/DevToolbar.Tests.Unit/Plugins/SamplePluginTests.cs`.
+checked by `tests/Kazo.Bar.Tests.Unit/Plugins/SamplePluginTests.cs`.
 
 ```csharp
-using DevToolbar.Core.Interfaces;
-using DevToolbar.Core.Models;
+using Kazo.Bar.Core.Interfaces;
+using Kazo.Bar.Core.Models;
 using Microsoft.AspNetCore.Components;
 
 public sealed class ActionCountPlugin : IPlugin, IPluginIndicator
@@ -139,5 +139,5 @@ they never clash with the toolbar or other plugins.
 - [ ] `OnProjectChangedAsync` reloads data and stops work started for the previous project.
 - [ ] Errors are caught and shown with `INotificationService`; the toolbar never crashes because of a plugin.
 - [ ] No secret in the configuration: only a `secretRef`.
-- [ ] Registered in `DevToolbar.Windows` and `DevToolbar.Web` (with mocks), with unit tests and, for
+- [ ] Registered in `Kazo.Bar.Windows` and `Kazo.Bar.Web` (with mocks), with unit tests and, for
       visible behaviour, a Playwright test on the Web host.

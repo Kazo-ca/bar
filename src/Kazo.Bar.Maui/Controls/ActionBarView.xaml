@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:Kazo.Bar.Maui.ViewModels"
+    x:Class="Kazo.Bar.Maui.Controls.ActionBarView"
+    x:DataType="vm:ToolbarViewModel"
+    x:Name="actionBarRoot">
+
+    <!--
+        Zone 3: Action buttons area.
+        Three circular glass-style buttons: Play, Globe, Folder.
+        Centered in available space.
+    -->
+    <HorizontalStackLayout 
+        Spacing="8" 
+        VerticalOptions="Center" 
+        HorizontalOptions="Center" 
+        Padding="12,0">
+
+        <!-- Play / Run button -->
+        <Border 
+            x:Name="RunButton"
+            StrokeShape="RoundRectangle 20"
+            WidthRequest="40" HeightRequest="40"
+            Background="{DynamicResource ActionButtonBackground}"
+            Stroke="{DynamicResource ActionButtonBorder}"
+            StrokeThickness="1">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding RunActionCommand}" />
+                <PointerGestureRecognizer 
+                    PointerEntered="OnButtonPointerEntered"
+                    PointerExited="OnButtonPointerExited" />
+            </Border.GestureRecognizers>
+            <Label 
+                Text="&#xE768;" 
+                FontFamily="Segoe MDL2 Assets" 
+                FontSize="18"
+                TextColor="{DynamicResource ActionButtonForegroundColor}"
+                HorizontalOptions="Center" VerticalOptions="Center" />
+        </Border>
+
+        <!-- Globe / Browser button -->
+        <Border 
+            x:Name="BrowserButton"
+            StrokeShape="RoundRectangle 20"
+            WidthRequest="40" HeightRequest="40"
+            Background="{DynamicResource ActionButtonBackground}"
+            Stroke="{DynamicResource ActionButtonBorder}"
+            StrokeThickness="1">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding OpenBrowserCommand}" />
+                <PointerGestureRecognizer 
+                    PointerEntered="OnButtonPointerEntered"
+                    PointerExited="OnButtonPointerExited" />
+            </Border.GestureRecognizers>
+            <Label 
+                Text="&#xE774;" 
+                FontFamily="Segoe MDL2 Assets" 
+                FontSize="18"
+                TextColor="{DynamicResource ActionButtonForegroundColor}"
+                HorizontalOptions="Center" VerticalOptions="Center" />
+        </Border>
+
+        <!-- Folder button -->
+        <Border 
+            x:Name="FolderButton"
+            StrokeShape="RoundRectangle 20"
+            WidthRequest="40" HeightRequest="40"
+            Background="{DynamicResource ActionButtonBackground}"
+            Stroke="{DynamicResource ActionButtonBorder}"
+            StrokeThickness="1">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding OpenFolderCommand}" />
+                <PointerGestureRecognizer 
+                    PointerEntered="OnButtonPointerEntered"
+                    PointerExited="OnButtonPointerExited" />
+            </Border.GestureRecognizers>
+            <Label 
+                Text="&#xED25;" 
+                FontFamily="Segoe MDL2 Assets" 
+                FontSize="18"
+                TextColor="{DynamicResource ActionButtonForegroundColor}"
+                HorizontalOptions="Center" VerticalOptions="Center" />
+        </Border>
+
+    </HorizontalStackLayout>
+
+</ContentView>
