@@ -45,7 +45,8 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | Git | État lu dans le dossier local du dépôt avec **LibGit2Sharp** (pas de la configuration). | 3 nov. 2026 |
 | Débordement des modules | Les modules de la zone système qui ne tiennent plus passent dans un bouton « » » (US3.8). | 4 nov. 2026 |
 | Maquette | `doc/Toolbar-desing-exemple.png` est une **ligne directrice** : les éléments restent les mêmes, les thèmes proposés à l'utilisateur changent le style. | 3 nov. 2026 |
-| Fonctions de debug | Visibles uniquement dans une build `Debug` (`#if DEBUG` ou `IsDevelopment`). Seul le bouton 🧪 « Test Dropdown » est concerné. Les modes d'ancrage, l'écran cible, la hauteur, les fenêtres actives et le remplacement de la barre des tâches sont des fonctions normales. | 3 nov. 2026 |
+| Fonctions de debug | Visibles uniquement dans une build `Debug` (`#if DEBUG` ou `IsDevelopment`). Seul le bouton 🧪 « Test Dropdown » est concerné. Les modes d'ancrage, l'écran cible, la hauteur, et les fenêtres actives sont des fonctions normales. | 3 nov. 2026 |
+| Mode remplacement de la barre des tâches | **Retiré** : l'interrupteur ne faisait rien ; on garde seulement « Afficher les fenêtres actives ». | 4 nov. 2026 |
 | Plugins tiers | Pas de chargement de DLL externes pour l'instant, mais le système de plugins doit rester ouvert pour que n'importe qui puisse en écrire un. | 3 nov. 2026 |
 | Intégration continue | Pas maintenant ; obligatoire pour la version finale. | 3 nov. 2026 |
 | Fermer la toolbar | Fermer la fenêtre **quitte l'application** (pas de réduction dans la zone de notification). | 3 nov. 2026 |
@@ -92,7 +93,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US8.2 | Zone de notification | ✅ 🔍 |
 | US8.3 | Stockage local JSON | ✅ 🔍 |
 | US8.4 | Position et ancrage de la toolbar | ✅ 🔍 |
-| US8.5 | Barre des tâches et fenêtres actives | 🟡 |
+| US8.5 | Fenêtres actives | ✅ 🔍 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
 | US9.2 | Hôte MAUI gelé | 🧊 |
 | US10.1 | Sessions et coûts IA (v2) | ⬜ v2 |
@@ -641,17 +642,16 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 - [x] Poignée à droite de la pilule pour déplacer la toolbar flottante ; elle reste à l'écran.
 - [x] L'hôte et Blazor négocient la taille de la fenêtre pour que menus et Paramètres tiennent (`SurfaceSizeNegotiator`).
 
-## US8.5 Barre des tâches et fenêtres actives
-**État :** 🟡 Partiel
+## US8.5 Fenêtres actives
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant qu'** utilisateur
-**Je veux** voir mes fenêtres ouvertes dans la toolbar et pouvoir l'utiliser à la place de la barre des tâches Windows
+**Je veux** voir mes fenêtres ouvertes dans la toolbar
 **Afin de** passer d'une fenêtre à l'autre sans quitter la toolbar.
 
 **Critères d'acceptation :**
 - [x] Réglage « Afficher les fenêtres actives » : un bouton par fenêtre ouverte (icône et titre) ; un clic active la fenêtre.
-- [x] Réglage « Mode remplacement de la barre des tâches » présent dans Paramètres.
-- [ ] Le mode remplacement a un effet réel (aujourd'hui l'interrupteur est enregistré mais rien ne l'utilise). Comportement exact à préciser.
+- Le « Mode remplacement de la barre des tâches » est retiré (décision du 4 nov. 2026) : la barre des tâches Windows n'est pas modifiée. Une ancienne valeur `taskbarReplacementMode` dans `config.json` est ignorée.
 
 ---
 

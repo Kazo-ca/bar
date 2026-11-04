@@ -21,7 +21,7 @@ public class GlobalSettings
     public int TargetMonitorIndex { get; set; } = 0;
 
     /// <summary>
-    /// Whether to show active window buttons in the toolbar (taskbar replacement mode).
+    /// Whether to show a button per open window in the toolbar (US8.5).
     /// </summary>
     [JsonPropertyName("showActiveWindows")]
     public bool ShowActiveWindows { get; set; } = false;
@@ -31,13 +31,6 @@ public class GlobalSettings
     /// </summary>
     [JsonPropertyName("toolbarHeight")]
     public int ToolbarHeight { get; set; } = 56;
-
-    /// <summary>
-    /// Whether the toolbar should act as a taskbar replacement on the target monitor.
-    /// When enabled, the toolbar occupies the taskbar position and can show open windows.
-    /// </summary>
-    [JsonPropertyName("taskbarReplacementMode")]
-    public bool TaskbarReplacementMode { get; set; } = false;
 
     /// <summary>
     /// Polling interval in milliseconds for refreshing the open windows list.

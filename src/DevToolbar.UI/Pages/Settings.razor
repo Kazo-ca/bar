@@ -129,17 +129,6 @@
                 <div class="settings-plugin-row">
                     <label class="settings-toggle">
                         <input type="checkbox"
-                               checked="@_globalSettings.TaskbarReplacementMode"
-                               class="settings-plugin-checkbox"
-                               @onchange="@(e => UpdateTaskbarReplacement((bool)(e.Value ?? false)))" />
-                        <span class="settings-toggle-slider"></span>
-                    </label>
-                    <span class="settings-plugin-name">Taskbar Replacement Mode</span>
-                </div>
-
-                <div class="settings-plugin-row">
-                    <label class="settings-toggle">
-                        <input type="checkbox"
                                checked="@_globalSettings.ShowActiveWindows"
                                class="settings-plugin-checkbox"
                                @onchange="@(e => UpdateShowActiveWindows((bool)(e.Value ?? false)))" />
@@ -453,13 +442,6 @@
     {
         height = Math.Clamp(height, 32, 120);
         await GlobalSettingsService.UpdateAsync(s => s.ToolbarHeight = height);
-        _globalSettings = GlobalSettingsService.Current;
-        _layout = new ToolbarLayoutController(GlobalSettingsService);
-    }
-
-    private async Task UpdateTaskbarReplacement(bool enabled)
-    {
-        await GlobalSettingsService.UpdateAsync(s => s.TaskbarReplacementMode = enabled);
         _globalSettings = GlobalSettingsService.Current;
         _layout = new ToolbarLayoutController(GlobalSettingsService);
     }
