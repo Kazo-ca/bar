@@ -14,8 +14,9 @@
     - a right click opens a small menu: "Reset width" (resizable modules), "Move left",
       "Move right" (inside its zone).
 *@
-<div @ref="_frame" class="module-frame @CssClass @(Layout.Resizable ? "resizable" : "") @(_menuOpen ? "menu-open" : "")"
+<div @ref="_frame" class="module-frame @CssClass @(Layout.Resizable ? "resizable" : "") @(_menuOpen ? "menu-open" : "") @(Overflowed ? "overflowed" : "")"
      data-module-id="@ModuleId" data-popup-root="@RootName" style="@FrameStyle"
+     aria-hidden="@(Overflowed ? "true" : null)" inert="@Overflowed"
      @oncontextmenu="OpenMenu" @oncontextmenu:preventDefault="true">
     @ChildContent
 
@@ -60,6 +61,12 @@
     [Parameter] public IReadOnlyList<string> Zone { get; set; } = Array.Empty<string>();
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// True when the module is in the "»" menu (US3.8): it stays rendered, invisible and out of
+    /// the flow, so its width can still be measured to bring it back when room returns.
+    /// </summary>
+    [Parameter] public bool Overflowed { get; set; }
 
     [CascadingParameter] public ToolbarLayoutController? Controller { get; set; }
 

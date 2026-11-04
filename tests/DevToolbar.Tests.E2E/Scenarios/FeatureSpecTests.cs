@@ -253,6 +253,47 @@ public class FeatureSpecTests : PageTest
         Assert.Fail($"Unexpected width: {width}px");
     }
 
+    [Test]
+    public async Task US3_8_ModulesThatDoNotFit_MoveToTheOverflowMenu_AndOpenTheirPanel()
+    {
+        await Page.SetViewportSizeAsync(1600, 720);
+        await OpenToolbar();
+        var trigger = Page.GetByTestId("module-overflow");
+        await Expect(trigger).ToHaveCountAsync(0);
+
+        try
+        {
+            await Page.SetViewportSizeAsync(600, 720);
+            await Expect(trigger).ToBeVisibleAsync(new() { Timeout = 5000 });
+            var hidden = Page.Locator(".module-system > .module-frame.overflowed");
+            var count = await hidden.CountAsync();
+            Assert.That(count, Is.GreaterThan(0));
+            // The last modules of the zone leave first: the timer is the last one by default.
+            await Expect(Page.Locator(".module-frame[data-module-id='core.timer']")).ToHaveClassAsync(new Regex("overflowed"));
+
+            await trigger.ClickAsync();
+            var menu = Page.GetByTestId("module-overflow-menu");
+            await Expect(menu.GetByTestId("module-overflow-item")).ToHaveCountAsync(count);
+            await menu.Locator("[data-module-id='core.timer']").ClickAsync();
+
+            var panel = Page.GetByTestId("module-overflow-panel");
+            await Expect(panel).ToBeVisibleAsync();
+            await Expect(panel.Locator(".plugin-popover-title")).ToHaveTextAsync("Timer");
+            await panel.Locator(".module-overflow-back").ClickAsync();
+            await Expect(menu).ToBeVisibleAsync();
+
+            await Page.Keyboard.PressAsync("Escape");
+            await Expect(menu).ToHaveCountAsync(0);
+        }
+        finally
+        {
+            await Page.SetViewportSizeAsync(1600, 720);
+        }
+        await Expect(trigger).ToHaveCountAsync(0, new() { Timeout = 5000 });
+        await Expect(Page.Locator(".module-frame.overflowed")).ToHaveCountAsync(0);
+        await Page.SetViewportSizeAsync(1280, 720);
+    }
+
     /// <summary>The web host keeps its settings for the whole run: put the default layout back.</summary>
     private async Task ResetToolbarLayout()
     {
