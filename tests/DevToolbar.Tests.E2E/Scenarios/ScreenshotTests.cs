@@ -261,4 +261,26 @@ public class ScreenshotTests : PageTest
         await Page.Keyboard.PressAsync("Escape");
         Assert.That(File.Exists(ScreenshotPath("15-module-menu")), Is.True);
     }
+
+    [Test, Order(16)]
+    public async Task Capture_16_ModuleOverflowMenu()
+    {
+        await NavigateAndWait();
+        await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToHaveCountAsync(1, new() { Timeout = 30000 });
+        var original = Page.ViewportSize;
+        try
+        {
+            await Page.SetViewportSizeAsync(640, 400);
+            await Page.GetByTestId("module-overflow").ClickAsync(new() { Timeout = 5000 });
+            await Expect(Page.GetByTestId("module-overflow-menu")).ToBeVisibleAsync(new() { Timeout = 5000 });
+            await Page.WaitForTimeoutAsync(400); // end of the opening animation
+            await Page.ScreenshotAsync(new() { Path = ScreenshotPath("16-module-overflow-menu"), FullPage = true });
+            await Page.Keyboard.PressAsync("Escape");
+        }
+        finally
+        {
+            if (original != null) await Page.SetViewportSizeAsync(original.Width, original.Height);
+        }
+        Assert.That(File.Exists(ScreenshotPath("16-module-overflow-menu")), Is.True);
+    }
 }

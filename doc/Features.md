@@ -43,6 +43,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | Work items | Configurables **par dépôt** : Azure DevOps (cloud) et GitHub Issues. Authentification par PAT pour commencer. | 3 nov. 2026 |
 | Suivi GitHub (F7) | Configurable **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux. | 3 nov. 2026 |
 | Git | État lu dans le dossier local du dépôt avec **LibGit2Sharp** (pas de la configuration). | 3 nov. 2026 |
+| Débordement des modules | Les modules de la zone système qui ne tiennent plus passent dans un bouton « » » (US3.8). | 4 nov. 2026 |
 | Maquette | `doc/Toolbar-desing-exemple.png` est une **ligne directrice** : les éléments restent les mêmes, les thèmes proposés à l'utilisateur changent le style. | 3 nov. 2026 |
 | Fonctions de debug | Visibles uniquement dans une build `Debug` (`#if DEBUG` ou `IsDevelopment`). Seul le bouton 🧪 « Test Dropdown » est concerné. Les modes d'ancrage, l'écran cible, la hauteur, les fenêtres actives et le remplacement de la barre des tâches sont des fonctions normales. | 3 nov. 2026 |
 | Plugins tiers | Pas de chargement de DLL externes pour l'instant, mais le système de plugins doit rester ouvert pour que n'importe qui puisse en écrire un. | 3 nov. 2026 |
@@ -53,8 +54,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 
 Les nouvelles questions s'ajoutent ici avec un numéro.
 
-1. **Débordement des modules (US3.8)** : quand même les actions et les modules réduits ne tiennent plus, faut-il un bouton « » » en fin de zone système qui liste les modules masqués (proposition ci-dessous), ou une autre approche ?
-2. **Ordre des modules (US3.7)** : le clic droit (« Déplacer à gauche / à droite ») et la page Paramètres sont en place. Faut-il aussi le glisser-déposer directement dans la toolbar ? Un module peut-il passer d'une zone à l'autre (par exemple Git dans la zone système) ?
+1. **Ordre des modules (US3.7)** : le clic droit (« Déplacer à gauche / à droite ») et la page Paramètres sont en place. Faut-il aussi le glisser-déposer directement dans la toolbar ? Un module peut-il passer d'une zone à l'autre (par exemple Git dans la zone système) ?
 
 ## Vue d'ensemble
 
@@ -74,7 +74,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.5 | Fonctions de debug masquées en Release | ⬜ |
 | US3.6 | Modules redimensionnables | ✅ 🔍 |
 | US3.7 | Ordre des modules | ✅ 🔍 |
-| US3.8 | Débordement des modules et de leurs éléments | 🟡 |
+| US3.8 | Débordement des modules et de leurs éléments | ✅ 🔍 |
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | 🟡 |
 | US4.3 | Bouton script et sortie terminal | 🟡 |
@@ -379,10 +379,10 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Paramètres → *Toolbar Modules* liste les modules de chaque zone dans l'ordre choisi, avec ▲ / ▼, et « Reset order » remet l'ordre par défaut.
 - [x] L'ordre est enregistré dans `settings.toolbarLayout.moduleOrder` (un seul ordre pour tous les projets). Un module absent de la liste (nouveau plugin activé) se place à la fin de sa zone ; un id inconnu est ignoré (`ToolbarModuleOrder`).
 - [x] Quand le module Git suit directement le projet, il passe sous la pilule du projet comme sur la maquette ; ailleurs, c'est une pilule à part entière.
-- [ ] *(Question ouverte n° 2)* Glisser-déposer dans la toolbar ; changement de zone.
+- [ ] *(Question ouverte n° 1)* Glisser-déposer dans la toolbar ; changement de zone.
 
 ## US3.8 Débordement des modules et de leurs éléments
-**État :** 🟡 Partiel (règles 1 à 4 faites, règle 5 à valider)
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant qu'** utilisateur avec peu de place (fenêtre WPF de 960 px, petit écran)
 **Je veux** que la toolbar reste lisible quand tout ne tient pas
@@ -393,7 +393,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] 2. Les actions rapides en trop passent dans le menu « … » (US3.4).
 - [x] 3. Les modules redimensionnables rétrécissent jusqu'à leur largeur minimale.
 - [x] 4. **Éléments dans un module** : un module redimensionnable est un conteneur CSS (`container-name: module`). Il cache d'abord ses libellés, puis ses compteurs et messages, selon sa largeur (`@container module (max-width: …)`). Module Git : sous 240 px, Pull/Push n'affichent que leur icône et l'état « Clean / modified » seulement son symbole ; sous 190 px, l'avance/retard et le message de synchro disparaissent (toujours visibles dans les info-bulles). Un plugin tiers suit la même règle dans sa propre feuille de style.
-- [ ] 5. *(Proposition, question ouverte n° 1)* Si ça ne tient toujours pas, les derniers modules de la zone système passent dans un bouton « » » placé avant les boutons Rapport et Paramètres. Le menu liste chaque module masqué (icône, texte de l'indicateur, badge) ; un clic ouvre son panneau comme depuis la toolbar. L'ordre de US3.7 décide qui part en premier (le plus à droite).
+- [x] 5. *(Choisi par Benoit le 4 nov. 2026)* Si ça ne tient toujours pas, les derniers modules de la zone système passent dans un bouton « » » placé avant les boutons Rapport et Paramètres. L'ordre de US3.7 décide qui part en premier (le plus à droite). Le menu liste chaque module masqué (icône, texte de l'indicateur, badge, couleur d'état) ; un clic ouvre son panneau à la place de la liste (« ← » pour revenir). Le bouton porte le total des badges masqués. Quand la place revient, les modules reviennent dans la toolbar. Calcul : `module-overflow.js` mesure la place qu'auraient les modules si les autres zones étaient au plus petit (actions réduites à « … », modules redimensionnables à leur minimum) ; `ModuleOverflow.VisibleCount` décide combien restent. Un module masqué reste rendu, invisible et hors du flux, pour pouvoir être mesuré.
 
 ---
 

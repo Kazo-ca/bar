@@ -12,7 +12,7 @@ This README describes **what the software does today**. The backlog (what it sho
 | Toolbar UI (project switch, actions, menus, settings, time report) | Works in every host. |
 | Process and script actions, Smart Focus | Real in the Windows host. Script output appears when the script ends, not live. |
 | Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). One selector for repositories and their worktrees (`git worktree list`). |
-| Toolbar modules | Resizable modules (Git today) can be widened by dragging their right edge; a right click resets the width or moves the module left/right in its zone. Order and widths are saved in the configuration. Inside a narrow module, labels hide first. Modules that still do not fit are not handled yet (see US3.8 in the backlog). |
+| Toolbar modules | Resizable modules (Git today) can be widened by dragging their right edge; a right click resets the width or moves the module left/right in its zone. Order and widths are saved in the configuration. Inside a narrow module, labels hide first. System zone modules that still do not fit move into a "»" menu that opens their panel. |
 | Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token. Simulated in the Web host. Not yet checked with real tokens on a PC. |
 | CI/CD (GitHub Actions) | Real in the Windows host: workflow runs of each tracked repository are polled in the background (every 60 s by default) and the read state is saved. Agent sessions are not tracked yet (no public GitHub API). Simulated in the Web host. |
 | Time tracking and work day | Real in the Windows host: the timer freezes on session lock, sleep or keyboard/mouse inactivity (15 min by default, global or per repository), and on return the absence is shown to be labelled (meeting, lunch, worked, other, removed). The lunch window and a daily meeting are recognised automatically. First activity and last lock of each day are recorded. Data in `%APPDATA%\DevToolbar\data\time-yyyy-MM.json`. The Web host uses a simulated sample day. |
@@ -49,6 +49,7 @@ Captured from the Web host by `ScreenshotTests`, so plugin data is sample data.
 | ![Settings](doc/screenshots/06-settings-page.png) Settings | ![Settings configuration](doc/screenshots/10-settings-config-hierarchy.png) Settings, configuration section |
 | ![Theme editor](doc/screenshots/13-settings-theme-editor.png) Settings, theme editor | ![Project switch](doc/screenshots/07-project-switch-devops.png) Switching project changes plugins, actions and accent color |
 | ![Git repositories and worktrees](doc/screenshots/14-git-repository-worktree-menu.png) Git module: repositories and worktrees | ![Module menu](doc/screenshots/15-module-menu.png) Right-click menu of a module |
+| ![Module overflow](doc/screenshots/16-module-overflow-menu.png) Modules that do not fit, in the "»" menu | |
 
 The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-desing-exemple.png).
 

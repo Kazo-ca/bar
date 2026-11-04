@@ -3313,3 +3313,113 @@ body.dock-bottom .git-selector-menu { top: auto; bottom: calc(100% + 14px); }
 .settings-module-name { flex: 1; }
 
 .settings-module-width { font-size: 0.8em; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* ==========================================================================
+   System zone overflow: "»" menu (US3.8, rule 5)
+   ========================================================================== */
+/* A module in the "»" menu stays rendered so it can be measured, but takes no room. */
+.module-frame.overflowed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.module-overflow { position: relative; display: flex; }
+
+.module-overflow-trigger { position: relative; font-weight: 700; font-size: 1.1em; }
+
+.module-overflow-badge {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.6em;
+    font-weight: 700;
+    line-height: 15px;
+    text-align: center;
+}
+
+.module-overflow-menu {
+    position: absolute;
+    top: calc(100% + 14px);
+    right: -8px;
+    min-width: 220px;
+    max-width: 300px;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    background: rgba(40, 45, 55, 0.95);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    z-index: 200;
+    animation: dropdown-appear 0.2s ease;
+}
+
+.module-overflow-panel { right: -8px; top: calc(100% + 14px); }
+
+body.dock-bottom .module-overflow-menu,
+body.dock-bottom .module-overflow-panel { top: auto; bottom: calc(100% + 14px); }
+
+.module-overflow-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: none;
+    border: none;
+    border-radius: 9px;
+    color: rgba(255, 255, 255, 0.9);
+    font: inherit;
+    font-size: 0.85em;
+    text-align: left;
+    cursor: pointer;
+}
+
+.module-overflow-item:hover:not(:disabled),
+.module-overflow-item:focus-visible { background: rgba(255, 255, 255, 0.1); }
+
+.module-overflow-item:disabled { cursor: default; opacity: 0.7; }
+
+.module-overflow-item-icon { width: 18px; text-align: center; flex-shrink: 0; }
+
+.module-overflow-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.module-overflow-item-text { color: rgba(255, 255, 255, 0.6); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.module-overflow-item.status-success .module-overflow-item-icon { color: #7ddf7d; }
+.module-overflow-item.status-failure .module-overflow-item-icon { color: #f08080; }
+.module-overflow-item.status-running .module-overflow-item-icon { color: #f0c060; }
+
+.module-overflow-item-badge {
+    min-width: 16px;
+    padding: 0 5px;
+    border-radius: 8px;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.75em;
+    font-weight: 700;
+    text-align: center;
+}
+
+.module-overflow-back {
+    margin-right: 6px;
+    padding: 0 6px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font: inherit;
+    cursor: pointer;
+}
+
+.module-overflow-back:hover,
+.module-overflow-back:focus-visible { background: rgba(255, 255, 255, 0.1); }
