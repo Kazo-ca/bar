@@ -62,7 +62,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 |---|---|---|
 | US1.1 | Solution et projets | ✅ |
 | US1.2 | Interfaces Core | ✅ |
-| US2.1 | Système de plugins | 🟡 |
+| US2.1 | Système de plugins | ✅ |
 | US2.2 | Changement de projet | ✅ |
 | US2.3 | Configuration utilisateur unique | 🟡 🔍 |
 | US2.4 | Stockage sécurisé des secrets | 🟡 🔍 |
@@ -187,7 +187,7 @@ public interface IProcessService
 # F2. Plugins et configuration
 
 ## US2.1 Système de plugins
-**État :** 🟡 Partiel
+**État :** ✅ Fait
 
 **En tant que** développeur tiers
 **Je veux** écrire mon propre plugin en implémentant `IPlugin`
@@ -198,7 +198,7 @@ public interface IProcessService
 - [x] Chaque plugin a un `UniqueId`, un `Name` et une icône.
 - [x] Un plugin peut afficher un indicateur dans la pilule (`IPluginIndicator`) et une fenêtre de configuration (`IConfigurablePlugin`).
 - [x] Un plugin déclare comment son module prend de la place avec `IPlugin.Layout` (`PluginLayout`) : fixe par défaut, ou `PluginLayout.ResizableWidth(défaut, min, max)` pour que l'utilisateur puisse changer sa largeur (US3.6).
-- [ ] Un guide « Écrire un plugin » explique le contrat et comment l'enregistrer.
+- [x] Un guide « Écrire un plugin » ([Writing-a-plugin.md](Writing-a-plugin.md), en anglais) explique le contrat, où ranger les données et les secrets, et comment l'enregistrer. Son exemple est compilé et testé (`SamplePluginTests`).
 - Hors périmètre pour l'instant : chargement de DLL externes depuis un dossier.
 
 ## US2.2 Changement de projet

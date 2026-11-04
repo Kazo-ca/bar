@@ -27,7 +27,7 @@ This README describes **what the software does today**. The backlog (what it sho
 | `src/DevToolbar.Core` | Class library | Interfaces, models, events. No UI or native dependency. |
 | `src/DevToolbar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores, Azure DevOps and GitHub REST clients. |
 | `src/DevToolbar.UI` | Razor class library | Blazor components, layout, pages, CSS, JS. |
-| `src/DevToolbar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. |
+| `src/DevToolbar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. To write your own, see [doc/Writing-a-plugin.md](doc/Writing-a-plugin.md). |
 | `src/DevToolbar.Windows` | WPF + Blazor Hybrid | **Main Windows host**: transparent, click-through toolbar window. |
 | `src/DevToolbar.Web` | Blazor Web App | Test host with simulated services, used by the Playwright tests. |
 | `src/DevToolbar.Maui` | MAUI Blazor Hybrid | Original Windows host, frozen. |
