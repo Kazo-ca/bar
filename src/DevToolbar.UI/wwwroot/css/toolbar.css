@@ -1515,9 +1515,32 @@ body {
 }
 
 .terminal-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     padding: 8px 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 0.85em;
+}
+
+.terminal-stderr {
+    color: #ff7b72;
+}
+
+.terminal-stop {
+    margin-left: auto;
+    padding: 2px 10px;
+    border: 1px solid rgba(229, 57, 53, 0.6);
+    border-radius: 4px;
+    background: transparent;
+    color: #ff7b72;
+    font: inherit;
+    cursor: pointer;
+}
+
+.terminal-stop:hover,
+.terminal-stop:focus-visible {
+    background: rgba(229, 57, 53, 0.15);
 }
 
 .terminal-running {
@@ -1579,6 +1602,75 @@ body {
     border-radius: 8px;
     font-size: 0.65em;
     font-weight: 700;
+}
+
+/* Smart Focus window chooser (US4.2), styled like the project dropdown. */
+.smart-process {
+    position: relative;
+}
+
+.smart-process-menu {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 0;
+    min-width: 260px;
+    max-width: 420px;
+    background: rgba(40, 45, 55, 0.92);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    padding: 6px;
+    z-index: 100;
+    animation: dropdown-appear 0.2s ease;
+}
+
+body.dock-bottom .smart-process-menu { top: auto; bottom: calc(100% + 12px); }
+
+.smart-process-menu-title {
+    padding: 6px 14px 4px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.75em;
+}
+
+.smart-process-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.85);
+    font-family: var(--font-family);
+    font-size: 0.85em;
+    text-align: left;
+    cursor: pointer;
+}
+
+.smart-process-menu-item:hover,
+.smart-process-menu-item:focus-visible {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.smart-process-menu-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.smart-process-menu-process {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85em;
+}
+
+.smart-process-menu-launch {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0 0 10px 10px;
+    margin-top: 4px;
 }
 
 /* ==========================================================================

@@ -139,6 +139,7 @@ public class ScreenshotTests : PageTest
         await NavigateAndWait();
         await Page.Locator(".action-button", new() { HasText = "Build Script" }).ClickAsync();
         await Expect(Page.Locator(".terminal-overlay.visible")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await Expect(Page.Locator(".terminal-exit")).ToContainTextAsync("Exit: 0", new() { Timeout = 10000 });
         await Page.ScreenshotAsync(new() { Path = ScreenshotPath("05-terminal-output"), FullPage = true });
         Assert.That(File.Exists(ScreenshotPath("05-terminal-output")), Is.True);
     }

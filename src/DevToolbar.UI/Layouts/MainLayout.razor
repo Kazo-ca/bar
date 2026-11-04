@@ -137,7 +137,10 @@
         <ModuleOverflowMenu Entries="overflowEntries" />
         <button class="system-btn" @onclick="ToggleTimeReport" title="Time Report">📊</button>
         <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
-        <TestDropdown />
+        @if (DebugFeatures.Enabled)
+        {
+            <TestDropdown />
+        }
     </div>
 
     @* ── Drag handle (desktop hosts that support moving the window) ── *@
