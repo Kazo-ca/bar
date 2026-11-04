@@ -1,5 +1,6 @@
 @namespace DevToolbar.Plugins.Providers
 @using DevToolbar.Core.Configuration
+@using DevToolbar.Core.Interfaces
 @using DevToolbar.Plugins.Shared
 @inherits PluginSettingsComponentBase
 
@@ -40,7 +41,7 @@
                         <div class="plugin-settings-error" role="alert">@error</div>
                     }
                 </form>
-                <SecretField SecretRef="@tracking.SecretRef" Label="GitHub token (Actions: read)" />
+                <SecretField SecretRef="@tracking.SecretRef" Label="GitHub token (Actions: read)" SignInWith="OAuthProvider.GitHub" />
             }
         </section>
     }

@@ -28,6 +28,7 @@ builder.Services.AddSingleton<IWindowRegionService, MockWindowRegionService>();
 builder.Services.AddSingleton<MockSecretStore>();
 builder.Services.AddSingleton<ISecretStore>(sp => sp.GetRequiredService<MockSecretStore>());
 builder.Services.AddSingleton<ISecretStoreSelector>(sp => sp.GetRequiredService<MockSecretStore>());
+builder.Services.AddSingleton<IOAuthSignInService, MockOAuthSignInService>();
 
 // Register plugins
 builder.Services.AddSingleton<IGitService, MockGitService>();

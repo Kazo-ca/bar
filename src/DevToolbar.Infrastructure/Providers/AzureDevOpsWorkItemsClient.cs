@@ -3,14 +3,14 @@ namespace DevToolbar.Infrastructure.Providers;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
+using DevToolbar.Infrastructure.Auth;
 
 /// <summary>
 /// Azure DevOps Services work items (US5.2): WIQL query then a batch read, with a PAT
-/// (basic authentication, empty user name).
+/// (basic authentication, empty user name) or a Microsoft Entra sign-in (bearer, US2.4).
 /// </summary>
 public sealed class AzureDevOpsWorkItemsClient : IWorkItemSourceClient
 {
@@ -21,12 +21,14 @@ public sealed class AzureDevOpsWorkItemsClient : IWorkItemSourceClient
     private const string ClosedStates = "'Closed', 'Done', 'Removed', 'Resolved'";
 
     private readonly HttpClient _http;
-    private readonly ISecretStore _secrets;
+    private readonly AccessTokenResolver _tokens;
 
-    public AzureDevOpsWorkItemsClient(HttpClient http, ISecretStore secrets)
+    /// <param name="tokens">Reads a personal access token or an OAuth sign-in (US2.4); a resolver without refresh by default.</param>
+    public AzureDevOpsWorkItemsClient(HttpClient http, ISecretStore secrets, AccessTokenResolver? tokens = null)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
-        _secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
+        ArgumentNullException.ThrowIfNull(secrets);
+        _tokens = tokens ?? new AccessTokenResolver(secrets);
     }
 
     public WorkItemProviderKind Kind => WorkItemProviderKind.AzureDevOps;
@@ -95,9 +97,9 @@ public sealed class AzureDevOpsWorkItemsClient : IWorkItemSourceClient
 
     private async Task<HttpRequestMessage> CreateAsync(HttpMethod method, string url, WorkItemSource source)
     {
-        var token = await ProviderHttp.RequireTokenAsync(_secrets, source.SecretRef, ServiceName);
+        var authorization = await _tokens.GetAuthorizationAsync(source.SecretRef, OAuthProvider.AzureDevOps);
         var request = new HttpRequestMessage(method, url);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($":{token}")));
+        request.Headers.Authorization = authorization;
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         return request;
     }

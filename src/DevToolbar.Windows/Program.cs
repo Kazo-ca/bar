@@ -2,6 +2,7 @@ using System.Windows;
 using DevToolbar.Core.Events;
 using DevToolbar.Core.Interfaces;
 using DevToolbar.Core.Models;
+using DevToolbar.Infrastructure.Auth;
 using DevToolbar.Infrastructure.Providers;
 using DevToolbar.Infrastructure.Secrets;
 using DevToolbar.Infrastructure.Configuration;
@@ -124,6 +125,16 @@ public static class Program
         services.AddSingleton<IPlugin, GitPlugin>();
         // Real providers (US5.2, US7.1): Azure DevOps and GitHub, configured per repository.
         services.AddSingleton(_ => new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });
+        // OAuth sign-in (US2.4): device flow; access tokens renewed with the saved refresh token.
+        services.AddSingleton(sp => new OAuthTokenClient(
+            sp.GetRequiredService<System.Net.Http.HttpClient>(), sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton(sp => new AccessTokenResolver(
+            sp.GetRequiredService<ISecretStore>(), sp.GetRequiredService<OAuthTokenClient>(),
+            () => sp.GetRequiredService<IGlobalSettingsService>().Current.OAuth, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IOAuthSignInService>(sp => new DeviceCodeSignInService(
+            sp.GetRequiredService<OAuthTokenClient>(), sp.GetRequiredService<ISecretStore>(),
+            sp.GetRequiredService<AccessTokenResolver>(),
+            () => sp.GetRequiredService<IGlobalSettingsService>().Current.OAuth, sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton<GitHubApi>();
         services.AddSingleton<IWorkItemSourceClient, AzureDevOpsWorkItemsClient>();
         services.AddSingleton<IWorkItemSourceClient, GitHubIssuesClient>();

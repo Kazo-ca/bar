@@ -1,5 +1,6 @@
 @namespace DevToolbar.Plugins.Providers
 @using DevToolbar.Core.Configuration
+@using DevToolbar.Core.Interfaces
 @using DevToolbar.Plugins.Shared
 @inherits PluginSettingsComponentBase
 
@@ -34,6 +35,7 @@
             {
                 <WorkItemSourceFields Source="source" OnSave="s => SaveAsync(current, s)" />
                 <SecretField SecretRef="@source.SecretRef"
+                             SignInWith="@(source.Provider == WorkItemProviderKind.AzureDevOps ? OAuthProvider.AzureDevOps : OAuthProvider.GitHub)"
                              Label="@(source.Provider == WorkItemProviderKind.AzureDevOps ? "Azure DevOps PAT (scope: Work Items, read)" : "GitHub token (Issues: read)")" />
             }
         </section>

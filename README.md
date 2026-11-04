@@ -13,7 +13,7 @@ This README describes **what the software does today**. The backlog (what it sho
 | Process and script actions, Smart Focus | Real in the Windows host. Script output is shown line by line while the script runs, and can be stopped. |
 | Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). One selector for repositories and their worktrees (`git worktree list`). |
 | Toolbar modules | Resizable modules (Git today) can be widened by dragging their right edge; a right click resets the width or moves the module left/right in its zone. Order and widths are saved in the configuration. Inside a narrow module, labels hide first. System zone modules that still do not fit move into a "»" menu that opens their panel. |
-| Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token. Simulated in the Web host. Not yet checked with real tokens on a PC. |
+| Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token or an OAuth sign-in (GitHub, Microsoft). Simulated in the Web host. Not yet checked with real tokens on a PC. |
 | CI/CD (GitHub Actions) | Real in the Windows host: workflow runs of each tracked repository are polled in the background (every 60 s by default) and the read state is saved. Agent sessions are not tracked yet (no public GitHub API). Simulated in the Web host. |
 | Time tracking and work day | Real in the Windows host: the timer freezes on session lock, sleep or keyboard/mouse inactivity (15 min by default, global or per repository), and on return the absence is shown to be labelled (meeting, lunch, worked, other, removed). The lunch window and a daily meeting are recognised automatically. First activity and last lock of each day are recorded. Data in `%APPDATA%\DevToolbar\data\time-yyyy-MM.json`. The Web host uses a simulated sample day. |
 | Configuration and storage | One file per user, `%APPDATA%\DevToolbar\config.json`, with a `schemaVersion`. Older files are migrated on start and the originals copied to `backups\`. Plugin data (time entries, GitHub Actions read states) goes through a JSON `IStorageService` in `data\`. |
@@ -25,7 +25,7 @@ This README describes **what the software does today**. The backlog (what it sho
 | Project | Type | Role |
 |---|---|---|
 | `src/DevToolbar.Core` | Class library | Interfaces, models, events. No UI or native dependency. |
-| `src/DevToolbar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores, Azure DevOps and GitHub REST clients. |
+| `src/DevToolbar.Infrastructure` | Class library | Real services for the desktop hosts: user configuration and migrations, JSON storage, Git (LibGit2Sharp), secret stores, OAuth device flow, Azure DevOps and GitHub REST clients. |
 | `src/DevToolbar.UI` | Razor class library | Blazor components, layout, pages, CSS, JS. |
 | `src/DevToolbar.Plugins` | Class library | Built-in plugins: Git, Work Items, Time Tracker, CI/CD Status. To write your own, see [doc/Writing-a-plugin.md](doc/Writing-a-plugin.md). |
 | `src/DevToolbar.Windows` | WPF + Blazor Hybrid | **Main Windows host**: transparent, click-through toolbar window. |
@@ -60,6 +60,7 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Toolbar layout**: drag the right edge of the Git module to widen it; right-click any module to reset its width or move it left/right. Settings → *Toolbar Modules* lists the order and resets order or widths. Plugins opt in to resizing with `IPlugin.Layout => PluginLayout.ResizableWidth(default, min, max)`.
 - **Configuration file**: everything is in `%APPDATA%\DevToolbar\config.json` (shown in Settings). A file that cannot be read, or that was written by a newer version, is never overwritten.
 - **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens. A token typed in a plugin's settings is saved there and never shown again.
+- **Sign in with GitHub / Microsoft**: instead of pasting a token, sign in with the OAuth device flow from the plugin settings. Register an OAuth app once per provider and paste its client ID in Settings → *Sign-in apps*; see [doc/Connexion-OAuth.md](doc/Connexion-OAuth.md) (French). Microsoft access tokens are renewed automatically.
 - **Work items**: in the Work Items plugin settings, pick Azure DevOps (organization + project) or GitHub Issues (`owner/name`) for a repository and paste a token. The popover lists your open items, searches by title or number and links to the item on the web.
 - **GitHub Actions**: in the GitHub plugin settings, turn on Actions tracking for a repository. The pill shows the overall state and the number of unread finished runs; opening a run marks it as read.
 - **Quick actions**: launch a program, or focus its window if already open (Smart Focus; when several windows match, a menu lets you pick one). Run a `pwsh`/`cmd`/`python` script and watch its output live, with a Stop button.
@@ -125,4 +126,5 @@ Screenshots are written to `doc/screenshots/`.
 ## Documentation
 
 - [doc/Features.md](doc/Features.md): backlog, decisions, open questions and status of every user story (French).
+- [doc/Connexion-OAuth.md](doc/Connexion-OAuth.md): registering the GitHub and Microsoft apps behind the "Sign in" buttons (French).
 - [spikes/window-feasibility/INTEGRATION.md](spikes/window-feasibility/INTEGRATION.md): why the Windows host is WPF, and the manual checks still to run on a PC (French).

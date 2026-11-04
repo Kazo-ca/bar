@@ -1,0 +1,67 @@
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.Core.Models
+@inject IGlobalSettingsService GlobalSettingsService
+@inject INotificationService NotificationService
+
+@*
+    US2.4: client IDs of the OAuth apps behind "Sign in with GitHub / Microsoft" in the provider
+    settings. A client ID is public; the tokens of a sign-in go to the secret store.
+*@
+<section class="settings-section" data-testid="settings-oauth-section">
+    <h3>Sign-in apps</h3>
+    <p class="settings-description">
+        To sign in instead of pasting a personal access token, register an app once and paste its client ID here.
+        GitHub: an OAuth app with "Enable Device Flow" checked. Azure DevOps: a Microsoft Entra app registration with
+        "Allow public client flows" on and the Azure DevOps "user_impersonation" permission. No client secret is needed.
+    </p>
+
+    <div class="settings-field">
+        <label for="oauth-github-client">GitHub client ID</label>
+        <input id="oauth-github-client" class="settings-monitor-select" data-testid="oauth-github-client-id" autocomplete="off"
+               spellcheck="false" maxlength="100" placeholder="Ov23li…" value="@OAuth.GitHub.ClientId"
+               @onchange="e => UpdateAsync(o => o.GitHub.ClientId = Clean(e.Value))" />
+    </div>
+    <div class="settings-field">
+        <label for="oauth-azure-client">Azure DevOps client ID</label>
+        <input id="oauth-azure-client" class="settings-monitor-select" data-testid="oauth-azure-client-id" autocomplete="off"
+               spellcheck="false" maxlength="100" placeholder="00000000-0000-0000-0000-000000000000" value="@OAuth.AzureDevOps.ClientId"
+               @onchange="e => UpdateAsync(o => o.AzureDevOps.ClientId = Clean(e.Value))" />
+    </div>
+    <div class="settings-field">
+        <label for="oauth-azure-tenant">Microsoft tenant</label>
+        <input id="oauth-azure-tenant" class="settings-monitor-select" data-testid="oauth-azure-tenant" autocomplete="off"
+               spellcheck="false" maxlength="100" value="@OAuth.AzureDevOps.Tenant"
+               @onchange="e => UpdateAsync(o => o.AzureDevOps.Tenant = Clean(e.Value) is { Length: > 0 } t ? t : OAuthAppSettings.DefaultTenant)" />
+    </div>
+    @if (_error != null)
+    {
+        <div class="plugin-settings-error" role="alert">@_error</div>
+    }
+</section>
+
+@code {
+    private string? _error;
+
+    private OAuthSettings OAuth => GlobalSettingsService.Current.OAuth ??= new OAuthSettings();
+
+    /// <summary>Client IDs and tenants are short identifiers: letters, digits, '.', '-' and '_'.</summary>
+    public static string Clean(object? value)
+    {
+        var text = value?.ToString()?.Trim() ?? string.Empty;
+        return text.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_') ? text : string.Empty;
+    }
+
+    private async Task UpdateAsync(Action<OAuthSettings> change)
+    {
+        try
+        {
+            await GlobalSettingsService.UpdateAsync(s => change(s.OAuth ??= new OAuthSettings()));
+            _error = null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _error = $"The sign-in apps could not be saved: {ex.Message}";
+            NotificationService.ShowError(_error, "Settings");
+        }
+    }
+}

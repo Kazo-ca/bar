@@ -65,4 +65,8 @@ public class GlobalSettings
     /// <summary>Module order and widths chosen on the toolbar (US3.6, US3.7).</summary>
     [JsonPropertyName("toolbarLayout")]
     public ToolbarLayoutSettings ToolbarLayout { get; set; } = new();
+
+    /// <summary>OAuth apps behind the "Sign in" buttons of the provider settings (US2.4).</summary>
+    [JsonPropertyName("oauth")]
+    public OAuthSettings OAuth { get; set; } = new();
 }

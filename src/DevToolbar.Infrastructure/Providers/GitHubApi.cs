@@ -2,6 +2,7 @@ namespace DevToolbar.Infrastructure.Providers;
 
 using System.Net.Http.Headers;
 using DevToolbar.Core.Interfaces;
+using DevToolbar.Infrastructure.Auth;
 
 /// <summary>Builds authenticated requests to the GitHub REST API.</summary>
 public sealed class GitHubApi
@@ -10,20 +11,22 @@ public sealed class GitHubApi
     private static readonly Uri BaseAddress = new("https://api.github.com/");
 
     private readonly HttpClient _http;
-    private readonly ISecretStore _secrets;
+    private readonly AccessTokenResolver _tokens;
 
-    public GitHubApi(HttpClient http, ISecretStore secrets)
+    /// <param name="tokens">Reads a personal access token or an OAuth sign-in (US2.4); a resolver without refresh by default.</param>
+    public GitHubApi(HttpClient http, ISecretStore secrets, AccessTokenResolver? tokens = null)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
-        _secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
+        ArgumentNullException.ThrowIfNull(secrets);
+        _tokens = tokens ?? new AccessTokenResolver(secrets);
     }
 
     /// <summary>GET <paramref name="relativeUrl"/> (already escaped) with the token stored under <paramref name="secretRef"/>.</summary>
     public async Task<T> GetAsync<T>(string relativeUrl, string secretRef, CancellationToken cancellationToken = default)
     {
-        var token = await ProviderHttp.RequireTokenAsync(_secrets, secretRef, ServiceName);
+        var authorization = await _tokens.GetAuthorizationAsync(secretRef, OAuthProvider.GitHub, cancellationToken);
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseAddress, relativeUrl));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = authorization;
         request.Headers.UserAgent.Add(new ProductInfoHeaderValue("DevToolbar", "1.0"));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
