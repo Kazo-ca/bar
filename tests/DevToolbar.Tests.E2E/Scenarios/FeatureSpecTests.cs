@@ -384,6 +384,47 @@ public class FeatureSpecTests : PageTest
     }
 
     [Test]
+    public async Task US4_2_SmartFocus_SeveralWindows_LetsTheUserChoose()
+    {
+        await OpenToolbar("DevOps Pipeline");
+        var button = Page.Locator(".smart-process-btn", new() { HasText = "Azure Portal" });
+
+        await button.ClickAsync();
+        var menu = Page.Locator(".smart-process-menu");
+        await Expect(menu).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await Expect(menu.Locator(".smart-process-menu-title")).ToHaveTextAsync("2 windows match");
+        await Expect(menu.Locator(".smart-process-menu-item")).ToHaveCountAsync(3); // 2 windows + "Launch a new one"
+
+        await Page.Keyboard.PressAsync("Escape");
+        await Expect(menu).ToHaveCountAsync(0);
+
+        await button.ClickAsync();
+        await menu.Locator(".smart-process-menu-item", new() { HasText = "Azure DevOps Boards" }).ClickAsync();
+        await Expect(menu).ToHaveCountAsync(0);
+        await Expect(Toast("Focused Azure Portal")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await Expect(button.Locator(".smart-process-badge")).ToHaveTextAsync("Active");
+        await SwitchProject("MyWebAPI");
+    }
+
+    [Test]
+    public async Task US4_3_Terminal_StreamsLines_AndCanBeStopped()
+    {
+        await OpenToolbar();
+        await Page.Locator(".action-button", new() { HasText = "Build Script" }).ClickAsync();
+
+        // The first line is on screen while the script is still running.
+        await Expect(Page.Locator(".terminal-line").First).ToContainTextAsync("[Mock] Executed", new() { Timeout = 5000 });
+        var stop = Page.Locator(".terminal-stop");
+        await Expect(stop).ToBeVisibleAsync();
+        await stop.ClickAsync();
+
+        await Expect(Page.Locator(".terminal-exit")).ToHaveTextAsync("Stopped", new() { Timeout = 5000 });
+        await Expect(Page.Locator(".terminal-output")).Not.ToContainTextAsync("3 tests passed");
+        await Expect(stop).ToHaveCountAsync(0);
+        await Page.Locator(".terminal-close").ClickAsync();
+    }
+
+    [Test]
     public async Task US4_3_Terminal_ShowsCommandAndCloses()
     {
         await OpenToolbar();

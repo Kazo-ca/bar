@@ -1,6 +1,7 @@
 namespace DevToolbar.Web.Mocks;
 
 using DevToolbar.Core.Interfaces;
+using DevToolbar.Core.Models;
 
 /// <summary>
 /// Mock process service for web testing. Logs actions without executing them.
@@ -16,7 +17,10 @@ public class MockProcessService : IProcessService
     private static readonly string[] SimulatedWindowTitles =
     {
         "MyWebAPI - Microsoft Visual Studio",
-        "Windows PowerShell"
+        "Windows PowerShell",
+        // Two matches for ".*Azure.*" so the window chooser (US4.2) can be exercised.
+        "Azure Portal - Microsoft Edge",
+        "Azure DevOps Boards - Microsoft Edge",
     };
 
     private readonly ILogger<MockProcessService> _logger;
@@ -36,19 +40,28 @@ public class MockProcessService : IProcessService
         return Task.FromResult(0);
     }
 
-    public bool FocusWindowByTitle(string titleRegex)
+    public IReadOnlyList<WindowMatch> FindWindowsByTitle(string titleRegex)
     {
-        _logger.LogInformation("[Mock] FocusWindow: {TitleRegex}", titleRegex);
+        _logger.LogInformation("[Mock] FindWindows: {TitleRegex}", titleRegex);
         try
         {
             var regex = new System.Text.RegularExpressions.Regex(titleRegex,
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
-            return SimulatedWindowTitles.Any(regex.IsMatch);
+            return SimulatedWindowTitles
+                .Select((title, index) => new WindowMatch(index + 1, title, "mock"))
+                .Where(window => regex.IsMatch(window.Title))
+                .ToList();
         }
         catch (ArgumentException)
         {
             _logger.LogWarning("[Mock] Invalid window title regex: {TitleRegex}", titleRegex);
-            return false;
+            return [];
         }
+    }
+
+    public bool FocusWindow(WindowMatch window)
+    {
+        _logger.LogInformation("[Mock] FocusWindow: {Title}", window.Title);
+        return SimulatedWindowTitles.Contains(window.Title);
     }
 }

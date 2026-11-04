@@ -10,7 +10,7 @@ This README describes **what the software does today**. The backlog (what it sho
 |---|---|
 | Windows host (WPF) | Works. Main Windows host. Still to be checked by hand on a PC: click-through, real mouse wheel, plugin configuration window. |
 | Toolbar UI (project switch, actions, menus, settings, time report) | Works in every host. |
-| Process and script actions, Smart Focus | Real in the Windows host. Script output appears when the script ends, not live. |
+| Process and script actions, Smart Focus | Real in the Windows host. Script output is shown line by line while the script runs, and can be stopped. |
 | Git plugin | Real in the Windows host: branch, changed files and ahead/behind are read from the repository's local folder (LibGit2Sharp, refreshed every 10 s); Pull/Push run the `git` CLI and show the real result (success, conflicts, Git error). One selector for repositories and their worktrees (`git worktree list`). |
 | Toolbar modules | Resizable modules (Git today) can be widened by dragging their right edge; a right click resets the width or moves the module left/right in its zone. Order and widths are saved in the configuration. Inside a narrow module, labels hide first. Modules that still do not fit are not handled yet (see US3.8 in the backlog). |
 | Work items | Real in the Windows host: Azure DevOps (cloud) or GitHub Issues, configured per repository with a personal access token. Simulated in the Web host. Not yet checked with real tokens on a PC. |
@@ -61,7 +61,8 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Access tokens**: choose Windows Credential Manager or an encrypted file in Settings; switching moves the stored tokens. A token typed in a plugin's settings is saved there and never shown again.
 - **Work items**: in the Work Items plugin settings, pick Azure DevOps (organization + project) or GitHub Issues (`owner/name`) for a repository and paste a token. The popover lists your open items, searches by title or number and links to the item on the web.
 - **GitHub Actions**: in the GitHub plugin settings, turn on Actions tracking for a repository. The pill shows the overall state and the number of unread finished runs; opening a run marks it as read.
-- **Quick actions**: launch a program, focus its window if already open (Smart Focus), or run a `pwsh`/`cmd`/`python` script and see its output.
+- **Quick actions**: launch a program, or focus its window if already open (Smart Focus; when several windows match, a menu lets you pick one). Run a `pwsh`/`cmd`/`python` script and watch its output live, with a Stop button.
+- **Debug tools**: the 🧪 test dropdown only appears in Debug builds.
 - **Plugin indicators**: work item and CI/CD status in the system group, each with its own popover.
 - **Timer** (Windows host): Start/Stop on the active project and work item; paused while you are away, then resumed. The ⏱ panel shows when you arrived, your last lock, and the absences to label; a badge on the timer counts them. Rules in Settings → *Time tracking*.
 - **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export, plus each work day with its arrival, last lock and absences.

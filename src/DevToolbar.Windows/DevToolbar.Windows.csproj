@@ -57,7 +57,6 @@
   <ItemGroup>
     <Compile Include="..\DevToolbar.Maui\Services\WindowsFileSystemService.cs" Link="Shared\WindowsFileSystemService.cs" />
     <Compile Include="..\DevToolbar.Maui\Services\WindowsProcessService.cs" Link="Shared\WindowsProcessService.cs" />
-    <Compile Include="..\DevToolbar.Maui\Services\WindowsScriptService.cs" Link="Shared\WindowsScriptService.cs" />
     <Compile Include="..\DevToolbar.Maui\Services\MauiMocks.cs" Link="Shared\MauiMocks.cs" />
     <Compile Include="..\DevToolbar.Maui\Platforms\Windows\Services\WindowsWindowService.cs" Link="Shared\WindowsWindowService.cs" />
   </ItemGroup>
