@@ -78,8 +78,9 @@ public class ScreenshotTests : PageTest
     {
         await Page.GotoAsync(BaseUrl, new() { WaitUntil = WaitUntilState.Load });
         await Expect(Page.Locator(".toolbar-shell")).ToBeVisibleAsync(new() { Timeout = 30000 });
-        // Wait for interactive mode by checking that the git plugin panel is rendered
         await Expect(Page.Locator(".module-git .plugin-panel").First).ToBeVisibleAsync(new() { Timeout = 5000 });
+        // The git panel is already in the prerendered HTML: clicks before the interactive render are lost.
+        await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToHaveCountAsync(1, new() { Timeout = 30000 });
     }
 
     /// <summary>
