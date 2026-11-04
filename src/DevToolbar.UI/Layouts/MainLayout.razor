@@ -21,7 +21,7 @@
 
 <CascadingValue Value="_dismiss" IsFixed="true">
 <CascadingValue Value="_layout" IsFixed="true">
-<div class="toolbar-shell" style="@ThemeService.GetCssVariables()"
+<div class="toolbar-shell" style="@ThemeService.GetCssVariables()" data-theme="@ThemeService.ThemeName"
      data-interactive="@(_isInteractive ? "true" : "false")"
      @onclick="ReportActivity" @onkeydown="ReportActivity">
     @* ── Zone 1: Project Selector (z-index: 20), always first ── *@

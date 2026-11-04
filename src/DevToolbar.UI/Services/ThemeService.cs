@@ -15,6 +15,9 @@ public class ThemeService
         OnThemeChanged?.Invoke();
     }
 
+    /// <summary>Active theme (US3.3), always a known name; set as <c>data-theme</c> on the toolbar.</summary>
+    public string ThemeName => ThemeNames.Normalize(_currentTheme.Name);
+
     public string GetCssVariables() =>
         $"--accent-color: {_currentTheme.AccentColor}; --font-family: {_currentTheme.FontFamily};";
 

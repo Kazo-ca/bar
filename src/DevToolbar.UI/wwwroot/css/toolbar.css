@@ -2006,7 +2006,8 @@ body.dock-bottom .smart-process-menu { top: auto; bottom: calc(100% + 12px); }
     background: transparent;
 }
 
-.settings-font-select {
+.settings-font-select,
+.settings-theme-select {
     background: rgba(45, 45, 45, 0.7);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
@@ -2016,7 +2017,8 @@ body.dock-bottom .smart-process-menu { top: auto; bottom: calc(100% + 12px); }
     cursor: pointer;
 }
 
-.settings-font-select:focus {
+.settings-font-select:focus,
+.settings-theme-select:focus {
     outline: none;
     border-color: var(--accent-color);
 }

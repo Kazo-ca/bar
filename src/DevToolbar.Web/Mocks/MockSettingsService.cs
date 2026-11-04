@@ -51,7 +51,7 @@ public class MockSettingsService : ISettingsService
                 ProjectType = "SPA",
                 DefaultBranch = "main",
                 RepositoryUrl = "https://github.com/example/frontend-app",
-                Theme = new ThemeConfig { AccentColor = "#4CAF50" },
+                Theme = new ThemeConfig { Name = ThemeNames.Green, AccentColor = "#4CAF50" },
                 EnabledPlugins = new List<string> { "git-tools", "work-items", "time-tracker" },
                 Actions = new List<ActionConfig>
                 {
@@ -70,6 +70,7 @@ public class MockSettingsService : ISettingsService
                 RepositoryUrl = "https://dev.azure.com/example/devops-pipeline",
                 Theme = new ThemeConfig
                 {
+                    Name = ThemeNames.Dark,
                     AccentColor = "#E53935",
                     // US3.2: custom CSS from the project config is injected into the toolbar
                     CustomCss = ".toolbar-shell { --devops-custom-css: applied; }"
