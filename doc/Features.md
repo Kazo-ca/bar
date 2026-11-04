@@ -85,7 +85,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US5.4 | Rapports de temps | ✅ 🔍 |
 | US5.5 | Journée de travail (arrivée, dîner, réunion) | ✅ 🔍 |
 | US6.1 | Tests Playwright sur l'hôte Web | ✅ |
-| US6.2 | Intégration continue | ⬜ |
+| US6.2 | Intégration continue | ✅ |
 | US7.1 | Suivi GitHub en arrière-plan | 🟡 🔍 |
 | US7.2 | Consultation et « marquer comme lu » | ✅ 🔍 |
 | US8.1 | Fenêtre native | ✅ 🔍 |
@@ -564,10 +564,10 @@ Règles dans `config.json` (ajout compatible avec le schéma 1, les valeurs abse
 - [x] `DevToolbar.Tests.Unit` couvre le plugin Git, la négociation de taille de l'hôte, la configuration et ses migrations, le stockage JSON, Git réel (dépôts temporaires) les secrets, et les fournisseurs (réponses HTTP simulées).
 
 ## US6.2 Intégration continue
-**État :** ⬜ À faire, obligatoire pour la version finale
+**État :** ✅ Fait
 
 **Critères d'acceptation :**
-- [ ] Un workflow GitHub Actions compile la solution et lance les tests unitaires et Playwright à chaque PR.
+- [x] Un workflow GitHub Actions (`.github/workflows/ci.yml`) lance les tests unitaires et Playwright à chaque PR et à chaque push sur `main` (Ubuntu), et compile l'hôte WPF (Windows). L'hôte MAUI, gelé, n'est pas compilé. Les résultats (TRX) et les captures sont publiés en artefact.
 
 ---
 

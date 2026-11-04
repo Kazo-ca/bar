@@ -114,6 +114,8 @@ dotnet test tests/DevToolbar.Tests.Unit
 dotnet test tests/DevToolbar.Tests.E2E
 ```
 
+The same tests run in GitHub Actions on every pull request and every push to `main` (`.github/workflows/ci.yml`): unit and Playwright tests on Ubuntu, plus a build of the WPF host on Windows. Test results and screenshots are attached to each run as the `test-results` artifact.
+
 ### Refresh the screenshots
 ```bash
 dotnet test tests/DevToolbar.Tests.E2E --filter "FullyQualifiedName~ScreenshotTests"
