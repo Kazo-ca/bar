@@ -3517,3 +3517,18 @@ body.dock-bottom .module-overflow-panel { top: auto; bottom: calc(100% + 14px); 
 
 .module-overflow-back:hover,
 .module-overflow-back:focus-visible { background: rgba(255, 255, 255, 0.1); }
+
+/* --- OAuth sign-in in the provider settings (US2.4) --- */
+.secret-field-or { opacity: 0.6; font-size: 0.85em; }
+.secret-field-device { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.9em; }
+.secret-field-device a { color: var(--accent-color); }
+.secret-field-code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 1.05em;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    user-select: all;
+}

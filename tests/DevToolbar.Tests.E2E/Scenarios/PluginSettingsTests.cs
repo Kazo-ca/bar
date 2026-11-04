@@ -237,4 +237,45 @@ public class PluginSettingsTests : PageTest
         await repo.GetByTestId("work-items-provider").SelectOptionAsync("");
         await Expect(repo.GetByTestId("secret-field")).ToHaveCountAsync(0);
     }
+
+    [Test]
+    public async Task WorkItemsWindow_SignInWithGitHub_SavesTheSignInInsteadOfAToken()
+    {
+        // US2.4: without a client ID the button is off and says where to add it.
+        await OpenGitSettingsAsync();
+        await Page.Locator(".plugin-settings-nav-item[data-plugin-id='work-items']").ClickAsync();
+        var repo = Page.Locator(".provider-repo").First;
+        await repo.GetByTestId("work-items-provider").SelectOptionAsync("GitHub");
+        await Expect(repo.GetByTestId("secret-field-signin")).ToBeDisabledAsync();
+        await Expect(repo.GetByTestId("secret-field-signin-hint")).ToContainTextAsync("Settings → Sign-in apps");
+        await Page.Locator(".plugin-settings-close").ClickAsync();
+
+        var clientId = Page.GetByTestId("oauth-github-client-id");
+        try
+        {
+            await clientId.FillAsync("Ov23liTestClient");
+            await clientId.PressAsync("Tab");
+            await OpenGitSettingsAsync();
+            await Page.Locator(".plugin-settings-nav-item[data-plugin-id='work-items']").ClickAsync();
+            repo = Page.Locator(".provider-repo").First;
+
+            await repo.GetByTestId("secret-field-signin").ClickAsync();
+
+            await Expect(repo.GetByTestId("secret-field-code")).ToHaveTextAsync("WDJB-MJHT");
+            await Expect(repo.GetByTestId("secret-field-device").Locator("a")).ToHaveAttributeAsync("href", "https://github.com/login/device");
+            await Expect(repo.GetByTestId("secret-field-signed-in")).ToHaveTextAsync("✓ Signed in with GitHub", new() { Timeout = 10000 });
+            await Expect(repo.GetByTestId("secret-field-device")).ToHaveCountAsync(0);
+        }
+        finally
+        {
+            // Restore for other tests.
+            if (await repo.Locator(".secret-field-remove").CountAsync() > 0)
+                await repo.Locator(".secret-field-remove").ClickAsync();
+            await repo.GetByTestId("work-items-provider").SelectOptionAsync("");
+            await Page.Locator(".plugin-settings-close").ClickAsync();
+            await clientId.FillAsync("");
+            await clientId.PressAsync("Tab");
+        }
+        await Expect(clientId).ToHaveValueAsync("");
+    }
 }

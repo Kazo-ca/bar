@@ -270,8 +270,10 @@ Forme actuelle (schéma 1). Les blocs `workItems` et `github` d'un dépôt sont 
 **Critères d'acceptation :**
 - [x] Les secrets sont rangés sous une référence (`secretRef`) via `ISecretStore` ; la configuration ne garde que la référence. Les fournisseurs (US5.2, US7.1) proposent une référence par dépôt et par service.
 - [x] L'utilisateur choisit où sont stockés ses secrets dans Paramètres (« Access tokens ») : Gestionnaire d'identification Windows (`DevToolbar:<ref>`), ou `%APPDATA%\DevToolbar\secrets.json` chiffré par DPAPI pour son compte Windows. Changer de choix déplace les secrets existants.
-- [ ] Chaque fournisseur utilise la méthode d'authentification qu'il recommande (OAuth pour GitHub et Azure DevOps) ; le PAT reste possible pour démarrer.
-- [x] Les jetons saisis dans les réglages des plugins ne sont jamais réaffichés : le champ (`SecretField`) affiche « ●●●●●●●● saved » avec remplacer / supprimer.
+- [x] Chaque fournisseur utilise la méthode d'authentification qu'il recommande : « Sign in with GitHub » et « Sign in with Microsoft » (flux *device code* OAuth 2.0, RFC 8628) à côté du champ du jeton, dans les réglages des plugins Work Items et CI/CD. Le PAT reste possible. La connexion est rangée sous la même référence (`secretRef`), dans un petit objet JSON (`{"kind":"oauth", …}`) : le jeton d'accès GitHub (qui n'expire pas), ou le seul *refresh token* Microsoft. Le jeton d'accès Microsoft reste en mémoire et il est renouvelé deux minutes avant son expiration, ce qui garde la valeur sous la limite de 2 560 octets du Gestionnaire d'identification (`AccessTokenResolver`, `DeviceCodeSignInService`, `src/DevToolbar.Infrastructure/Auth/`).
+- [x] Les applications OAuth se déclarent une fois dans Paramètres → *Sign-in apps* (`settings.oauth.github.clientId`, `settings.oauth.azureDevOps.clientId` et `tenant`). Un identifiant client est public, aucun secret client n'est demandé. La marche à suivre est dans [Connexion-OAuth.md](Connexion-OAuth.md).
+- [ ] Recette sur PC : connexion réelle à GitHub et à Azure DevOps avec les applications déclarées.
+- [x] Les jetons saisis dans les réglages des plugins ne sont jamais réaffichés : le champ (`SecretField`) affiche « ●●●●●●●● saved », ou « ✓ Signed in with GitHub / Microsoft » après une connexion, avec remplacer / supprimer.
 - [ ] Recette sur PC : écriture, lecture et suppression dans le Gestionnaire d'identification et avec DPAPI (non testables dans le conteneur Linux).
 
 ## US2.5 Version de schéma et migration
@@ -487,7 +489,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Fournisseur **Azure DevOps (cloud)** : requête WIQL (tickets ouverts qui me sont assignés, ou recherche par titre / numéro), API REST 7.1 (`AzureDevOpsWorkItemsClient`).
 - [x] Fournisseur **GitHub Issues** : tickets ouverts récents, recherche par titre / numéro, les PR sont exclues (`GitHubIssuesClient`).
 - [x] PAT pour démarrer, rangé dans le magasin de secrets (US2.4). Erreurs lisibles (jeton refusé, projet introuvable) affichées dans le plugin.
-- [ ] Authentification recommandée par le fournisseur (OAuth).
+- [x] Authentification recommandée par le fournisseur (OAuth, voir US2.4) : connexion Microsoft Entra pour Azure DevOps (jeton *Bearer*), connexion GitHub pour GitHub Issues.
 - [x] Le fournisseur se configure **par dépôt** dans la fenêtre de configuration du plugin Work Items (le premier dépôt configuré du projet est utilisé).
 - [x] Lien cliquable vers le ticket sur le web.
 - [ ] Recette sur PC avec un vrai PAT Azure DevOps et GitHub.
