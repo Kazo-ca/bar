@@ -27,6 +27,8 @@ public class MainPage : ContentPage
         };
 
 
+#if WINDOWS
+        // WebView2 only: the Android target has no DefaultBackgroundColor.
         blazorWebView.BlazorWebViewInitialized += (sender, args) =>
         {
             // Match WebView2 background to the toolbar glass background
@@ -34,6 +36,7 @@ public class MainPage : ContentPage
             args.WebView.DefaultBackgroundColor =
                 global::Windows.UI.Color.FromArgb(255, 200, 207, 218);
         };
+#endif
 
 
         Content = blazorWebView;
