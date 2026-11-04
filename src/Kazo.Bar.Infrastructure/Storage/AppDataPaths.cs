@@ -2,7 +2,7 @@ namespace Kazo.Bar.Infrastructure.Storage;
 
 /// <summary>
 /// Locations of every file Kazo Bar writes for the current user.
-/// The root is <c>%APPDATA%\DevToolbar</c> in the hosts; tests pass a temporary folder.
+/// The root is <c>%APPDATA%\Kazo\Bar</c> in the hosts; tests pass a temporary folder.
 /// </summary>
 public sealed class AppDataPaths
 {
@@ -12,9 +12,16 @@ public sealed class AppDataPaths
         Root = Path.GetFullPath(root);
     }
 
-    /// <summary>The per-user folder in the roaming application data folder.</summary>
-    public static AppDataPaths ForCurrentUser() => new(Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DevToolbar"));
+    /// <summary>The per-user folder in the roaming application data folder: <c>%APPDATA%\Kazo\Bar</c>.</summary>
+    public static AppDataPaths ForCurrentUser() => new(CurrentUserRoot);
+
+    /// <summary><c>%APPDATA%\Kazo\Bar</c>.</summary>
+    public static string CurrentUserRoot => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Kazo", "Bar");
+
+    /// <summary><c>%APPDATA%\DevToolbar</c>, the folder used before the Kazo Bar rename (see <see cref="LegacyAppDataMigration"/>).</summary>
+    public static string LegacyCurrentUserRoot => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DevToolbar");
 
     public string Root { get; }
 

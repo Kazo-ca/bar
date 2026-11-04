@@ -25,9 +25,9 @@ namespace Kazo.Bar.Windows;
 /// <summary>WPF entry point: builds the service container and shows the single toolbar window.</summary>
 public static class Program
 {
-    /// <summary>%LOCALAPPDATA%\DevToolbar\logs\windows-host.log — startup and crash diagnostics.</summary>
+    /// <summary>%LOCALAPPDATA%\Kazo\Bar\logs\windows-host.log — startup and crash diagnostics.</summary>
     public static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DevToolbar", "logs", "windows-host.log");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Kazo", "Bar", "logs", "windows-host.log");
 
     public static void Log(string message)
     {
@@ -45,6 +45,47 @@ public static class Program
         Log($"FATAL ({where}): {ex}");
         MessageBox.Show($"{ex.GetType().Name}: {ex.Message}\n\nDetails: {LogPath}", "Kazo Bar — startup error",
             MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    /// <summary>
+    /// Copies %APPDATA%\DevToolbar to %APPDATA%\Kazo\Bar on the first start after the rename.
+    /// If the copy fails, this run keeps using the old folder so the user never sees an empty configuration.
+    /// </summary>
+    private static AppDataPaths ResolveAppDataPaths()
+    {
+        try
+        {
+            var outcome = LegacyAppDataMigration.Migrate(AppDataPaths.LegacyCurrentUserRoot, AppDataPaths.CurrentUserRoot);
+            Log($"User data folder: {AppDataPaths.CurrentUserRoot} (legacy migration: {outcome}).");
+            return AppDataPaths.ForCurrentUser();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log($"Could not copy {AppDataPaths.LegacyCurrentUserRoot} to {AppDataPaths.CurrentUserRoot}; using the old folder for now. {ex}");
+            return new AppDataPaths(AppDataPaths.LegacyCurrentUserRoot);
+        }
+    }
+
+    private static CredentialManagerSecretStore CreateCredentialStore()
+    {
+        var store = new CredentialManagerSecretStore();
+        MigrateLegacyCredentials(store);
+        return store;
+    }
+
+    /// <summary>Moves Credential Manager secrets saved as DevToolbar:{ref} to Kazo.Bar:{ref}.</summary>
+    private static void MigrateLegacyCredentials(CredentialManagerSecretStore store)
+    {
+        try
+        {
+            var moved = store.MigrateLegacySecrets();
+            if (moved > 0)
+                Log($"Moved {moved} secret(s) from the DevToolbar: to the Kazo.Bar: Credential Manager prefix.");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            Log($"Could not move the DevToolbar: Credential Manager secrets; retried on next start. {ex.Message}");
+        }
     }
 
     [STAThread]
@@ -89,8 +130,8 @@ public static class Program
         services.AddSingleton<IFileSystemService, WindowsFileSystemService>();
         services.AddSingleton<IScriptService, Kazo.Bar.Infrastructure.Processes.ProcessScriptService>();
 
-        // Single per-user configuration file and versioned JSON data in %APPDATA%\DevToolbar (US2.3, US2.5, US8.3).
-        services.AddSingleton(AppDataPaths.ForCurrentUser());
+        // Single per-user configuration file and versioned JSON data in %APPDATA%\Kazo\Bar (US2.3, US2.5, US8.3).
+        services.AddSingleton(ResolveAppDataPaths());
         services.AddSingleton<UserConfigurationStore>();
         services.AddSingleton<ISettingsService, UserConfigSettingsService>();
         services.AddSingleton<IGlobalSettingsService, UserConfigGlobalSettingsService>();
@@ -100,7 +141,7 @@ public static class Program
         services.AddSingleton(sp => new SelectableSecretStore(
             new Dictionary<SecretStoreKind, ISecretStore>
             {
-                [SecretStoreKind.CredentialManager] = new CredentialManagerSecretStore(),
+                [SecretStoreKind.CredentialManager] = CreateCredentialStore(),
                 [SecretStoreKind.EncryptedFile] = new EncryptedFileSecretStore(sp.GetRequiredService<AppDataPaths>(), new DpapiSecretProtector()),
             },
             sp.GetRequiredService<IGlobalSettingsService>()));

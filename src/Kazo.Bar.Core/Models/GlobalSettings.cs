@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 /// <summary>
 /// Application-wide settings for toolbar behavior, positioning, and display.
-/// Persisted in the "settings" section of the user configuration (%APPDATA%\DevToolbar\config.json).
+/// Persisted in the "settings" section of the user configuration (%APPDATA%\Kazo\Bar\config.json).
 /// </summary>
 public class GlobalSettings
 {

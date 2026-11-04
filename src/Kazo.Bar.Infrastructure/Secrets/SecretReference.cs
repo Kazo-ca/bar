@@ -13,6 +13,9 @@ public static partial class SecretReference
         return secretRef;
     }
 
+    /// <summary>True when <see cref="Validate"/> would accept the reference.</summary>
+    public static bool IsValid(string? secretRef) => !string.IsNullOrEmpty(secretRef) && Pattern().IsMatch(secretRef);
+
     [GeneratedRegex("^[A-Za-z0-9._-]{1,100}$")]
     private static partial Regex Pattern();
 }

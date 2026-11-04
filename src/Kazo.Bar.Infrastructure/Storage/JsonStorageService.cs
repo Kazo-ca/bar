@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
 /// Real <see cref="IStorageService"/> (US8.3): one JSON file per namespace in
-/// <c>%APPDATA%\DevToolbar\data\{namespace}.json</c>, each with a <c>schemaVersion</c>:
+/// <c>%APPDATA%\Kazo\Bar\data\{namespace}.json</c>, each with a <c>schemaVersion</c>:
 /// <code>
 /// { "schemaVersion": 1, "values": { "key": ... }, "collections": { "name": [ ... ] } }
 /// </code>

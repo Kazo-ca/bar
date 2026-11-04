@@ -6,9 +6,9 @@ using System.Text.Json.Serialization;
 [JsonConverter(typeof(JsonStringEnumConverter<SecretStoreKind>))]
 public enum SecretStoreKind
 {
-    /// <summary>Windows Credential Manager (generic credentials, "DevToolbar:" prefix).</summary>
+    /// <summary>Windows Credential Manager (generic credentials, "Kazo.Bar:" prefix).</summary>
     CredentialManager,
 
-    /// <summary>%APPDATA%\DevToolbar\secrets.json, each value encrypted for the current Windows user (DPAPI).</summary>
+    /// <summary>%APPDATA%\Kazo\Bar\secrets.json, each value encrypted for the current Windows user (DPAPI).</summary>
     EncryptedFile,
 }

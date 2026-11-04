@@ -8,7 +8,7 @@ using Kazo.Bar.Core.Interfaces;
 using Kazo.Bar.Infrastructure.Storage;
 
 /// <summary>
-/// Secrets in <c>%APPDATA%\DevToolbar\secrets.json</c>, each value encrypted by an
+/// Secrets in <c>%APPDATA%\Kazo\Bar\secrets.json</c>, each value encrypted by an
 /// <see cref="ISecretProtector"/> (DPAPI in the Windows host):
 /// <code>{ "schemaVersion": 1, "secrets": { "alpha-github-pat": "base64..." } }</code>
 /// </summary>

@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 /// <summary>
 /// The single per-user configuration file (US2.3): application settings and every
-/// project with its repositories. Stored as <c>%APPDATA%\DevToolbar\config.json</c>.
+/// project with its repositories. Stored as <c>%APPDATA%\Kazo\Bar\config.json</c>.
 /// Never holds secrets: providers keep a reference to a secret store entry (US2.4).
 /// </summary>
 public sealed class UserConfiguration

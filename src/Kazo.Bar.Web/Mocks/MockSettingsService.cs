@@ -14,7 +14,7 @@ public class MockSettingsService : ISettingsService
     public event Action<ProjectConfig>? OnActiveProjectChanged;
 
     /// <summary>The Web host keeps its sample projects in memory; this mirrors the Windows path.</summary>
-    public string? ConfigurationLocation => @"%APPDATA%\DevToolbar\config.json (simulated)";
+    public string? ConfigurationLocation => @"%APPDATA%\Kazo\Bar\config.json (simulated)";
 
     public MockSettingsService()
     {
