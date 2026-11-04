@@ -2,7 +2,10 @@
 @using DevToolbar.Core.Models
 @using DevToolbar.UI.Services
 @using DevToolbar.UI.Components
-@implements IDisposable
+@using DevToolbar.Core.Layout
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject IPluginLoader PluginLoader
 @inject ISettingsService SettingsService
 @inject IProcessService ProcessService
@@ -21,7 +24,7 @@
 
 <CascadingValue Value="_dismiss" IsFixed="true">
 <CascadingValue Value="_layout" IsFixed="true">
-<div class="toolbar-shell" style="@ThemeService.GetCssVariables()"
+<div @ref="_shell" class="toolbar-shell" style="@ThemeService.GetCssVariables()"
      data-interactive="@(_isInteractive ? "true" : "false")"
      @onclick="ReportActivity" @onkeydown="ReportActivity">
     @* ── Zone 1: Project Selector (z-index: 20), always first ── *@
@@ -68,12 +71,20 @@
             if (pendingAbsences > 0) timerTitle += $" ({pendingAbsences} absence(s) to label)";
             var timeTracker = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == TimeTrackerPluginId && p.IsEnabled);
             var systemZone = SystemZone;
+            var systemVisible = SystemVisibleCount(systemZone);
+            var overflowEntries = new List<OverflowEntry>();
         }
-        @foreach (var moduleId in systemZone)
+        @for (var index = 0; index < systemZone.Count; index++)
         {
+            var moduleId = systemZone[index];
+            var overflowed = index >= systemVisible;
             if (moduleId == TimerModuleId)
             {
-                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Timer" CssClass="module-timer" Layout="@(timeTracker?.Layout ?? PluginLayout.Fixed)" Zone="systemZone">
+                if (overflowed)
+                {
+                    overflowEntries.Add(new OverflowEntry(moduleId, isAway ? "💤" : "⏱", "Timer", FormatTime(displayTime), pendingAbsences, null, timeTracker));
+                }
+                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Timer" CssClass="module-timer" Layout="@(timeTracker?.Layout ?? PluginLayout.Fixed)" Zone="systemZone" Overflowed="overflowed">
                     @if (timeTracker != null)
                     {
                         @* US5.3: the timer opens the Time Tracker panel (Start/Stop, linked work item, idle info) *@
@@ -102,7 +113,11 @@
             else if (IndicatorPlugins.FirstOrDefault(p => p.UniqueId == moduleId) is { } plugin)
             {
                 var indicator = (IPluginIndicator)plugin;
-                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="@plugin.Name" CssClass="module-indicator" Layout="@plugin.Layout" Zone="systemZone">
+                if (overflowed)
+                {
+                    overflowEntries.Add(new OverflowEntry(moduleId, plugin.Icon, plugin.Name, indicator.IndicatorText, indicator.BadgeCount, indicator.StatusLevel, plugin));
+                }
+                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="@plugin.Name" CssClass="module-indicator" Layout="@plugin.Layout" Zone="systemZone" Overflowed="overflowed">
                     <PluginPopover Plugin="plugin" Title="@(indicator.IndicatorTooltip ?? plugin.Name)"
                                    TriggerClass="@($"system-indicator {(indicator.StatusLevel is { } level ? "status-" + level : "")}")">
                         <span class="system-indicator-icon">@plugin.Icon</span>
@@ -118,6 +133,8 @@
                 </ModuleFrame>
             }
         }
+        @* US3.8: modules that do not fit, in a "»" menu *@
+        <ModuleOverflowMenu Entries="overflowEntries" />
         <button class="system-btn" @onclick="ToggleTimeReport" title="Time Report">📊</button>
         <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
         @if (DebugFeatures.Enabled)
@@ -143,6 +160,16 @@
     // can close popups; otherwise a page-local instance is used.
     private PopupDismissService _dismiss = default!;
     private ToolbarLayoutController _layout = default!;
+    private ElementReference _shell;
+    private IJSObjectReference? _overflowModule;
+    private DotNetObjectReference<MainLayout>? _self;
+
+    /// <summary>Width of the "»" button (a system button).</summary>
+    private const int OverflowButtonWidth = 32;
+
+    /// <summary>System zone as last measured, and how many of its modules fit (US3.8); null = all.</summary>
+    private string[] _measuredSystemIds = Array.Empty<string>();
+    private int? _systemVisible;
     private IWindowDragService? _drag;
     private List<ActionConfig> _actions = new();
     private IReadOnlyList<IPlugin>? _visiblePlugins;
@@ -197,6 +224,35 @@
         if (project != null)
         {
             await ApplyProjectAsync(project);
+        }
+    }
+
+    private int SystemVisibleCount(IReadOnlyList<string> zone) =>
+        _systemVisible is { } visible && zone.SequenceEqual(_measuredSystemIds) ? Math.Min(visible, zone.Count) : zone.Count;
+
+    /// <summary>Called by module-overflow.js with the room left for the system zone's modules.</summary>
+    [JSInvokable]
+    public Task OnSystemZoneMeasured(int room, string[] ids, int[] widths, int gap)
+    {
+        var visible = ModuleOverflow.VisibleCount(room, widths, gap, OverflowButtonWidth);
+        if (visible == _systemVisible && ids.SequenceEqual(_measuredSystemIds)) return Task.CompletedTask;
+        _measuredSystemIds = ids;
+        _systemVisible = visible;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _self = DotNetObjectReference.Create(this);
+            _overflowModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/DevToolbar.UI/js/module-overflow.js");
+            await _overflowModule.InvokeVoidAsync("observe", _shell, _self);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException)
+        {
+            // Prerendering or a host without JS: every module stays in the toolbar.
         }
     }
 
@@ -311,8 +367,21 @@
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        if (_overflowModule != null)
+        {
+            try
+            {
+                await _overflowModule.InvokeVoidAsync("unobserve", _shell);
+                await _overflowModule.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or JSException or TaskCanceledException or ObjectDisposedException)
+            {
+                // Circuit already gone.
+            }
+        }
+        _self?.Dispose();
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
         _layout.Changed -= OnPluginStateChanged;
         ThemeService.OnThemeChanged -= OnThemeChanged;

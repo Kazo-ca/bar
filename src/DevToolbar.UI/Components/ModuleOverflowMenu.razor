@@ -1,0 +1,139 @@
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.UI.Services
+@implements IDisposable
+@inject IWindowRegionService RegionService
+
+@*
+    "»" button of the system zone (US3.8, rule 5). Lists the modules that no longer fit, with
+    what their toolbar button showed (icon, text, badge). Choosing one opens its panel in place
+    of the list, as its own button would have. The button carries the total of the hidden
+    badges so unread items stay visible. Closes on an outside click or Escape.
+*@
+@if (Entries.Count > 0)
+{
+    var badges = Entries.Sum(e => e.Badge);
+    <div class="module-overflow" data-popup-root="module-overflow">
+        <button @ref="_trigger" class="system-btn module-overflow-trigger" data-testid="module-overflow"
+                title="@($"{Entries.Count} more module(s): {string.Join(", ", Entries.Select(e => e.Label))}")"
+                aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" @onclick="Toggle">
+            <span class="module-overflow-icon">»</span>
+            @if (badges > 0)
+            {
+                <span class="module-overflow-badge">@badges</span>
+            }
+        </button>
+
+        @if (_open && OpenEntry is { Plugin: { } plugin } entry)
+        {
+            <div class="plugin-popover-panel module-overflow-panel" role="dialog" aria-label="@plugin.Name" data-testid="module-overflow-panel">
+                <div class="plugin-popover-header">
+                    <button class="module-overflow-back" @onclick="Back" aria-label="Back to the list" title="Back">←</button>
+                    <span class="plugin-popover-title">@entry.Label</span>
+                    <button class="plugin-popover-close" @onclick="Close" aria-label="Close">✕</button>
+                </div>
+                <div class="plugin-popover-body">
+                    @if (plugin.Render() is { } fragment)
+                    {
+                        @fragment
+                    }
+                </div>
+            </div>
+        }
+        else if (_open)
+        {
+            <div class="module-overflow-menu" role="menu" data-testid="module-overflow-menu" aria-label="More modules">
+                @foreach (var item in Entries)
+                {
+                    <button class="module-overflow-item @(item.StatusLevel is { } level ? "status-" + level : "")" role="menuitem"
+                            data-testid="module-overflow-item" data-module-id="@item.ModuleId" @key="item.ModuleId"
+                            disabled="@(item.Plugin == null)" @onclick="() => Choose(item)">
+                        <span class="module-overflow-item-icon">@item.Icon</span>
+                        <span class="module-overflow-item-label">@item.Label</span>
+                        @if (!string.IsNullOrEmpty(item.Text))
+                        {
+                            <span class="module-overflow-item-text">@item.Text</span>
+                        }
+                        @if (item.Badge > 0)
+                        {
+                            <span class="module-overflow-item-badge">@item.Badge</span>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>Hidden modules, in zone order.</summary>
+    [Parameter] public IReadOnlyList<OverflowEntry> Entries { get; set; } = Array.Empty<OverflowEntry>();
+
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
+    /// <summary>Room (CSS px) the window region needs below the toolbar while the menu or a panel is open.</summary>
+    private const int ExpandedRegionHeight = 360;
+
+    private ElementReference _trigger;
+    private PopupDismissService? _dismissSubscribed;
+    private bool _open;
+    private string? _openModuleId;
+
+    private OverflowEntry? OpenEntry => _openModuleId == null ? null : Entries.FirstOrDefault(e => e.ModuleId == _openModuleId);
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_dismissSubscribed, Dismiss))
+        {
+            if (_dismissSubscribed != null) _dismissSubscribed.DismissRequested -= OnDismissRequested;
+            if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+            _dismissSubscribed = Dismiss;
+        }
+        // Room came back: the open module is in the toolbar again, or nothing is hidden any more.
+        if (_open && (Entries.Count == 0 || (_openModuleId != null && OpenEntry == null)))
+            Close();
+    }
+
+    private void Toggle()
+    {
+        if (_open)
+        {
+            Close();
+            return;
+        }
+        _open = true;
+        _openModuleId = null;
+        RegionService.ExpandRegion(ExpandedRegionHeight);
+    }
+
+    private void Choose(OverflowEntry entry) => _openModuleId = entry.ModuleId;
+
+    private void Back() => _openModuleId = null;
+
+    private void Close()
+    {
+        if (!_open) return;
+        _open = false;
+        _openModuleId = null;
+        RegionService.CollapseRegion();
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!_open || !request.AppliesTo("module-overflow")) return;
+        _ = InvokeAsync(async () =>
+        {
+            Close();
+            StateHasChanged();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        if (_dismissSubscribed != null) _dismissSubscribed.DismissRequested -= OnDismissRequested;
+        if (_open) RegionService.CollapseRegion();
+    }
+}
