@@ -20,53 +20,44 @@
 }
 
 <CascadingValue Value="_dismiss" IsFixed="true">
+<CascadingValue Value="_layout" IsFixed="true">
 <div class="toolbar-shell" style="@ThemeService.GetCssVariables()"
      data-interactive="@(_isInteractive ? "true" : "false")"
      @onclick="ReportActivity" @onkeydown="ReportActivity">
-    @* ── Zone 1: Project Selector (z-index: 20) ── *@
+    @* ── Zone 1: Project Selector (z-index: 20), always first ── *@
     <div class="module-project">
         <ProjectSelector />
     </div>
 
-    @* ── Zone 2: Git Module — overlaps under Project (z-index: 10) ── *@
-    <div class="module-git">
-        @{
-            var gitPlugin = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == GitPluginId);
-        }
-        @if (gitPlugin?.IsEnabled == true && gitPlugin.Render() is { } gitFragment)
+    @* ── Main zone: Git module and quick actions, in the user's order (US3.7) ── *@
+    @{
+        var mainZone = MainZone;
+    }
+    @foreach (var moduleId in mainZone)
+    {
+        @if (moduleId == ActionsModuleId)
         {
-            <div class="plugin-panel git-panel" data-plugin-id="@gitPlugin.UniqueId" aria-label="@gitPlugin.Name">
-                <div class="plugin-content">@gitFragment</div>
-            </div>
+            @* Quick actions (z-index: 1); extra actions go into "…" (US3.4) *@
+            <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Quick actions" CssClass="module-actions" Zone="mainZone">
+                <ActionDeck Actions="@_actions" OnActionClicked="HandleActionClicked" />
+            </ModuleFrame>
         }
-    </div>
-
-    @* ── Zone 3: Quick Actions (z-index: 1) ── *@
-    <div class="module-actions">
-        <ActionDeck Actions="@_actions" OnActionClicked="HandleActionClicked" />
-    </div>
+        else if (_visiblePlugins?.FirstOrDefault(p => p.UniqueId == moduleId) is { } gitPlugin && gitPlugin.Render() is { } gitFragment)
+        {
+            @* Git module (z-index: 10), overlaps under the project selector when it follows it *@
+            <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="@gitPlugin.Name" CssClass="module-git" Layout="@gitPlugin.Layout" Zone="mainZone">
+                <div class="plugin-panel git-panel" data-plugin-id="@gitPlugin.UniqueId" aria-label="@gitPlugin.Name">
+                    <div class="plugin-content">@gitFragment</div>
+                </div>
+            </ModuleFrame>
+        }
+    }
 
     @* ── Zone 3b: Taskbar — Open Windows (conditional) ── *@
     <TaskbarModule />
 
-    @* ── Zone 4: System — Plugin indicators + Timer + Settings (z-index: 20) ── *@
+    @* ── Zone 4: System — Plugin indicators + Timer (user's order) + Settings (z-index: 20) ── *@
     <div class="module-system">
-        @foreach (var plugin in IndicatorPlugins)
-        {
-            var indicator = (IPluginIndicator)plugin;
-            <PluginPopover Plugin="plugin" Title="@(indicator.IndicatorTooltip ?? plugin.Name)"
-                           TriggerClass="@($"system-indicator {(indicator.StatusLevel is { } level ? "status-" + level : "")}")">
-                <span class="system-indicator-icon">@plugin.Icon</span>
-                @if (!string.IsNullOrEmpty(indicator.IndicatorText))
-                {
-                    <span class="system-indicator-text">@indicator.IndicatorText</span>
-                }
-                @if (indicator.BadgeCount > 0)
-                {
-                    <span class="system-indicator-badge">@indicator.BadgeCount</span>
-                }
-            </PluginPopover>
-        }
         @{
             var activeEntry = TimeTrackingService.GetActive();
             var isRunning = activeEntry != null && activeEntry.ProjectId == _currentProjectId;
@@ -76,29 +67,56 @@
             var timerTitle = isAway ? "Away: timer paused" : isRunning ? "Timer running" : "Today's total";
             if (pendingAbsences > 0) timerTitle += $" ({pendingAbsences} absence(s) to label)";
             var timeTracker = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == TimeTrackerPluginId && p.IsEnabled);
+            var systemZone = SystemZone;
         }
-        @if (timeTracker != null)
+        @foreach (var moduleId in systemZone)
         {
-            @* US5.3: the timer opens the Time Tracker panel (Start/Stop, linked work item, idle info) *@
-            <PluginPopover Plugin="timeTracker" Title="@($"{timerTitle} — click for Time Tracker")"
-                           CssClass="system-timer-popover">
-                <span class="system-timer-display @(isRunning ? "running" : "") @(isAway ? "away" : "")">
-                    <span class="system-timer-icon">@(isAway ? "💤" : "⏱")</span>
-                    <span class="system-timer-value">@FormatTime(displayTime)</span>
-                    @if (pendingAbsences > 0)
+            if (moduleId == TimerModuleId)
+            {
+                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Timer" CssClass="module-timer" Layout="@(timeTracker?.Layout ?? PluginLayout.Fixed)" Zone="systemZone">
+                    @if (timeTracker != null)
                     {
-                        @* US5.3: absences waiting to be labelled since the user came back *@
-                        <span class="system-timer-badge" data-testid="absence-badge" title="Absences to label">@pendingAbsences</span>
+                        @* US5.3: the timer opens the Time Tracker panel (Start/Stop, linked work item, idle info) *@
+                        <PluginPopover Plugin="timeTracker" Title="@($"{timerTitle} — click for Time Tracker")"
+                                       CssClass="system-timer-popover">
+                            <span class="system-timer-display @(isRunning ? "running" : "") @(isAway ? "away" : "")">
+                                <span class="system-timer-icon">@(isAway ? "💤" : "⏱")</span>
+                                <span class="system-timer-value">@FormatTime(displayTime)</span>
+                                @if (pendingAbsences > 0)
+                                {
+                                    @* US5.3: absences waiting to be labelled since the user came back *@
+                                    <span class="system-timer-badge" data-testid="absence-badge" title="Absences to label">@pendingAbsences</span>
+                                }
+                            </span>
+                        </PluginPopover>
                     }
-                </span>
-            </PluginPopover>
-        }
-        else
-        {
-            <span class="system-timer-display @(isRunning ? "running" : "")" title="@timerTitle">
-                <span class="system-timer-icon">⏱</span>
-                <span class="system-timer-value">@FormatTime(displayTime)</span>
-            </span>
+                    else
+                    {
+                        <span class="system-timer-display @(isRunning ? "running" : "")" title="@timerTitle">
+                            <span class="system-timer-icon">⏱</span>
+                            <span class="system-timer-value">@FormatTime(displayTime)</span>
+                        </span>
+                    }
+                </ModuleFrame>
+            }
+            else if (IndicatorPlugins.FirstOrDefault(p => p.UniqueId == moduleId) is { } plugin)
+            {
+                var indicator = (IPluginIndicator)plugin;
+                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="@plugin.Name" CssClass="module-indicator" Layout="@plugin.Layout" Zone="systemZone">
+                    <PluginPopover Plugin="plugin" Title="@(indicator.IndicatorTooltip ?? plugin.Name)"
+                                   TriggerClass="@($"system-indicator {(indicator.StatusLevel is { } level ? "status-" + level : "")}")">
+                        <span class="system-indicator-icon">@plugin.Icon</span>
+                        @if (!string.IsNullOrEmpty(indicator.IndicatorText))
+                        {
+                            <span class="system-indicator-text">@indicator.IndicatorText</span>
+                        }
+                        @if (indicator.BadgeCount > 0)
+                        {
+                            <span class="system-indicator-badge">@indicator.BadgeCount</span>
+                        }
+                    </PluginPopover>
+                </ModuleFrame>
+            }
         }
         <button class="system-btn" @onclick="ToggleTimeReport" title="Time Report">📊</button>
         <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
@@ -117,12 +135,14 @@
 <TerminalOutput @ref="_terminalOutput" IsVisible="@_showTerminal" OnClose="CloseTerminal" />
 <ToastContainer />
 </CascadingValue>
+</CascadingValue>
 <PopupDismissListener Service="_dismiss" />
 
 @code {
     // Hosts may register a singleton so native events (window deactivation, move)
     // can close popups; otherwise a page-local instance is used.
     private PopupDismissService _dismiss = default!;
+    private ToolbarLayoutController _layout = default!;
     private IWindowDragService? _drag;
     private List<ActionConfig> _actions = new();
     private IReadOnlyList<IPlugin>? _visiblePlugins;
@@ -134,23 +154,31 @@
     private IReadOnlyList<IPlugin> _subscribedPlugins = Array.Empty<IPlugin>();
     private System.Threading.Timer? _clockTimer;
 
-    private const string GitPluginId = "git-tools";
-    private const string TimeTrackerPluginId = "time-tracker";
+    private const string TimeTrackerPluginId = ToolbarZones.TimeTrackerPluginId;
+    private const string ActionsModuleId = ToolbarZones.ActionsModuleId;
+    private const string TimerModuleId = ToolbarZones.TimerModuleId;
     private static readonly TimeSpan ClockInterval = TimeSpan.FromSeconds(1);
+
+    private IReadOnlyList<IPlugin> VisiblePlugins => _visiblePlugins ?? Array.Empty<IPlugin>();
+
+    /// <summary>Main zone in the user's order (US3.7): Git module then quick actions by default.</summary>
+    private IReadOnlyList<string> MainZone => _layout.Arrange(ToolbarZones.MainDefaults(VisiblePlugins));
+
+    /// <summary>System zone in the user's order: plugin indicators then the timer by default.</summary>
+    private IReadOnlyList<string> SystemZone => _layout.Arrange(ToolbarZones.SystemDefaults(VisiblePlugins));
 
     /// <summary>
     /// Visible plugins shown as compact indicators in the system zone (Work Items, CI/CD...).
     /// Git has its own module and the Time Tracker is opened from the timer display.
     /// </summary>
-    private IEnumerable<IPlugin> IndicatorPlugins =>
-        (_visiblePlugins ?? Array.Empty<IPlugin>())
-            .Where(p => p.IsEnabled && p is IPluginIndicator
-                        && p.UniqueId != GitPluginId && p.UniqueId != TimeTrackerPluginId);
+    private IEnumerable<IPlugin> IndicatorPlugins => ToolbarZones.Indicators(VisiblePlugins);
 
     protected override async Task OnInitializedAsync()
     {
         _dismiss = Services.GetService(typeof(PopupDismissService)) as PopupDismissService ?? new PopupDismissService();
         _drag = Services.GetService(typeof(IWindowDragService)) as IWindowDragService;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
+        _layout.Changed += OnPluginStateChanged;
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
         TimeTrackingService.OnTrackingChanged += OnPluginStateChanged;
 
@@ -286,6 +314,7 @@
     public void Dispose()
     {
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
+        _layout.Changed -= OnPluginStateChanged;
         ThemeService.OnThemeChanged -= OnThemeChanged;
         TimeTrackingService.OnTrackingChanged -= OnPluginStateChanged;
         foreach (var plugin in _subscribedPlugins)

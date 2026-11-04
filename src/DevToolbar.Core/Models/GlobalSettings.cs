@@ -61,4 +61,8 @@ public class GlobalSettings
     /// </summary>
     [JsonPropertyName("timeTracking")]
     public TimeTrackingRules TimeTracking { get; set; } = new();
+
+    /// <summary>Module order and widths chosen on the toolbar (US3.6, US3.7).</summary>
+    [JsonPropertyName("toolbarLayout")]
+    public ToolbarLayoutSettings ToolbarLayout { get; set; } = new();
 }

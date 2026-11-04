@@ -138,6 +138,42 @@
                 </div>
             </section>
 
+            @* ── Toolbar modules: order and widths (US3.6, US3.7) ── *@
+            <section class="settings-section settings-modules-section" data-testid="settings-modules-section">
+                <div class="settings-section-title-row">
+                    <h3>Toolbar Modules</h3>
+                    <div class="settings-modules-resets">
+                        <button type="button" class="settings-modules-reset" data-testid="settings-reset-order"
+                                disabled="@(!_layout.HasCustomOrder)" @onclick="ResetModuleOrderAsync">Reset order</button>
+                        <button type="button" class="settings-modules-reset" data-testid="settings-reset-widths"
+                                disabled="@(!_layout.HasCustomWidths)" @onclick="ResetModuleWidthsAsync">Reset widths</button>
+                    </div>
+                </div>
+                <p class="settings-hint">Right-click a module on the toolbar to move it or reset its width. Drag the right edge of a resizable module to widen it.</p>
+                @foreach (var (zoneName, zone) in ModuleZones())
+                {
+                    <div class="settings-modules-zone">
+                        <div class="settings-subtitle">@zoneName</div>
+                        @for (var i = 0; i < zone.Count; i++)
+                        {
+                            var moduleId = zone[i];
+                            var width = _layout.SavedWidth(moduleId);
+                            <div class="settings-module-row" data-module-id="@moduleId">
+                                <span class="settings-module-name">@ToolbarZones.LabelOf(moduleId, _allPlugins)</span>
+                                @if (width != null)
+                                {
+                                    <span class="settings-module-width">@(width) px</span>
+                                }
+                                <button type="button" class="settings-module-move" title="Move up (left on the toolbar)" aria-label="Move @ToolbarZones.LabelOf(moduleId, _allPlugins) up"
+                                        disabled="@(i == 0)" @onclick="() => MoveModuleAsync(zone, moduleId, -1)">▲</button>
+                                <button type="button" class="settings-module-move" title="Move down (right on the toolbar)" aria-label="Move @ToolbarZones.LabelOf(moduleId, _allPlugins) down"
+                                        disabled="@(i == zone.Count - 1)" @onclick="() => MoveModuleAsync(zone, moduleId, 1)">▼</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
             <section class="settings-section settings-plugins-section">
                 <div class="settings-section-title-row">
                     <h3>Enabled Plugins</h3>
@@ -265,6 +301,8 @@
     [Inject]
     private ThemeService ThemeService { get; set; } = default!;
 
+    private ToolbarLayoutController _layout = default!;
+
     protected override async Task OnInitializedAsync()
     {
         _activeProject = SettingsService.GetActiveProject();
@@ -273,6 +311,7 @@
 
         // Load global settings and monitor list
         _globalSettings = GlobalSettingsService.Current;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
         _monitors = WindowService.GetMonitors();
     }
 
@@ -292,6 +331,33 @@
         catch (Exception ex)
         {
             NotificationService.ShowError($"Could not save plugin settings: {ex.Message}", "Settings");
+        }
+    }
+
+    private IEnumerable<(string Name, IReadOnlyList<string> Zone)> ModuleZones()
+    {
+        if (_activeProject == null) yield break;
+        var visible = _allPlugins.Where(p => _activeProject.EnabledPlugins.Contains(p.UniqueId)).ToList();
+        yield return ("Main zone", _layout.Arrange(ToolbarZones.MainDefaults(visible)));
+        yield return ("System zone", _layout.Arrange(ToolbarZones.SystemDefaults(visible)));
+    }
+
+    private Task MoveModuleAsync(IReadOnlyList<string> zone, string moduleId, int offset) =>
+        SaveLayoutAsync(() => _layout.MoveAsync(zone, moduleId, offset));
+
+    private Task ResetModuleOrderAsync() => SaveLayoutAsync(_layout.ResetOrderAsync);
+
+    private Task ResetModuleWidthsAsync() => SaveLayoutAsync(_layout.ResetWidthsAsync);
+
+    private async Task SaveLayoutAsync(Func<Task> change)
+    {
+        try
+        {
+            await change();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Could not save the toolbar layout: {ex.Message}", "Settings");
         }
     }
 
@@ -349,12 +415,14 @@
     {
         await GlobalSettingsService.UpdateAsync(s => s.ToolbarBehavior = behavior);
         _globalSettings = GlobalSettingsService.Current;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
     }
 
     private async Task UpdateTargetMonitor(int monitorIndex)
     {
         await GlobalSettingsService.UpdateAsync(s => s.TargetMonitorIndex = monitorIndex);
         _globalSettings = GlobalSettingsService.Current;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
     }
 
     private async Task UpdateToolbarHeight(int height)
@@ -362,18 +430,21 @@
         height = Math.Clamp(height, 32, 120);
         await GlobalSettingsService.UpdateAsync(s => s.ToolbarHeight = height);
         _globalSettings = GlobalSettingsService.Current;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
     }
 
     private async Task UpdateTaskbarReplacement(bool enabled)
     {
         await GlobalSettingsService.UpdateAsync(s => s.TaskbarReplacementMode = enabled);
         _globalSettings = GlobalSettingsService.Current;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
     }
 
     private async Task UpdateShowActiveWindows(bool enabled)
     {
         await GlobalSettingsService.UpdateAsync(s => s.ShowActiveWindows = enabled);
         _globalSettings = GlobalSettingsService.Current;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
     }
 
     private static string GetBehaviorLabel(ToolbarBehavior behavior) => behavior switch

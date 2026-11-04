@@ -827,7 +827,8 @@ public class ToolbarUiTests : PageTest
     public async Task ProjectDropdown_ClickInsideShouldKeepItOpen()
     {
         await OpenProjectDropdown();
-        await Page.Locator(".project-dropdown").ClickAsync(new() { Position = new() { X = 4, Y = 4 } });
+        // Top padding, away from the 16 px rounded corners: a corner point can fall outside the shape.
+        await Page.Locator(".project-dropdown").ClickAsync(new() { Position = new() { X = 100, Y = 2 } });
         await Expect(Page.Locator(".project-dropdown")).ToBeVisibleAsync();
     }
 }
