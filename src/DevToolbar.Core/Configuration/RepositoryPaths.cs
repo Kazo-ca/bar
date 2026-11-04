@@ -6,9 +6,12 @@ public static class RepositoryPaths
     /// <summary>Characters refused in a local folder (they would break quoting or the JSON file).</summary>
     public static readonly char[] ForbiddenChars = ['"', '\r', '\n', '\0'];
 
-    /// <summary>Case-insensitive path comparison that ignores trailing separators.</summary>
+    /// <summary>
+    /// Case-insensitive path comparison that ignores trailing separators and treats
+    /// <c>/</c> and <c>\</c> alike (<c>git</c> prints <c>C:/src/api</c> on Windows).
+    /// </summary>
     public static bool SamePath(string a, string b) =>
-        string.Equals(TrimSeparators(a), TrimSeparators(b), StringComparison.OrdinalIgnoreCase);
+        string.Equals(TrimSeparators(a).Replace('\\', '/'), TrimSeparators(b).Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Last folder name of a path (<c>C:\src\api\</c> gives <c>api</c>).</summary>
     public static string NameFromPath(string path)

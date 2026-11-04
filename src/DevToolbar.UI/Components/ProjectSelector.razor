@@ -5,7 +5,7 @@
 @implements IDisposable
 
 <div class="project-selector @(_dropdownOpen ? "open" : "")" data-popup-root="project-selector">
-    <button @ref="_trigger" class="project-selector-trigger" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="Switch project"
+    <button @ref="_trigger" class="project-selector-trigger" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="@($"{_activeProject?.Name ?? "No Project"} — switch project")"
             aria-haspopup="true" aria-expanded="@(_dropdownOpen ? "true" : "false")">
         <span class="project-icon">
             <svg class="github-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">

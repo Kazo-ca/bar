@@ -12,6 +12,12 @@ public interface IGitService
     /// <summary>Reads branch, local changes and ahead/behind counts. Never throws for a bad folder.</summary>
     Task<GitStatus> GetStatusAsync(string localPath, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Lists the working trees of the repository the folder belongs to (main one first, US5.6).
+    /// Returns an empty list when the folder is not a repository or Git cannot be run.
+    /// </summary>
+    Task<IReadOnlyList<GitWorktree>> GetWorktreesAsync(string localPath, CancellationToken cancellationToken = default);
+
     /// <summary>Runs <c>git pull</c> in the folder.</summary>
     Task<GitCommandResult> PullAsync(string localPath, CancellationToken cancellationToken = default);
 

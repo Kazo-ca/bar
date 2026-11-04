@@ -12,6 +12,10 @@ public class GitPluginTests
         public List<(string Command, string Path)> Calls { get; } = new();
         public Dictionary<string, GitStatus> Statuses { get; } = new();
         public GitCommandResult NextResult { get; set; } = new(true, 0, "Already up to date.", string.Empty);
+        public Dictionary<string, IReadOnlyList<GitWorktree>> Worktrees { get; } = new();
+
+        public Task<IReadOnlyList<GitWorktree>> GetWorktreesAsync(string localPath, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Worktrees.TryGetValue(localPath, out var list) ? list : (IReadOnlyList<GitWorktree>)Array.Empty<GitWorktree>());
 
         public Task<GitStatus> GetStatusAsync(string localPath, CancellationToken cancellationToken = default)
         {
@@ -199,5 +203,86 @@ public class GitPluginTests
         Assert.That(plugin.CurrentBranch, Is.EqualTo("develop"));
         await plugin.SelectRepositoryAsync("/src/lib");
         Assert.That(plugin.CurrentBranch, Is.EqualTo("main"));
+    }
+
+    private static FakeGitService WithApiWorktrees()
+    {
+        var git = new FakeGitService();
+        git.Worktrees["/src/api"] =
+        [
+            new GitWorktree { Path = "/src/api", Branch = "main", IsMain = true },
+            new GitWorktree { Path = "/src/api-hotfix", Branch = "hotfix/x" },
+        ];
+        git.Statuses["/src/api"] = new GitStatus { Kind = GitStatusKind.Repository, Branch = "main" };
+        git.Statuses["/src/api-hotfix"] = new GitStatus { Kind = GitStatusKind.Repository, Branch = "hotfix/x", ChangedFiles = 1 };
+        return git;
+    }
+
+    [Test]
+    public async Task Worktrees_AreLoadedWithTheProject_AndTheMainOneIsCurrent()
+    {
+        var plugin = new GitPlugin(WithApiWorktrees(), new SilentNotifications());
+
+        await plugin.OnProjectChangedAsync(new PluginContext { Project = TwoRepoProject() });
+
+        Assert.That(plugin.HasWorktrees(plugin.Repositories[0]), Is.True);
+        Assert.That(plugin.HasWorktrees(plugin.Repositories[1]), Is.False);
+        Assert.That(plugin.CurrentWorktree?.Path, Is.EqualTo("/src/api"));
+        Assert.That(plugin.ActivePath, Is.EqualTo("/src/api"));
+    }
+
+    [Test]
+    public async Task NoCurrentWorktree_WhenTheRepositoryHasOnlyItsMainTree()
+    {
+        var plugin = new GitPlugin(WithApiWorktrees(), new SilentNotifications());
+        await plugin.OnProjectChangedAsync(new PluginContext { Project = TwoRepoProject() });
+
+        await plugin.SelectRepositoryAsync("/src/lib");
+
+        Assert.That(plugin.CurrentWorktree, Is.Null);
+    }
+
+    [Test]
+    public async Task SelectWorktree_ReadsStatusAndRunsPullInTheWorktreeFolder()
+    {
+        var git = WithApiWorktrees();
+        var notifications = new RecordingNotifications();
+        var plugin = new GitPlugin(git, notifications);
+        await plugin.OnProjectChangedAsync(new PluginContext { Project = TwoRepoProject() });
+
+        await plugin.SelectWorktreeAsync("/src/api", "/src/api-hotfix");
+        git.Calls.Clear();
+        await plugin.PullAsync();
+
+        Assert.That(plugin.CurrentWorktree?.Name, Is.EqualTo("api-hotfix"));
+        Assert.That(plugin.CurrentBranch, Is.EqualTo("hotfix/x"));
+        Assert.That(plugin.IsDirty, Is.True);
+        Assert.That(git.Calls[0], Is.EqualTo(("pull", "/src/api-hotfix")));
+        Assert.That(notifications.Messages.Last().Message, Does.Contain("api (api-hotfix)"));
+    }
+
+    [Test]
+    public async Task SelectingTheMainWorktree_OrAnotherRepository_LeavesTheLinkedWorktree()
+    {
+        var plugin = new GitPlugin(WithApiWorktrees(), new SilentNotifications());
+        await plugin.OnProjectChangedAsync(new PluginContext { Project = TwoRepoProject() });
+        await plugin.SelectWorktreeAsync("/src/api", "/src/api-hotfix");
+
+        await plugin.SelectWorktreeAsync("/src/api", "/src/api/");
+        Assert.That(plugin.ActivePath, Is.EqualTo("/src/api"));
+
+        await plugin.SelectWorktreeAsync("/src/api", "/src/api-hotfix");
+        await plugin.SelectRepositoryAsync("/src/lib");
+        Assert.That(plugin.ActivePath, Is.EqualTo("/src/lib"));
+    }
+
+    [Test]
+    public void GitModule_IsResizable()
+    {
+        IPlugin plugin = new GitPlugin(new FakeGitService(), new SilentNotifications());
+
+        Assert.That(plugin.Layout.Resizable, Is.True);
+        Assert.That(plugin.Layout.MinWidth, Is.LessThan(plugin.Layout.DefaultWidth));
+        Assert.That(plugin.Layout.MaxWidth, Is.GreaterThan(plugin.Layout.DefaultWidth));
     }
 }

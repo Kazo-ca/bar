@@ -7,7 +7,9 @@ using Microsoft.AspNetCore.Components;
 /// <summary>
 /// Plugin showing the Git state of the active project's repository, read from its local
 /// folder (US5.1), with Quick Sync (Pull/Push). A project can declare several repositories;
-/// the toolbar shows a selector and everything acts on the selected repository.
+/// the toolbar shows a selector and everything acts on the selected repository. When the
+/// repository has linked worktrees, one of them can be selected instead (US5.6): status and
+/// Pull/Push then run in that worktree's folder.
 /// </summary>
 public class GitPlugin : IConfigurablePlugin
 {
@@ -21,8 +23,13 @@ public class GitPlugin : IConfigurablePlugin
     public Type SettingsComponentType => typeof(GitSettingsPanel);
     public event Action? OnStateChanged;
 
+    /// <summary>The Git module can be widened when repository or branch names are long (US3.6).</summary>
+    public PluginLayout Layout { get; } = PluginLayout.ResizableWidth(defaultWidth: 300, minWidth: 170, maxWidth: 560);
+
     private ProjectConfig _project = new();
     private string? _selectedRepositoryPath;
+    private string? _selectedWorktreePath;
+    private Dictionary<string, IReadOnlyList<GitWorktree>> _worktrees = new(StringComparer.OrdinalIgnoreCase);
     private GitStatus? _status;
     private string _syncStatus = string.Empty;
     private int _refreshing;
@@ -46,15 +53,26 @@ public class GitPlugin : IConfigurablePlugin
     {
         _project = context.Project;
         _selectedRepositoryPath = Repositories.FirstOrDefault()?.Path;
+        _selectedWorktreePath = null;
+        _worktrees = new(StringComparer.OrdinalIgnoreCase);
         _status = null;
         _syncStatus = string.Empty;
-        await RefreshStatusAsync();
+        await Task.WhenAll(RefreshStatusAsync(), LoadWorktreesAsync());
     }
 
     /// <summary>Selects the repository used by the toolbar buttons and reads its state.</summary>
-    public async Task SelectRepositoryAsync(string path)
+    public Task SelectRepositoryAsync(string path) => SelectWorktreeAsync(path, null);
+
+    /// <summary>
+    /// Selects a repository and one of its worktrees (null or the main one: the repository folder)
+    /// and reads its state (US5.6).
+    /// </summary>
+    public async Task SelectWorktreeAsync(string repositoryPath, string? worktreePath)
     {
-        _selectedRepositoryPath = path;
+        _selectedRepositoryPath = repositoryPath;
+        _selectedWorktreePath = worktreePath != null && !GitRepositoryCatalog.SamePath(worktreePath, repositoryPath)
+            ? worktreePath
+            : null;
         _status = null;
         _syncStatus = string.Empty;
         OnStateChanged?.Invoke();
@@ -67,8 +85,8 @@ public class GitPlugin : IConfigurablePlugin
     /// </summary>
     public async Task RefreshStatusAsync()
     {
-        var repository = SelectedRepository;
-        if (repository == null)
+        var path = ActivePath;
+        if (path == null)
         {
             _status = null;
             OnStateChanged?.Invoke();
@@ -78,9 +96,9 @@ public class GitPlugin : IConfigurablePlugin
             return;
         try
         {
-            var status = await _gitService.GetStatusAsync(repository.Path);
-            // Ignore a late answer for a repository that is no longer selected.
-            if (SelectedRepository is { } current && GitRepositoryCatalog.SamePath(current.Path, repository.Path))
+            var status = await _gitService.GetStatusAsync(path);
+            // Ignore a late answer for a folder that is no longer selected.
+            if (ActivePath is { } current && GitRepositoryCatalog.SamePath(current, path))
             {
                 _status = status;
                 OnStateChanged?.Invoke();
@@ -92,6 +110,54 @@ public class GitPlugin : IConfigurablePlugin
         }
     }
 
+    /// <summary>
+    /// Reads the worktree list of every repository of the project (shown in the selector menu).
+    /// A repository whose list cannot be read simply shows no worktree.
+    /// </summary>
+    public async Task LoadWorktreesAsync()
+    {
+        var repositories = Repositories;
+        var lists = await Task.WhenAll(repositories.Select(async r =>
+        {
+            try
+            {
+                return (r.Path, List: await _gitService.GetWorktreesAsync(r.Path));
+            }
+            catch (Exception)
+            {
+                return (r.Path, List: (IReadOnlyList<GitWorktree>)Array.Empty<GitWorktree>());
+            }
+        }));
+        var map = new Dictionary<string, IReadOnlyList<GitWorktree>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (path, list) in lists)
+            map[path] = list;
+        _worktrees = map;
+        OnStateChanged?.Invoke();
+    }
+
+    /// <summary>Worktrees of a repository (main one first); empty when it has none or they are not read yet.</summary>
+    public IReadOnlyList<GitWorktree> WorktreesOf(GitRepository repository) =>
+        _worktrees.TryGetValue(repository.Path, out var list) ? list : Array.Empty<GitWorktree>();
+
+    /// <summary>True when the repository has at least one linked worktree besides its main one.</summary>
+    public bool HasWorktrees(GitRepository repository) => WorktreesOf(repository).Count > 1;
+
+    /// <summary>Folder where status, Pull and Push run: the selected worktree, else the selected repository.</summary>
+    public string? ActivePath => _selectedWorktreePath ?? SelectedRepository?.Path;
+
+    /// <summary>
+    /// The worktree the toolbar works in, when the selected repository has worktrees; null otherwise.
+    /// </summary>
+    public GitWorktree? CurrentWorktree =>
+        SelectedRepository is { } repository && HasWorktrees(repository) && ActivePath is { } path
+            ? WorktreesOf(repository).FirstOrDefault(w => GitRepositoryCatalog.SamePath(w.Path, path))
+            : null;
+
+    /// <summary>Whether this worktree is the one the toolbar works in.</summary>
+    public bool IsActive(GitRepository repository, GitWorktree worktree) =>
+        SelectedRepository is { } selected && GitRepositoryCatalog.SamePath(selected.Path, repository.Path)
+        && ActivePath is { } path && GitRepositoryCatalog.SamePath(worktree.Path, path);
+
     /// <summary>Last state read from the selected repository's folder; null before the first read.</summary>
     public GitStatus? Status => _status;
 
@@ -101,6 +167,8 @@ public class GitPlugin : IConfigurablePlugin
     /// </summary>
     public string CurrentBranch => _status is { IsRepository: true, Branch: { } branch }
         ? branch
+        : CurrentWorktree is { IsMain: false } worktree
+            ? worktree.Branch ?? worktree.Head ?? string.Empty
         : SelectedRepository is { } repository
             ? GitRepositoryCatalog.EffectiveBranch(repository, _project)
             : _project.DefaultBranch;
@@ -134,7 +202,8 @@ public class GitPlugin : IConfigurablePlugin
     private async Task RunSyncAsync(Func<string, CancellationToken, Task<GitCommandResult>> command, string verb)
     {
         var repository = SelectedRepository;
-        if (repository == null)
+        var path = ActivePath;
+        if (repository == null || path == null)
         {
             _notificationService.ShowWarning("No Git repository configured for this project.", "Git Sync");
             return;
@@ -142,18 +211,19 @@ public class GitPlugin : IConfigurablePlugin
         if (_isSyncing)
             return;
 
+        var target = CurrentWorktree is { IsMain: false } worktree ? $"{repository.Name} ({worktree.Name})" : repository.Name;
         _isSyncing = true;
-        _syncStatus = $"{verb}ing {repository.Name}...";
+        _syncStatus = $"{verb}ing {target}...";
         OnStateChanged?.Invoke();
         try
         {
-            var result = await command(repository.Path, CancellationToken.None);
-            ReportSyncResult(result, verb, repository.Name);
+            var result = await command(path, CancellationToken.None);
+            ReportSyncResult(result, verb, target);
         }
         catch (Exception ex)
         {
             _syncStatus = $"✗ {verb} failed: {ex.Message}";
-            _notificationService.ShowError($"{verb} failed for {repository.Name}: {ex.Message}", "Git Sync");
+            _notificationService.ShowError($"{verb} failed for {target}: {ex.Message}", "Git Sync");
         }
         finally
         {

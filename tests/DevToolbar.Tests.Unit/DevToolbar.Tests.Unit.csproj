@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DevToolbar.Plugins\DevToolbar.Plugins.csproj" />
     <ProjectReference Include="..\..\src\DevToolbar.Infrastructure\DevToolbar.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\DevToolbar.UI\DevToolbar.UI.csproj" />
   </ItemGroup>
 
 </Project>
