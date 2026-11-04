@@ -1,48 +1,96 @@
 @namespace DevToolbar.Plugins.Git
+@using DevToolbar.Core.Interfaces
+@using DevToolbar.UI.Services
 @implements IDisposable
+@inject IWindowRegionService RegionService
 
+@*
+    Git module (US5.1, US5.6). One selector: the module itself. It shows the repository name
+    first, then smaller the branch and, when the repository has worktrees, the current one.
+    Clicking it opens a menu listing the project's repositories, each with its worktrees as
+    small links underneath. Long names are cut with "…" and shown whole in the tooltip; the
+    user can widen the module (US3.6) and narrow modules hide the Pull/Push labels.
+*@
 @{
     var repositories = Plugin.Repositories;
     var selected = Plugin.SelectedRepository;
     var status = Plugin.Status;
+    var worktree = Plugin.CurrentWorktree;
 }
-<div class="plugin-git">
-    @if (repositories.Count > 1)
-    {
-        <select class="git-repo-select" title="Active Git repository" aria-label="Active Git repository"
-                @onchange="OnRepositoryChanged">
-            @foreach (var repository in repositories)
+<div class="plugin-git" data-popup-root="git-selector">
+    <button @ref="_trigger" class="git-selector-trigger" data-testid="git-selector"
+            title="@TriggerTitle(selected, worktree)" aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")"
+            disabled="@(selected == null)" @onclick="ToggleMenuAsync">
+        <span class="git-repo-line">
+            <span class="git-repo-name" data-testid="git-repo-name">@(selected?.Name ?? "No repository")</span>
+            @if (status is { IsRepository: false })
             {
-                <option @key="repository.Path" value="@repository.Path" selected="@(repository == selected)">📁 @repository.Name</option>
+                <span class="git-status unavailable" title="@status.Error">⚠ @UnavailableLabel(status.Kind)</span>
             }
-        </select>
-    }
-
-    <div class="git-info">
-        <span class="git-branch" title="@Plugin.CurrentBranch">⎇ <span class="git-branch-name">@Plugin.CurrentBranch</span></span>
-        @if (status is { IsRepository: false })
-        {
-            <span class="git-status unavailable" title="@status.Error">⚠ @UnavailableLabel(status.Kind)</span>
-        }
-        else
-        {
-            <span class="@(Plugin.IsDirty ? "git-status dirty" : "git-status clean")"
-                  title="@(Plugin.IsDirty ? $"{status?.ChangedFiles} changed file(s)" : "No local changes")">@(Plugin.IsDirty ? $"● {status?.ChangedFiles} modified" : "✓ Clean")</span>
-            @if (status is { Ahead: > 0 } || status is { Behind: > 0 })
+            else
             {
-                <span class="git-tracking" title="Commits to push / to pull (as of the last fetch)">↑@status!.Ahead ↓@status.Behind</span>
+                <span class="@(Plugin.IsDirty ? "git-status dirty" : "git-status clean")"
+                      title="@(Plugin.IsDirty ? $"{status?.ChangedFiles} changed file(s)" : "No local changes")">@(Plugin.IsDirty ? $"● {status?.ChangedFiles}" : "✓")<span class="git-status-label">@(Plugin.IsDirty ? " modified" : " Clean")</span></span>
             }
-        }
-    </div>
+        </span>
+        <span class="git-detail-line">
+            <span class="git-branch" title="@Plugin.CurrentBranch">⎇ <span class="git-branch-name">@Plugin.CurrentBranch</span></span>
+            @if (worktree != null)
+            {
+                <span class="git-worktree" data-testid="git-worktree" title="@($"Worktree: {worktree.Path}")">🌿 <span class="git-worktree-name">@worktree.Name</span></span>
+            }
+            @if (status is { IsRepository: true } && (status is { Ahead: > 0 } || status is { Behind: > 0 }))
+            {
+                <span class="git-tracking" title="Commits to push / to pull (as of the last fetch)">↑@status.Ahead ↓@status.Behind</span>
+            }
+        </span>
+    </button>
 
     <div class="git-sync">
-        <button class="git-btn git-btn-pull" title="Pull latest changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PullAsync">⬇ Pull</button>
-        <button class="git-btn git-btn-push" title="Push local changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PushAsync">⬆ Push</button>
+        <button class="git-btn git-btn-pull" title="Pull latest changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PullAsync">⬇<span class="git-btn-label"> Pull</span></button>
+        <button class="git-btn git-btn-push" title="Push local changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PushAsync">⬆<span class="git-btn-label"> Push</span></button>
     </div>
 
     @if (!string.IsNullOrEmpty(Plugin.SyncStatus))
     {
-        <div class="git-sync-status">@Plugin.SyncStatus</div>
+        <div class="git-sync-status" title="@Plugin.SyncStatus">@Plugin.SyncStatus</div>
+    }
+
+    @if (_menuOpen)
+    {
+        <div class="git-selector-menu" role="menu" data-testid="git-selector-menu" aria-label="Repositories and worktrees">
+            <div class="git-selector-menu-title">Repositories</div>
+            @foreach (var repository in repositories)
+            {
+                var isSelected = selected != null && GitRepositoryCatalog.SamePath(repository.Path, selected.Path);
+                var worktrees = Plugin.WorktreesOf(repository);
+                <div class="git-selector-group" @key="repository.Path">
+                    <button class="git-selector-item @(isSelected ? "active" : "")" role="menuitemradio"
+                            aria-checked="@(isSelected ? "true" : "false")" title="@repository.Path"
+                            @onclick="() => SelectAsync(repository, null)">
+                        <span class="git-selector-check">@(isSelected ? "✓" : "")</span>
+                        <span class="git-selector-text">
+                            <span class="git-selector-name">@repository.Name</span>
+                            <span class="git-selector-path">@repository.Path</span>
+                        </span>
+                    </button>
+                    @if (worktrees.Count > 1)
+                    {
+                        <div class="git-worktree-links" role="group" aria-label="@($"Worktrees of {repository.Name}")">
+                            @foreach (var item in worktrees)
+                            {
+                                var isActive = Plugin.IsActive(repository, item);
+                                <button class="git-worktree-link @(isActive ? "active" : "")" role="menuitemradio" @key="item.Path"
+                                        aria-checked="@(isActive ? "true" : "false")" title="@item.Path"
+                                        @onclick="() => SelectAsync(repository, item)">
+                                    🌿 @item.Name<span class="git-worktree-link-branch"> · @(item.Branch ?? $"detached {item.Head}")</span>@(item.IsMain ? " (main)" : "")
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     }
 </div>
 
@@ -51,14 +99,28 @@
     [Parameter, EditorRequired]
     public GitPlugin Plugin { get; set; } = default!;
 
+    [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
+
     /// <summary>How often the branch and local changes are read again from the folder.</summary>
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(10);
 
+    /// <summary>Room (CSS px) the window region needs below the toolbar while the menu is open.</summary>
+    private const int MenuRegionHeight = 320;
+
     private GitPlugin? _subscribed;
+    private PopupDismissService? _dismissSubscribed;
     private Timer? _refreshTimer;
+    private ElementReference _trigger;
+    private bool _menuOpen;
 
     protected override void OnParametersSet()
     {
+        if (!ReferenceEquals(_dismissSubscribed, Dismiss))
+        {
+            if (_dismissSubscribed != null) _dismissSubscribed.DismissRequested -= OnDismissRequested;
+            if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
+            _dismissSubscribed = Dismiss;
+        }
         if (ReferenceEquals(_subscribed, Plugin)) return;
         Unsubscribe();
         Plugin.OnStateChanged += OnPluginStateChanged;
@@ -78,8 +140,52 @@
         }
     }
 
-    private Task OnRepositoryChanged(ChangeEventArgs e) =>
-        Plugin.SelectRepositoryAsync(e.Value?.ToString() ?? string.Empty);
+    private async Task ToggleMenuAsync()
+    {
+        if (_menuOpen)
+        {
+            CloseMenu();
+            return;
+        }
+        _menuOpen = true;
+        RegionService.ExpandRegion(MenuRegionHeight);
+        // Worktrees may have been added or removed since the last read.
+        await Plugin.LoadWorktreesAsync();
+    }
+
+    private async Task SelectAsync(GitRepository repository, GitWorktree? worktree)
+    {
+        CloseMenu();
+        await Plugin.SelectWorktreeAsync(repository.Path, worktree?.Path);
+    }
+
+    private void CloseMenu()
+    {
+        if (!_menuOpen) return;
+        _menuOpen = false;
+        RegionService.CollapseRegion();
+    }
+
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (!_menuOpen || !request.AppliesTo("git-selector")) return;
+        _ = InvokeAsync(async () =>
+        {
+            CloseMenu();
+            StateHasChanged();
+            if (request.Reason == PopupDismissReason.Escape)
+            {
+                try { await _trigger.FocusAsync(); } catch (Exception) { /* element gone */ }
+            }
+        });
+    }
+
+    private static string TriggerTitle(GitRepository? repository, GitWorktree? worktree)
+    {
+        if (repository == null) return "No Git repository configured for this project";
+        var where = worktree != null ? $" — worktree {worktree.Name} ({worktree.Path})" : $" ({repository.Path})";
+        return $"{repository.Name}{where} — choose repository or worktree";
+    }
 
     private static string UnavailableLabel(GitStatusKind kind) => kind switch
     {
@@ -102,5 +208,7 @@
     {
         _refreshTimer?.Dispose();
         Unsubscribe();
+        if (_dismissSubscribed != null) _dismissSubscribed.DismissRequested -= OnDismissRequested;
+        if (_menuOpen) RegionService.CollapseRegion();
     }
 }

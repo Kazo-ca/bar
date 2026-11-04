@@ -51,7 +51,10 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 
 ## Questions ouvertes
 
-Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
+Les nouvelles questions s'ajoutent ici avec un numéro.
+
+1. **Débordement des modules (US3.8)** : quand même les actions et les modules réduits ne tiennent plus, faut-il un bouton « » » en fin de zone système qui liste les modules masqués (proposition ci-dessous), ou une autre approche ?
+2. **Ordre des modules (US3.7)** : le clic droit (« Déplacer à gauche / à droite ») et la page Paramètres sont en place. Faut-il aussi le glisser-déposer directement dans la toolbar ? Un module peut-il passer d'une zone à l'autre (par exemple Git dans la zone système) ?
 
 ## Vue d'ensemble
 
@@ -69,11 +72,15 @@ Aucune pour l'instant. Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.3 | Thèmes proposés à l'utilisateur | 🟡 |
 | US3.4 | Vue compacte et débordement | ✅ 🔍 |
 | US3.5 | Fonctions de debug masquées en Release | ⬜ |
+| US3.6 | Modules redimensionnables | ✅ 🔍 |
+| US3.7 | Ordre des modules | ✅ 🔍 |
+| US3.8 | Débordement des modules et de leurs éléments | 🟡 |
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | 🟡 |
 | US4.3 | Bouton script et sortie terminal | 🟡 |
 | US5.1 | Plugin Git | ✅ 🔍 |
 | US5.2 | Plugin Work Items | 🟡 🔍 |
+| US5.6 | Sélecteur de dépôt et worktrees Git | ✅ 🔍 |
 | US5.3 | Suivi du temps et inactivité | ✅ 🔍 |
 | US5.4 | Rapports de temps | ✅ 🔍 |
 | US5.5 | Journée de travail (arrivée, dîner, réunion) | ✅ 🔍 |
@@ -114,6 +121,7 @@ graph TD
     Windows --> Infra
     Unit --> Infra
     Plugins --> Core
+    Plugins --> UI
     Windows --> UI
     Windows --> Plugins
     Web --> UI
@@ -189,6 +197,7 @@ public interface IProcessService
 - [x] `PluginLoader` (`src/DevToolbar.Plugins/Services/PluginLoader.cs`) liste les plugins enregistrés dans l'injection de dépendances.
 - [x] Chaque plugin a un `UniqueId`, un `Name` et une icône.
 - [x] Un plugin peut afficher un indicateur dans la pilule (`IPluginIndicator`) et une fenêtre de configuration (`IConfigurablePlugin`).
+- [x] Un plugin déclare comment son module prend de la place avec `IPlugin.Layout` (`PluginLayout`) : fixe par défaut, ou `PluginLayout.ResizableWidth(défaut, min, max)` pour que l'utilisateur puisse changer sa largeur (US3.6).
 - [ ] Un guide « Écrire un plugin » explique le contrat et comment l'enregistrer.
 - Hors périmètre pour l'instant : chargement de DLL externes depuis un dossier.
 
@@ -342,6 +351,50 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [ ] Le bouton 🧪 « Test Dropdown » n'est rendu que dans une build `Debug` (`#if DEBUG`) ou en environnement de développement.
 - [ ] Toute future fonction de debug suit la même règle.
 
+## US3.6 Modules redimensionnables
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant qu'** utilisateur dont les noms de dépôt ou de branche sont longs
+**Je veux** élargir un module de la toolbar, et revenir à sa largeur d'origine
+**Afin de** lire ce qui m'intéresse sans changer la taille des autres modules.
+
+**Critères d'acceptation :**
+- [x] Le comportement est le même pour tous les plugins : un plugin qui déclare `Resizable = true` (`IPlugin.Layout`, `PluginLayout.ResizableWidth`) a une poignée sur son bord droit. Le module Git est le premier à le déclarer (300 px par défaut, de 170 à 560 px).
+- [x] On tire la poignée pour changer la largeur (bornée entre le minimum et le maximum du plugin) ; les flèches ⟵ ⟶ font la même chose au clavier quand la poignée a le focus.
+- [x] La largeur est enregistrée par module dans la configuration utilisateur (`settings.toolbarLayout.moduleWidths`) et retrouvée au démarrage.
+- [x] Un clic droit sur le module ouvre un petit menu avec « ↔ Reset width », qui remet la largeur par défaut du plugin. Paramètres → *Toolbar Modules* → « Reset widths » remet tous les modules.
+- [x] Le menu se ferme par un clic extérieur ou `Échap`, et s'ouvre vers le haut si la toolbar est ancrée en bas.
+- Composants : `ModuleFrame.razor`, `module-resize.js`, `ToolbarLayoutController`.
+
+## US3.7 Ordre des modules
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant qu'** utilisateur
+**Je veux** choisir l'ordre des modules de la toolbar
+**Afin de** mettre à portée de main ceux que j'utilise le plus.
+
+**Critères d'acceptation :**
+- [x] La toolbar a des zones : le sélecteur de projet (toujours à gauche), la **zone principale** (module Git, actions rapides) et la **zone système** (indicateurs des plugins, minuteur). Les boutons Rapport, Paramètres et 🧪 restent toujours à droite.
+- [x] Le clic droit sur un module propose « ◀ Move left » et « Move right ▶ », à l'intérieur de sa zone.
+- [x] Paramètres → *Toolbar Modules* liste les modules de chaque zone dans l'ordre choisi, avec ▲ / ▼, et « Reset order » remet l'ordre par défaut.
+- [x] L'ordre est enregistré dans `settings.toolbarLayout.moduleOrder` (un seul ordre pour tous les projets). Un module absent de la liste (nouveau plugin activé) se place à la fin de sa zone ; un id inconnu est ignoré (`ToolbarModuleOrder`).
+- [x] Quand le module Git suit directement le projet, il passe sous la pilule du projet comme sur la maquette ; ailleurs, c'est une pilule à part entière.
+- [ ] *(Question ouverte n° 2)* Glisser-déposer dans la toolbar ; changement de zone.
+
+## US3.8 Débordement des modules et de leurs éléments
+**État :** 🟡 Partiel (règles 1 à 4 faites, règle 5 à valider)
+
+**En tant qu'** utilisateur avec peu de place (fenêtre WPF de 960 px, petit écran)
+**Je veux** que la toolbar reste lisible quand tout ne tient pas
+**Afin de** ne jamais perdre l'accès à un module.
+
+**Règles, dans l'ordre où elles s'appliquent :**
+- [x] 1. Les textes longs sont tronqués avec « … » et affichés en entier dans l'info-bulle (projet, dépôt, branche, worktree, message de synchro).
+- [x] 2. Les actions rapides en trop passent dans le menu « … » (US3.4).
+- [x] 3. Les modules redimensionnables rétrécissent jusqu'à leur largeur minimale.
+- [x] 4. **Éléments dans un module** : un module redimensionnable est un conteneur CSS (`container-name: module`). Il cache d'abord ses libellés, puis ses compteurs et messages, selon sa largeur (`@container module (max-width: …)`). Module Git : sous 240 px, Pull/Push n'affichent que leur icône et l'état « Clean / modified » seulement son symbole ; sous 190 px, l'avance/retard et le message de synchro disparaissent (toujours visibles dans les info-bulles). Un plugin tiers suit la même règle dans sa propre feuille de style.
+- [ ] 5. *(Proposition, question ouverte n° 1)* Si ça ne tient toujours pas, les derniers modules de la zone système passent dans un bouton « » » placé avant les boutons Rapport et Paramètres. Le menu liste chaque module masqué (icône, texte de l'indicateur, badge) ; un clic ouvre son panneau comme depuis la toolbar. L'ordre de US3.7 décide qui part en premier (le plus à droite).
+
 ---
 
 # F4. Actions rapides
@@ -401,6 +454,21 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Chaque dépôt est relié à un dossier local, choisi à la configuration (bouton « Browse… » / 📂, boîte de dialogue Windows).
 - [x] La branche, le nombre de fichiers modifiés et l'avance/retard sur la branche suivie sont **lus dans le dossier local** avec LibGit2Sharp (`GitService`), relus toutes les 10 secondes. Dossier absent ou non Git : la toolbar l'indique.
 - [x] Pull et Push (CLI `git`, sans invite de mot de passe, délai de 2 minutes) affichent leur résultat réel (succès, conflit, erreur de Git).
+
+## US5.6 Sélecteur de dépôt et worktrees Git
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant que** développeur qui travaille dans plusieurs dépôts ou worktrees
+**Je veux** un seul sélecteur dans le module Git, qui me montre d'abord le dépôt, puis la branche et le worktree courant
+**Afin de** savoir tout de suite où je travaille et changer de dossier en un clic.
+
+**Critères d'acceptation :**
+- [x] Le module Git n'a plus de liste déroulante « 📁 » séparée : le module lui-même est le sélecteur. Un clic ouvre un menu avec les dépôts du projet (nom et dossier), le dépôt actif coché.
+- [x] Dans le même menu, sous chaque dépôt qui a des worktrees, chaque worktree est un petit lien (nom du dossier · branche, « (main) » pour le dossier principal). Un clic sur le lien fait travailler le module dans ce worktree : état, Pull et Push s'exécutent dans son dossier.
+- [x] Affichage du module, dans l'ordre : le **nom du dépôt** en premier (gras), puis plus petit la **branche** (⎇) et, si le dépôt a des worktrees, le **worktree courant** (🌿). L'état (✓ Clean / ● n modified, ⚠ si le dossier est absent) suit le nom du dépôt ; ↑/↓ suit la branche.
+- [x] La liste des worktrees vient de `git worktree list --porcelain` (`GitService.GetWorktreesAsync`, `GitWorktreeParser`), relue à l'ouverture du menu. Un dépôt nu (bare) n'apparaît pas comme worktree. Sans Git ou hors dépôt : aucun worktree, le reste fonctionne.
+- [x] Le module se redimensionne (US3.6) quand les noms sont trop longs ; clic droit pour revenir à la largeur par défaut.
+- [x] L'hôte Web simule deux worktrees pour le premier dépôt de chaque projet (tests et captures).
 
 ## US5.2 Plugin Work Items
 **État :** 🟡 Partiel, 🔍 à recetter sur PC (réel dans l'hôte WPF, simulé dans l'hôte Web)

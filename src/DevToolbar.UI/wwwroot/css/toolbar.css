@@ -102,14 +102,15 @@ body {
     box-shadow: 0 4px 16px rgba(0, 120, 212, 0.4);
 }
 
-/* Zone 2: Git Module (z-index: 10, overlaps under project) */
+/* Zone 2: Git Module (z-index: 10). A pill of its own; overlaps under the project
+   selector when it directly follows it (default order, US3.7). */
 .module-git {
     display: flex;
     align-items: center;
     height: 44px;
-    margin-left: -18px;
-    padding: 0 16px 0 28px;
-    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+    margin: 0 4px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
     background: linear-gradient(135deg,
         color-mix(in srgb, var(--project-color) 25%, rgba(40, 50, 70, 0.85)),
         color-mix(in srgb, var(--project-color) 15%, rgba(30, 40, 55, 0.9)));
@@ -118,6 +119,12 @@ body {
     flex-shrink: 0;
     color: rgba(255, 255, 255, 0.9);
     transition: background 0.3s ease;
+}
+
+.module-project + .module-git {
+    margin-left: -18px;
+    padding-left: 28px;
+    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
 }
 
 .module-git:hover {
@@ -2146,23 +2153,6 @@ body {
 /* ==========================================================================
    Git plugin — repository selector (toolbar) and repository settings
    ========================================================================== */
-.git-repo-select {
-    max-width: 140px;
-    padding: 2px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-pill);
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 0.78em;
-    font-family: var(--font-family);
-    cursor: pointer;
-}
-
-.git-repo-select option {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-}
-
 .git-settings {
     display: flex;
     flex-direction: column;
@@ -3002,3 +2992,324 @@ body.dock-bottom .action-overflow-menu { top: auto; bottom: 100%; margin-top: 0;
     white-space: nowrap;
 }
 .action-slot { display: flex; flex-shrink: 0; }
+
+
+/* ==========================================================================
+   Toolbar modules: resizable width and right-click menu (US3.6, US3.7)
+   ========================================================================== */
+.module-frame { position: relative; }
+
+.module-frame.resizable {
+    flex: 0 1 auto; /* shrinks down to its min width when the toolbar runs out of room */
+    box-sizing: border-box;
+    container-type: inline-size;
+    container-name: module;
+}
+
+.module-frame.resizable > .plugin-panel,
+.module-frame.resizable .plugin-content { min-width: 0; flex: 1; }
+
+.module-indicator,
+.module-timer { display: flex; align-items: center; }
+
+.module-resize-grip {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    right: 0;
+    width: 8px;
+    cursor: ew-resize;
+    touch-action: none;
+    border-radius: 4px;
+    z-index: 2;
+}
+
+.module-resize-grip::after {
+    content: "";
+    position: absolute;
+    top: 30%;
+    bottom: 30%;
+    left: 3px;
+    width: 2px;
+    border-radius: 1px;
+    background: rgba(255, 255, 255, 0.25);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.module-frame:hover > .module-resize-grip::after,
+.module-frame.resizing > .module-resize-grip::after,
+.module-resize-grip:focus-visible::after { opacity: 1; }
+
+.module-resize-grip:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); }
+
+.module-frame.resizing { user-select: none; }
+
+.module-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 170px;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    background: rgba(40, 45, 55, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 300;
+    animation: dropdown-appear 0.15s ease;
+}
+
+.module-system .module-menu { left: auto; right: 0; }
+
+body.dock-bottom .module-menu { top: auto; bottom: calc(100% + 8px); }
+
+.module-menu-title {
+    padding: 4px 10px 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.module-menu-item {
+    padding: 6px 10px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.9);
+    font: inherit;
+    font-size: 0.84em;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.module-menu-item:hover:not(:disabled),
+.module-menu-item:focus-visible { background: rgba(255, 255, 255, 0.1); }
+
+.module-menu-item:disabled { opacity: 0.4; cursor: default; }
+
+/* ==========================================================================
+   Git module: repository selector, branch and worktree (US5.6)
+   ========================================================================== */
+.plugin-git { min-width: 0; width: 100%; position: relative; }
+
+.git-selector-trigger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+    padding: 2px 6px;
+    margin-left: -6px;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.git-selector-trigger:hover:not(:disabled),
+.git-selector-trigger:focus-visible,
+.git-selector-trigger[aria-expanded="true"] { background: rgba(255, 255, 255, 0.08); }
+
+.git-selector-trigger:disabled { cursor: default; }
+
+.git-repo-line,
+.git-detail-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.git-repo-name {
+    font-weight: 700;
+    font-size: 0.92em;
+    color: #fff;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.git-repo-line .git-status { font-size: 0.75em; flex-shrink: 0; white-space: nowrap; }
+
+.git-detail-line { font-size: 0.74em; color: rgba(255, 255, 255, 0.7); }
+
+.git-detail-line .git-branch {
+    font-size: 1em;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.78);
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.module-frame.resizable .git-branch-name { max-width: none; min-width: 0; }
+
+.git-worktree {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    flex-shrink: 2;
+    color: #9fd8a8;
+}
+
+.git-worktree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.git-detail-line .git-tracking { font-size: 1em; flex-shrink: 0; }
+
+.git-sync { flex-shrink: 0; }
+
+.git-sync-status {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+
+.git-selector-menu {
+    position: absolute;
+    top: calc(100% + 14px);
+    left: -12px;
+    min-width: 240px;
+    max-width: 380px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 6px;
+    background: rgba(40, 45, 55, 0.95);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    z-index: 200;
+    animation: dropdown-appear 0.2s ease;
+}
+
+body.dock-bottom .git-selector-menu { top: auto; bottom: calc(100% + 14px); }
+
+.git-selector-menu-title {
+    padding: 4px 10px 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.git-selector-group + .git-selector-group { border-top: 1px solid rgba(255, 255, 255, 0.06); margin-top: 2px; padding-top: 2px; }
+
+.git-selector-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    background: none;
+    border: none;
+    border-radius: 9px;
+    color: rgba(255, 255, 255, 0.9);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.git-selector-item:hover,
+.git-selector-item:focus-visible { background: rgba(255, 255, 255, 0.1); }
+
+.git-selector-check { width: 12px; color: var(--project-color); font-weight: 700; flex-shrink: 0; }
+
+.git-selector-text { display: flex; flex-direction: column; min-width: 0; }
+
+.git-selector-name { font-weight: 600; font-size: 0.88em; }
+
+.git-selector-path,
+.git-selector-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.git-selector-path { font-size: 0.72em; color: rgba(255, 255, 255, 0.45); }
+
+.git-worktree-links { display: flex; flex-direction: column; padding: 0 0 4px 30px; }
+
+.git-worktree-link {
+    padding: 2px 6px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: #9fd8a8;
+    font: inherit;
+    font-size: 0.76em;
+    text-align: left;
+    text-decoration: underline;
+    text-decoration-color: rgba(159, 216, 168, 0.35);
+    text-underline-offset: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.git-worktree-link:hover,
+.git-worktree-link:focus-visible { background: rgba(255, 255, 255, 0.08); text-decoration-color: currentColor; }
+
+.git-worktree-link.active { font-weight: 700; text-decoration: none; }
+
+.git-worktree-link-branch { color: rgba(255, 255, 255, 0.5); }
+
+/* Items inside a narrow module (US3.6): labels go first, then counters and messages. */
+@container module (max-width: 240px) {
+    .git-btn-label,
+    .git-status-label { display: none; }
+}
+
+@container module (max-width: 190px) {
+    .git-tracking,
+    .git-sync-status { display: none; }
+}
+
+/* Settings: toolbar modules order and widths (US3.6, US3.7) */
+.settings-modules-resets { display: flex; gap: 6px; }
+
+.settings-modules-reset,
+.settings-module-move {
+    padding: 3px 10px;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.settings-modules-reset:disabled,
+.settings-module-move:disabled { opacity: 0.4; cursor: default; }
+
+.settings-module-move { padding: 2px 8px; }
+
+.settings-hint { margin: 4px 0 8px; font-size: 0.85em; color: var(--text-secondary); }
+
+.settings-module-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.settings-module-name { flex: 1; }
+
+.settings-module-width { font-size: 0.8em; color: var(--text-secondary); font-variant-numeric: tabular-nums; }

@@ -232,4 +232,33 @@ public class ScreenshotTests : PageTest
         await Page.ScreenshotAsync(new() { Path = ScreenshotPath("13-settings-theme-editor"), FullPage = true });
         Assert.That(File.Exists(ScreenshotPath("13-settings-theme-editor")), Is.True);
     }
+
+    [Test, Order(14)]
+    public async Task Capture_14_GitRepositoryAndWorktreeMenu()
+    {
+        await NavigateAndWait();
+        await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToHaveCountAsync(1, new() { Timeout = 30000 });
+        if ((await Page.Locator(".project-name").TextContentAsync())?.Trim() != "MyWebAPI")
+            await SwitchProject("MyWebAPI");
+        await Page.GetByTestId("git-selector").ClickAsync();
+        await Expect(Page.GetByTestId("git-selector-menu").Locator(".git-worktree-link")).ToHaveCountAsync(3, new() { Timeout = 5000 });
+        await Page.WaitForTimeoutAsync(400); // end of the opening animation
+        await Page.ScreenshotAsync(new() { Path = ScreenshotPath("14-git-repository-worktree-menu"), FullPage = true });
+        await Page.Keyboard.PressAsync("Escape");
+        Assert.That(File.Exists(ScreenshotPath("14-git-repository-worktree-menu")), Is.True);
+    }
+
+    [Test, Order(15)]
+    public async Task Capture_15_ModuleRightClickMenu()
+    {
+        await NavigateAndWait();
+        await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToHaveCountAsync(1, new() { Timeout = 30000 });
+        var git = Page.Locator(".module-frame[data-module-id='git-tools']");
+        await git.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 20, Y = 10 } });
+        await Expect(git.GetByTestId("module-menu")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await Page.WaitForTimeoutAsync(400); // end of the opening animation
+        await Page.ScreenshotAsync(new() { Path = ScreenshotPath("15-module-menu"), FullPage = true });
+        await Page.Keyboard.PressAsync("Escape");
+        Assert.That(File.Exists(ScreenshotPath("15-module-menu")), Is.True);
+    }
 }
