@@ -1,31 +1,53 @@
 @using Kazo.Bar.Core.Interfaces
 @using Kazo.Bar.Core.Models
 @inject ISettingsService SettingsService
+@inject IWindowRegionService RegionService
 @using Kazo.Bar.UI.Services
 @implements IDisposable
 
-<div class="project-selector @(_dropdownOpen ? "open" : "")" data-popup-root="project-selector">
-    <button @ref="_trigger" class="project-selector-trigger" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="@($"{_activeProject?.Name ?? "No Project"} — switch project")"
+@*
+    Project pill, the first (blue) button of the toolbar. Without a pill plugin it shows the
+    project name; with one (the Git plugin, IProjectPillContent) it shows the repository, its
+    state, the branch and the worktree (US5.6). Its menu lists the projects, then the plugin's
+    section (repositories and worktrees).
+*@
+<div class="project-selector @(_dropdownOpen ? "open" : "") @(PillContent != null ? "has-pill-content" : "")" data-popup-root="project-selector">
+    <button @ref="_trigger" class="project-selector-trigger" data-testid="project-selector" @onclick="ToggleDropdown" @onclick:stopPropagation="true" title="@TriggerTitle"
             aria-haspopup="true" aria-expanded="@(_dropdownOpen ? "true" : "false")">
         <span class="project-icon">
             <svg class="github-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
             </svg>
         </span>
-        <span class="project-name">@(_activeProject?.Name ?? "No Project")</span>
+        @if (PillContent?.RenderPillInfo() is { } info)
+        {
+            @info
+        }
+        else
+        {
+            <span class="project-name">@(_activeProject?.Name ?? "No Project")</span>
+        }
     </button>
 
     @if (_dropdownOpen && _projects != null)
     {
-        <div class="project-dropdown" role="menu">
-            @foreach (var project in _projects.Where(p => p.Id != _activeProject?.Id))
+        <div class="project-dropdown" role="menu" data-testid="project-dropdown">
+            <div class="project-dropdown-title">Projects</div>
+            @foreach (var project in _projects)
             {
-                <button class="project-dropdown-item" role="menuitem" @onclick="() => SelectProject(project)" @onclick:stopPropagation="true">
+                var isActive = project.Id == _activeProject?.Id;
+                <button class="project-dropdown-item @(isActive ? "active" : "")" role="menuitemradio" aria-checked="@(isActive ? "true" : "false")"
+                        @onclick="() => SelectProject(project)" @onclick:stopPropagation="true">
                     <svg class="github-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-                    </svg>
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
                     <span>@project.Name</span>
                 </button>
+            }
+            @if (PillContent?.RenderPillMenu(CloseDropdownAsync) is { } menu)
+            {
+                <div class="project-dropdown-separator"></div>
+                @menu
             }
         </div>
     }
@@ -39,6 +61,23 @@
 
     [CascadingParameter] public PopupDismissService? Dismiss { get; set; }
 
+    /// <summary>Plugin that fills the pill (the Git plugin), or null to show the project name.</summary>
+    [Parameter] public IProjectPillContent? PillContent { get; set; }
+
+    /// <summary>Room (CSS px) the window region needs below the toolbar while the menu is open.</summary>
+    private const int MenuRegionHeight = 360;
+
+    private string TriggerTitle
+    {
+        get
+        {
+            var name = _activeProject?.Name ?? "No Project";
+            return PillContent?.PillTooltip is { Length: > 0 } detail
+                ? $"{name} — {detail} — switch project, repository or worktree"
+                : $"{name} — switch project";
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (Dismiss != null) Dismiss.DismissRequested += OnDismissRequested;
@@ -50,20 +89,45 @@
     private void OnProjectChanged(ProjectConfig project)
     {
         _activeProject = project;
-        _dropdownOpen = false;
-        InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(() =>
+        {
+            CloseDropdown();
+            StateHasChanged();
+        });
     }
 
-    private void ToggleDropdown()
+    private async Task ToggleDropdown()
     {
-        _dropdownOpen = !_dropdownOpen;
+        if (_dropdownOpen)
+        {
+            CloseDropdown();
+            return;
+        }
+        _dropdownOpen = true;
+        RegionService.ExpandRegion(MenuRegionHeight);
+        if (PillContent != null) await PillContent.OnPillMenuOpeningAsync();
+    }
+
+    private void CloseDropdown()
+    {
+        if (!_dropdownOpen) return;
+        _dropdownOpen = false;
+        RegionService.CollapseRegion();
+    }
+
+    private Task CloseDropdownAsync()
+    {
+        CloseDropdown();
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private async Task SelectProject(ProjectConfig project)
     {
+        CloseDropdown();
+        if (project.Id == _activeProject?.Id) return;
         await SettingsService.SetActiveProjectAsync(project.Id);
         _activeProject = project;
-        _dropdownOpen = false;
     }
 
     private void OnDismissRequested(PopupDismissRequest request)
@@ -71,7 +135,7 @@
         if (!_dropdownOpen || !request.AppliesTo("project-selector")) return;
         _ = InvokeAsync(async () =>
         {
-            _dropdownOpen = false;
+            CloseDropdown();
             StateHasChanged();
             // Only Escape returns focus to the trigger; deactivation must not steal focus back.
             if (request.Reason == PopupDismissReason.Escape)
@@ -85,5 +149,6 @@
     {
         if (Dismiss != null) Dismiss.DismissRequested -= OnDismissRequested;
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
+        if (_dropdownOpen) RegionService.CollapseRegion();
     }
 }

@@ -1,0 +1,77 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.UI.Components
+@implements IDisposable
+
+@*
+    Repositories and worktrees section of the project pill's menu (US5.6): each repository of
+    the project, with its worktrees as small links underneath when it has more than one.
+*@
+<div class="git-selector-menu-section" role="group" data-testid="git-selector-menu" aria-label="Repositories and worktrees">
+    <div class="git-selector-menu-title">Repositories</div>
+    @if (Plugin.Repositories.Count == 0)
+    {
+        <div class="git-selector-empty">No Git repository configured for this project</div>
+    }
+    @foreach (var repository in Plugin.Repositories)
+    {
+        var selected = Plugin.SelectedRepository;
+        var isSelected = selected != null && GitRepositoryCatalog.SamePath(repository.Path, selected.Path);
+        var worktrees = Plugin.WorktreesOf(repository);
+        <div class="git-selector-group" @key="repository.Path">
+            <button class="git-selector-item @(isSelected ? "active" : "")" role="menuitemradio"
+                    aria-checked="@(isSelected ? "true" : "false")" title="@repository.Path"
+                    @onclick="() => SelectAsync(repository, null)">
+                <span class="git-selector-check">@if (isSelected) { <FaIcon Name="check" /> }</span>
+                <span class="git-selector-text">
+                    <span class="git-selector-name">@repository.Name</span>
+                    <span class="git-selector-path">@repository.Path</span>
+                </span>
+            </button>
+            @if (worktrees.Count > 1)
+            {
+                <div class="git-worktree-links" role="group" aria-label="@($"Worktrees of {repository.Name}")">
+                    @foreach (var item in worktrees)
+                    {
+                        var isActive = Plugin.IsActive(repository, item);
+                        <button class="git-worktree-link @(isActive ? "active" : "")" role="menuitemradio" @key="item.Path"
+                                aria-checked="@(isActive ? "true" : "false")" title="@item.Path"
+                                @onclick="() => SelectAsync(repository, item)">
+                            <FaIcon Name="folder-tree" /> @item.Name<span class="git-worktree-link-branch"> · @(item.Branch ?? $"detached {item.Head}")</span>@(item.IsMain ? " (main)" : "")
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public GitPlugin Plugin { get; set; } = default!;
+
+    /// <summary>Closes the project pill's menu.</summary>
+    [Parameter] public Func<Task>? CloseMenu { get; set; }
+
+    private GitPlugin? _subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Plugin)) return;
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+        Plugin.OnStateChanged += OnPluginStateChanged;
+        _subscribed = Plugin;
+    }
+
+    private async Task SelectAsync(GitRepository repository, GitWorktree? worktree)
+    {
+        if (CloseMenu != null) await CloseMenu();
+        await Plugin.SelectWorktreeAsync(repository.Path, worktree?.Path);
+    }
+
+    private void OnPluginStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+    }
+}

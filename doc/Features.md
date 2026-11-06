@@ -395,11 +395,12 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **Afin de** composer ma toolbar sans passer par les menus ni les Paramètres.
 
 **Critères d'acceptation :**
-- [x] Le clic droit sur un module propose « ✏️ Réorganiser », qui active le mode réorganisation. Les modules sont alors encadrés en pointillé ; leur contenu ne réagit plus aux clics, et on les glisse en entier.
-- [x] Pendant ce mode, les boutons ✅ (garder) et ❎ (annuler) remplacent le bouton ⚙️ Paramètres. ✅ enregistre le nouvel ordre ; ❎ ou `Échap` remet la toolbar comme avant. Rien n'est enregistré avant ✅.
+- [x] Le clic droit sur un module propose « Réorganiser » (icône crayon), qui active le mode réorganisation. Les modules sont alors encadrés en pointillé ; leur contenu ne réagit plus aux clics, et on les glisse en entier.
+- [x] Pendant ce mode, les boutons ✅ (garder) et ❎ (annuler), en icônes Font Awesome, remplacent le bouton ⚙️ Paramètres. ✅ enregistre le nouvel ordre ; ❎ ou `Échap` remet la toolbar comme avant. Rien n'est enregistré avant ✅.
 - [x] Déposé sur un module de la même zone, un module prend sa place (comme une liste triable). Déposé sur un module d'une autre zone, il se place devant lui. Un trait de couleur montre où il va tomber.
 - [x] Un module peut changer de zone (par exemple Git dans la zone système). Une case pointillée au bout de la zone principale permet d'y ajouter un module à la fin, même si la zone est vide.
 - [x] Le seul module qui ne peut pas être déplacé est le **dernier**, le minuteur : il reste toujours à la fin de la zone système, à côté des boutons, et rien ne peut être déposé après lui. « Move left / right » et ▲ / ▼ dans les Paramètres le respectent aussi.
+- [x] La pilule du projet et le module Git, collés à gauche, ne bougent pas non plus (voir US5.6). La zone principale contient donc les actions rapides et les modules qu'on y dépose.
 - [x] Pendant le mode, aucun module ne part dans le menu « » » (US3.8), pour qu'on puisse tous les déplacer.
 - [x] La zone de chaque module est enregistrée dans `settings.toolbarLayout.moduleZones` (id → `main` ou `system`), à côté de `moduleOrder`. Une zone inconnue est ignorée ; « Reset order » remet aussi les zones par défaut. Pas de changement de version de schéma : la propriété est facultative.
 - Capture : `doc/screenshots/16-reorganize-mode.png`.
@@ -485,7 +486,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant que** développeur qui travaille dans plusieurs dépôts ou worktrees
-**Je veux** un seul sélecteur dans le module Git, qui me montre d'abord le dépôt, puis la branche et le worktree courant
+**Je veux** un seul sélecteur (la pilule du projet), qui me montre d'abord le dépôt, puis la branche et le worktree courant
 **Afin de** savoir tout de suite où je travaille et changer de dossier en un clic.
 
 **Critères d'acceptation :**
@@ -494,6 +495,9 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Affichage du module, dans l'ordre : le **nom du dépôt** en premier (gras), puis plus petit la **branche** (⎇) et, si le dépôt a des worktrees, le **worktree courant** (🌿). L'état (✓ Clean / ● n modified, ⚠ si le dossier est absent) suit le nom du dépôt ; ↑/↓ suit la branche.
 - [x] La liste des worktrees vient de `git worktree list --porcelain` (`GitService.GetWorktreesAsync`, `GitWorktreeParser`), relue à l'ouverture du menu. Un dépôt nu (bare) n'apparaît pas comme worktree. Sans Git ou hors dépôt : aucun worktree, le reste fonctionne.
 - [x] Le module se redimensionne (US3.6) quand les noms sont trop longs ; clic droit pour revenir à la largeur par défaut.
+- [x] *(Demandé par Benoit le 6 nov. 2026)* Comme sur la maquette, la pilule bleue du projet et le module Git forment **un seul bloc, toujours à gauche** (ni l'un ni l'autre ne se déplace, US3.9). La **pilule bleue** affiche le dépôt et son état, puis la branche et le worktree (contrat `IProjectPillContent`, composant `GitPillInfo`) ; c'est elle qui se redimensionne. Son menu liste les projets, puis les dépôts et leurs worktrees (`GitRepositoryMenu`). Le nom du projet reste dans l'info-bulle et dans le menu.
+- [x] Le **module Git** ne garde que les boutons : ⬇ Pull, ⬆ Push et un bouton icône seule « Pull & Push » (`GitPlugin.PullAndPushAsync` : Pull puis Push ; le Push n'est pas lancé si le Pull échoue ou laisse des conflits).
+- [x] Les icônes viennent de **Font Awesome Free 7.3.1** (SVG intégrés hors ligne, licence CC BY 4.0) : composant `FaIcon`, liste `FaIcons.cs`. Seules les icônes utilisées sont intégrées. Les emojis restants de la toolbar pourront suivre.
 - [x] L'hôte Web simule deux worktrees pour le premier dépôt de chaque projet (tests et captures).
 
 ## US5.2 Plugin Work Items

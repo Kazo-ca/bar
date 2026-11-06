@@ -70,7 +70,10 @@ public sealed class ToolbarLayoutController
     /// <summary>True when the draft differs from what is saved.</summary>
     public bool HasPendingChanges { get; private set; }
 
-    public bool CanDrag(string moduleId) => IsReorganizing && moduleId != PinnedModuleId;
+    /// <summary>Whether the module never moves: project pill, Git module, timer (US3.9).</summary>
+    public bool IsPinned(string moduleId) => ToolbarZones.IsPinned(moduleId);
+
+    public bool CanDrag(string moduleId) => IsReorganizing && !IsPinned(moduleId) && _shown.ZoneOf(moduleId) != null;
 
     /// <summary>Id used as drop target for the end of a zone.</summary>
     public static string ZoneTargetId(string zoneId) => $"zone:{zoneId}";
@@ -194,9 +197,9 @@ public sealed class ToolbarLayoutController
     /// <summary>Whether "Move left / right" (or ▲ / ▼) can move the module: never the pinned one, never past it.</summary>
     public bool CanMove(IReadOnlyList<string> arrangedZone, string moduleId, int offset)
     {
-        if (moduleId == PinnedModuleId || !ToolbarModuleOrder.CanMove(arrangedZone, moduleId, offset)) return false;
+        if (IsPinned(moduleId) || !ToolbarModuleOrder.CanMove(arrangedZone, moduleId, offset)) return false;
         var index = arrangedZone.ToList().IndexOf(moduleId);
-        return arrangedZone[index + offset] != PinnedModuleId;
+        return !IsPinned(arrangedZone[index + offset]);
     }
 
     /// <summary>Default order and zones for every module (widths are kept).</summary>

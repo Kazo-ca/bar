@@ -11,6 +11,9 @@ public static class ToolbarZones
     public const string GitPluginId = "git-tools";
     public const string TimeTrackerPluginId = "time-tracker";
 
+    /// <summary>Project pill, always first (with the Git module glued to it when Git is enabled).</summary>
+    public const string ProjectModuleId = "core.project";
+
     /// <summary>Quick actions zone (not a plugin).</summary>
     public const string ActionsModuleId = "core.actions";
 
@@ -23,10 +26,16 @@ public static class ToolbarZones
     /// </summary>
     public const string PinnedModuleId = TimerModuleId;
 
-    /// <summary>Main zone: the Git module when enabled, then the quick actions.</summary>
+    /// <summary>
+    /// Modules that never move (US3.9): the project pill and the Git module glued to it on the
+    /// left, and the timer, last module of the toolbar, on the right.
+    /// </summary>
+    public static bool IsPinned(string moduleId) =>
+        moduleId is ProjectModuleId or GitPluginId or PinnedModuleId;
+
+    /// <summary>Main zone (movable modules): the quick actions. The Git module is part of the project pill.</summary>
     public static IEnumerable<string> MainDefaults(IEnumerable<IPlugin> visiblePlugins) =>
-        (visiblePlugins.Any(p => p.UniqueId == GitPluginId && p.IsEnabled) ? new[] { GitPluginId } : Array.Empty<string>())
-            .Append(ActionsModuleId);
+        new[] { ActionsModuleId };
 
     /// <summary>Plugins shown as compact indicators in the system zone (Work Items, CI/CD...).</summary>
     public static IEnumerable<IPlugin> Indicators(IEnumerable<IPlugin> visiblePlugins) =>

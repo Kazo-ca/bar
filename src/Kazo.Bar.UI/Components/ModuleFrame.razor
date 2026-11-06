@@ -12,7 +12,8 @@
     - resizable modules (PluginLayout.Resizable) get a grip on their right edge; dragging it
       changes the width, which is saved per module;
     - a right click opens a small menu: "Reset width" (resizable modules), "Move left",
-      "Move right" (inside its zone) and "✏️ Réorganiser";
+      "Move right" (inside its zone; not shown for the project pill and the Git module, which
+      never move) and "Réorganiser";
     - in reorganize mode (US3.9) the module can be dragged onto another module or the end of a
       zone; the pinned module (the last one) cannot be dragged.
 *@
@@ -22,7 +23,7 @@
      draggable="@(CanDrag ? "true" : null)" title="@ReorganizeTitle"
      @oncontextmenu="OpenMenu" @oncontextmenu:preventDefault="true"
      @ondragstart="OnDragStart" @ondragend="OnDragEnd"
-     @ondragenter="OnDragOver" @ondragover="OnDragOver" @ondragover:preventDefault="Reorganizing"
+     @ondragenter="OnDragOver" @ondragover="OnDragOver" @ondragover:preventDefault="IsDropTarget"
      @ondrop="OnDrop" @ondrop:preventDefault="true">
     @ChildContent
 
@@ -43,12 +44,15 @@
                 <button class="module-menu-item" role="menuitem" data-testid="module-reset-width"
                         disabled="@(SavedWidth == null)" @onclick="ResetWidthAsync">↔ Reset width</button>
             }
-            <button class="module-menu-item" role="menuitem" data-testid="module-move-left"
-                    disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">◀ Move left</button>
-            <button class="module-menu-item" role="menuitem" data-testid="module-move-right"
-                    disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">Move right ▶</button>
+            @if (Zone.Count > 0)
+            {
+                <button class="module-menu-item" role="menuitem" data-testid="module-move-left"
+                        disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">◀ Move left</button>
+                <button class="module-menu-item" role="menuitem" data-testid="module-move-right"
+                        disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">Move right ▶</button>
+            }
             <button class="module-menu-item" role="menuitem" data-testid="module-reorganize"
-                    @onclick="BeginReorganize">✏️ Réorganiser</button>
+                    @onclick="BeginReorganize"><FaIcon Name="pen" /> Réorganiser</button>
         </div>
     }
 </div>
@@ -163,7 +167,7 @@
 
     private bool Reorganizing => Controller?.IsReorganizing == true && !Overflowed;
 
-    private bool Pinned => Controller?.PinnedModuleId == ModuleId;
+    private bool Pinned => Controller?.IsPinned(ModuleId) == true;
 
     private bool CanDrag => Reorganizing && Controller!.CanDrag(ModuleId);
 
@@ -176,7 +180,7 @@
     }.Where(c => c != null));
 
     private string? ReorganizeTitle => !Reorganizing ? null
-        : Pinned ? $"{Label}: last module, it stays here" : $"Drag {Label} to move it";
+        : Pinned ? $"{Label} stays in place" : $"Drag {Label} to move it";
 
     private void BeginReorganize()
     {
@@ -189,14 +193,17 @@
         if (CanDrag) Controller!.StartDrag(ModuleId);
     }
 
+    /// <summary>Modules outside the zones (project pill, Git module) are not drop targets.</summary>
+    private bool IsDropTarget => Reorganizing && Zone.Count > 0;
+
     private void OnDragOver(DragEventArgs e)
     {
-        if (Reorganizing) Controller!.DragOver(ModuleId);
+        if (IsDropTarget) Controller!.DragOver(ModuleId);
     }
 
     private void OnDrop(DragEventArgs e)
     {
-        if (Reorganizing) Controller!.DropOn(ModuleId);
+        if (IsDropTarget) Controller!.DropOn(ModuleId);
     }
 
     private void OnDragEnd(DragEventArgs e) => Controller?.EndDrag();
