@@ -3540,7 +3540,8 @@ body.dock-bottom .module-overflow-panel { top: auto; bottom: calc(100% + 14px); 
 .toolbar-shell.reorganizing .module-frame.reorganizing > :not(.module-menu) { pointer-events: none; }
 .toolbar-shell.reorganizing .module-resize-grip { display: none; }
 
-.module-frame.reorganizing {
+/* Only movable modules change look; pinned ones (project pill, Git module, timer) stay as they are. */
+.module-frame.reorganizing:not(.pinned) {
     cursor: grab;
     outline: 1px dashed color-mix(in srgb, var(--accent-color, #4da3ff) 70%, transparent);
     outline-offset: 2px;
@@ -3550,11 +3551,7 @@ body.dock-bottom .module-overflow-panel { top: auto; bottom: calc(100% + 14px); 
 
 .module-frame.reorganizing:hover:not(.pinned) { transform: translateY(-1px); }
 
-.module-frame.reorganizing.pinned {
-    cursor: not-allowed;
-    outline-style: solid;
-    outline-color: rgba(255, 255, 255, 0.15);
-}
+.module-frame.reorganizing.pinned { cursor: not-allowed; }
 
 .module-frame.reorganizing.dragging { opacity: 0.4; cursor: grabbing; }
 
