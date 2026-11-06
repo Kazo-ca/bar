@@ -126,6 +126,16 @@
                            @onchange="@(e => UpdateToolbarHeight(int.TryParse(e.Value?.ToString(), out var v) ? v : 56))" />
                 </div>
 
+                <div class="settings-field">
+                    <label>GitHub polling interval (s)</label>
+                    <input type="number" min="@MinCiPollingSeconds" max="@MaxCiPollingSeconds"
+                           value="@_globalSettings.CiPollingIntervalSeconds"
+                           class="settings-monitor-select"
+                           data-testid="settings-ci-polling"
+                           title="How often GitHub Actions runs are checked (30 s minimum). Applies the next time the toolbar starts or the project changes."
+                           @onchange="@(e => UpdateCiPollingInterval(int.TryParse(e.Value?.ToString(), out var v) ? v : 60))" />
+                </div>
+
                 <div class="settings-plugin-row">
                     <label class="settings-toggle">
                         <input type="checkbox"
@@ -443,6 +453,17 @@
     {
         height = Math.Clamp(height, 32, 120);
         await GlobalSettingsService.UpdateAsync(s => s.ToolbarHeight = height);
+        _globalSettings = GlobalSettingsService.Current;
+        _layout = new ToolbarLayoutController(GlobalSettingsService);
+    }
+
+    private const int MinCiPollingSeconds = 30;
+    private const int MaxCiPollingSeconds = 3600;
+
+    private async Task UpdateCiPollingInterval(int seconds)
+    {
+        seconds = Math.Clamp(seconds, MinCiPollingSeconds, MaxCiPollingSeconds);
+        await GlobalSettingsService.UpdateAsync(s => s.CiPollingIntervalSeconds = seconds);
         _globalSettings = GlobalSettingsService.Current;
         _layout = new ToolbarLayoutController(GlobalSettingsService);
     }

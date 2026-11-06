@@ -2,7 +2,7 @@
 
 Ce document est le **backlog** du projet : il décrit ce que la toolbar doit faire, et indique pour chaque user story ce qui est déjà fait. L'état actuel du logiciel, pour un nouvel utilisateur, est décrit dans le [README](../README.md) (en anglais).
 
-Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, après les PR #2 à #7). Mise à jour le même jour pour les fondations : configuration unique, migrations, Git réel, secrets.
+Dernière revue complète contre le code : 6 novembre 2026 (branche `main`, après la PR #26). Toutes les US de la v1 sont implémentées ; restent la recette manuelle sur PC (🔍), l'intégration continue (US6.2, prévue en dernier) et les sessions d'agents GitHub (en attente d'une API publique).
 
 ## Comment lire ce document
 
@@ -66,7 +66,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US1.2 | Interfaces Core | ✅ |
 | US2.1 | Système de plugins | ✅ |
 | US2.2 | Changement de projet | ✅ |
-| US2.3 | Configuration utilisateur unique | 🟡 🔍 |
+| US2.3 | Configuration utilisateur unique | ✅ 🔍 |
 | US2.4 | Stockage sécurisé des secrets | 🟡 🔍 |
 | US2.5 | Version de schéma et migration | ✅ 🔍 |
 | US3.1 | Layout principal (pilule) | ✅ |
@@ -217,7 +217,7 @@ public interface IProcessService
 - [x] Seuls les plugins de `enabledPlugins` sont affichés.
 
 ## US2.3 Configuration utilisateur unique
-**État :** 🟡 Partiel, 🔍 à recetter sur PC
+**État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant qu'** utilisateur
 **Je veux** que toute ma configuration (projets, dépôts, actions, thèmes, règles de temps) soit dans un seul fichier
@@ -615,7 +615,7 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 **Critères d'acceptation :**
 - [x] Icône d'état global (en cours, succès, échec) dans la pilule.
 - [x] Badge du nombre de résultats terminés non lus.
-- [x] Interrogation réelle de l'API REST GitHub en arrière-plan (`GitHubActionsService`, sans Octokit), toutes les `ciPollingIntervalSeconds` (60 s par défaut, 30 s minimum ; réglable dans `config.json`, pas encore dans Paramètres).
+- [x] Interrogation réelle de l'API REST GitHub en arrière-plan (`GitHubActionsService`, sans Octokit), toutes les `ciPollingIntervalSeconds` (60 s par défaut, 30 s minimum ; réglable dans Paramètres → *Toolbar Behavior* → « GitHub polling interval », pris en compte au prochain démarrage ou changement de projet).
 - [x] Suivi des workflows Actions activable par dépôt (fenêtre de configuration du plugin GitHub).
 - [ ] Sessions d'agents : en attente d'une API GitHub publique pour les lister.
 

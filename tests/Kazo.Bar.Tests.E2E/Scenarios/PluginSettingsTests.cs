@@ -278,4 +278,24 @@ public class PluginSettingsTests : PageTest
         }
         await Expect(clientId).ToHaveValueAsync("");
     }
+
+    [Test]
+    public async Task Settings_CiPollingInterval_IsEditableAndClampedToMinimum()
+    {
+        await Page.GotoAsync($"{BaseUrl}/settings", new() { WaitUntil = WaitUntilState.NetworkIdle });
+        var field = Page.GetByTestId("settings-ci-polling");
+        await Expect(field).ToHaveValueAsync("60", new() { Timeout = 30000 });
+
+        await field.FillAsync("10");
+        await field.PressAsync("Tab");
+        await Expect(field).ToHaveValueAsync("30");
+
+        await field.FillAsync("120");
+        await field.PressAsync("Tab");
+        await Expect(field).ToHaveValueAsync("120");
+
+        await field.FillAsync("60");
+        await field.PressAsync("Tab");
+        await Expect(field).ToHaveValueAsync("60");
+    }
 }
