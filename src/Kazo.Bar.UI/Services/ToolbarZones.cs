@@ -17,6 +17,12 @@ public static class ToolbarZones
     /// <summary>Timer display (always shown; opens the Time Tracker when that plugin is enabled).</summary>
     public const string TimerModuleId = "core.timer";
 
+    /// <summary>
+    /// The last module of the toolbar (US3.9): it always ends the system zone, next to the
+    /// settings button, and is the only module that cannot be moved.
+    /// </summary>
+    public const string PinnedModuleId = TimerModuleId;
+
     /// <summary>Main zone: the Git module when enabled, then the quick actions.</summary>
     public static IEnumerable<string> MainDefaults(IEnumerable<IPlugin> visiblePlugins) =>
         (visiblePlugins.Any(p => p.UniqueId == GitPluginId && p.IsEnabled) ? new[] { GitPluginId } : Array.Empty<string>())

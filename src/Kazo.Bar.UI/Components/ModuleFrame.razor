@@ -12,12 +12,18 @@
     - resizable modules (PluginLayout.Resizable) get a grip on their right edge; dragging it
       changes the width, which is saved per module;
     - a right click opens a small menu: "Reset width" (resizable modules), "Move left",
-      "Move right" (inside its zone).
+      "Move right" (inside its zone) and "✏️ Réorganiser";
+    - in reorganize mode (US3.9) the module can be dragged onto another module or the end of a
+      zone; the pinned module (the last one) cannot be dragged.
 *@
-<div @ref="_frame" class="module-frame @CssClass @(Layout.Resizable ? "resizable" : "") @(_menuOpen ? "menu-open" : "") @(Overflowed ? "overflowed" : "")"
+<div @ref="_frame" class="module-frame @CssClass @(Layout.Resizable ? "resizable" : "") @(_menuOpen ? "menu-open" : "") @(Overflowed ? "overflowed" : "") @ReorganizeClasses"
      data-module-id="@ModuleId" data-popup-root="@RootName" style="@FrameStyle"
      aria-hidden="@(Overflowed ? "true" : null)" inert="@Overflowed"
-     @oncontextmenu="OpenMenu" @oncontextmenu:preventDefault="true">
+     draggable="@(CanDrag ? "true" : null)" title="@ReorganizeTitle"
+     @oncontextmenu="OpenMenu" @oncontextmenu:preventDefault="true"
+     @ondragstart="OnDragStart" @ondragend="OnDragEnd"
+     @ondragenter="OnDragOver" @ondragover="OnDragOver" @ondragover:preventDefault="Reorganizing"
+     @ondrop="OnDrop" @ondrop:preventDefault="true">
     @ChildContent
 
     @if (Layout.Resizable)
@@ -41,6 +47,8 @@
                     disabled="@(!CanMove(-1))" @onclick="() => MoveAsync(-1)">◀ Move left</button>
             <button class="module-menu-item" role="menuitem" data-testid="module-move-right"
                     disabled="@(!CanMove(1))" @onclick="() => MoveAsync(1)">Move right ▶</button>
+            <button class="module-menu-item" role="menuitem" data-testid="module-reorganize"
+                    @onclick="BeginReorganize">✏️ Réorganiser</button>
         </div>
     }
 </div>
@@ -137,7 +145,7 @@
 
     private void OpenMenu(MouseEventArgs e)
     {
-        if (_menuOpen) return;
+        if (_menuOpen || Controller?.IsReorganizing == true) return;
         _menuOpen = true;
         RegionService.ExpandRegion(MenuRegionHeight);
     }
@@ -149,7 +157,49 @@
         RegionService.CollapseRegion();
     }
 
-    private bool CanMove(int offset) => Core.Layout.ToolbarModuleOrder.CanMove(Zone, ModuleId, offset);
+    private bool CanMove(int offset) => Controller?.CanMove(Zone, ModuleId, offset) ?? false;
+
+    // ── Reorganize mode (US3.9) ──
+
+    private bool Reorganizing => Controller?.IsReorganizing == true && !Overflowed;
+
+    private bool Pinned => Controller?.PinnedModuleId == ModuleId;
+
+    private bool CanDrag => Reorganizing && Controller!.CanDrag(ModuleId);
+
+    private string? ReorganizeClasses => !Reorganizing ? null : string.Join(' ', new[]
+    {
+        "reorganizing",
+        Pinned ? "pinned" : null,
+        Controller!.DraggedModuleId == ModuleId ? "dragging" : null,
+        Controller.DropTargetId == ModuleId ? "drop-target" : null,
+    }.Where(c => c != null));
+
+    private string? ReorganizeTitle => !Reorganizing ? null
+        : Pinned ? $"{Label}: last module, it stays here" : $"Drag {Label} to move it";
+
+    private void BeginReorganize()
+    {
+        CloseMenu();
+        Controller?.BeginReorganize();
+    }
+
+    private void OnDragStart(DragEventArgs e)
+    {
+        if (CanDrag) Controller!.StartDrag(ModuleId);
+    }
+
+    private void OnDragOver(DragEventArgs e)
+    {
+        if (Reorganizing) Controller!.DragOver(ModuleId);
+    }
+
+    private void OnDrop(DragEventArgs e)
+    {
+        if (Reorganizing) Controller!.DropOn(ModuleId);
+    }
+
+    private void OnDragEnd(DragEventArgs e) => Controller?.EndDrag();
 
     private async Task ResetWidthAsync()
     {

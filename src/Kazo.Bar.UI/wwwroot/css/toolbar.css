@@ -3532,3 +3532,62 @@ body.dock-bottom .module-overflow-panel { top: auto; bottom: calc(100% + 14px); 
     background: rgba(255, 255, 255, 0.1);
     user-select: all;
 }
+
+/* ==========================================================================
+   Reorganize mode: drag and drop modules (US3.9)
+   ========================================================================== */
+/* Module content does not react while reorganizing: the frame itself is dragged. */
+.toolbar-shell.reorganizing .module-frame.reorganizing > :not(.module-menu) { pointer-events: none; }
+.toolbar-shell.reorganizing .module-resize-grip { display: none; }
+
+.module-frame.reorganizing {
+    cursor: grab;
+    outline: 1px dashed color-mix(in srgb, var(--accent-color, #4da3ff) 70%, transparent);
+    outline-offset: 2px;
+    border-radius: var(--radius-pill);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.module-frame.reorganizing:hover:not(.pinned) { transform: translateY(-1px); }
+
+.module-frame.reorganizing.pinned {
+    cursor: not-allowed;
+    outline-style: solid;
+    outline-color: rgba(255, 255, 255, 0.15);
+}
+
+.module-frame.reorganizing.dragging { opacity: 0.4; cursor: grabbing; }
+
+/* Where the module will land: a bar on the target's left edge. */
+.module-frame.reorganizing.drop-target::before,
+.module-drop-slot.drop-target::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: -5px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent-color, #4da3ff);
+    box-shadow: 0 0 8px var(--accent-color, #4da3ff);
+    z-index: 30;
+}
+
+/* End of the main zone, also the drop target when the zone is empty. */
+.module-drop-slot {
+    position: relative;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    margin: 0 4px;
+    border: 1px dashed rgba(255, 255, 255, 0.35);
+    border-radius: var(--radius-pill);
+}
+
+.module-drop-slot.drop-target { background: color-mix(in srgb, var(--accent-color, #4da3ff) 18%, transparent); }
+
+.system-reorganize-accept,
+.system-reorganize-cancel { font-size: 1.05em; }
+
+.system-reorganize-accept:hover { background: rgba(60, 200, 120, 0.2); }
+.system-reorganize-cancel:hover { background: rgba(230, 80, 80, 0.2); }

@@ -149,7 +149,7 @@
                                 disabled="@(!_layout.HasCustomWidths)" @onclick="ResetModuleWidthsAsync">Reset widths</button>
                     </div>
                 </div>
-                <p class="settings-hint">Right-click a module on the toolbar to move it or reset its width. Drag the right edge of a resizable module to widen it.</p>
+                <p class="settings-hint">Right-click a module on the toolbar to move it or reset its width, or choose ✏️ Réorganiser to drag modules between zones (the timer always stays last). Drag the right edge of a resizable module to widen it.</p>
                 @foreach (var (zoneName, zone) in ModuleZones())
                 {
                     <div class="settings-modules-zone">
@@ -165,9 +165,9 @@
                                     <span class="settings-module-width">@(width) px</span>
                                 }
                                 <button type="button" class="settings-module-move" title="Move up (left on the toolbar)" aria-label="Move @ToolbarZones.LabelOf(moduleId, _allPlugins) up"
-                                        disabled="@(i == 0)" @onclick="() => MoveModuleAsync(zone, moduleId, -1)">▲</button>
+                                        disabled="@(!_layout.CanMove(zone, moduleId, -1))" @onclick="() => MoveModuleAsync(zone, moduleId, -1)">▲</button>
                                 <button type="button" class="settings-module-move" title="Move down (right on the toolbar)" aria-label="Move @ToolbarZones.LabelOf(moduleId, _allPlugins) down"
-                                        disabled="@(i == zone.Count - 1)" @onclick="() => MoveModuleAsync(zone, moduleId, 1)">▼</button>
+                                        disabled="@(!_layout.CanMove(zone, moduleId, 1))" @onclick="() => MoveModuleAsync(zone, moduleId, 1)">▼</button>
                             </div>
                         }
                     </div>
@@ -340,8 +340,9 @@
     {
         if (_activeProject == null) yield break;
         var visible = _allPlugins.Where(p => _activeProject.EnabledPlugins.Contains(p.UniqueId)).ToList();
-        yield return ("Main zone", _layout.Arrange(ToolbarZones.MainDefaults(visible)));
-        yield return ("System zone", _layout.Arrange(ToolbarZones.SystemDefaults(visible)));
+        var arrangement = _layout.Arrange(ToolbarZones.MainDefaults(visible), ToolbarZones.SystemDefaults(visible));
+        yield return ("Main zone", arrangement.Main);
+        yield return ("System zone", arrangement.System);
     }
 
     private Task MoveModuleAsync(IReadOnlyList<string> zone, string moduleId, int offset) =>
