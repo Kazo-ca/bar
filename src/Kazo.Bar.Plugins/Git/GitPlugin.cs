@@ -9,9 +9,11 @@ using Microsoft.AspNetCore.Components;
 /// folder (US5.1), with Quick Sync (Pull/Push). A project can declare several repositories;
 /// the toolbar shows a selector and everything acts on the selected repository. When the
 /// repository has linked worktrees, one of them can be selected instead (US5.6): status and
-/// Pull/Push then run in that worktree's folder.
+/// Pull/Push then run in that worktree's folder. The repository, branch and worktree are shown
+/// in the project pill (<see cref="IProjectPillContent"/>); the Git module itself only holds
+/// Pull, Push and Pull &amp; Push, and stays glued to the pill.
 /// </summary>
-public class GitPlugin : IConfigurablePlugin
+public class GitPlugin : IConfigurablePlugin, IProjectPillContent
 {
     private readonly IGitService _gitService;
     private readonly INotificationService _notificationService;
@@ -23,8 +25,11 @@ public class GitPlugin : IConfigurablePlugin
     public Type SettingsComponentType => typeof(GitSettingsPanel);
     public event Action? OnStateChanged;
 
-    /// <summary>The Git module can be widened when repository or branch names are long (US3.6).</summary>
-    public PluginLayout Layout { get; } = PluginLayout.ResizableWidth(defaultWidth: 300, minWidth: 170, maxWidth: 560);
+    /// <summary>
+    /// The Git module only holds its buttons; long repository or branch names are in the
+    /// project pill, which is the one the user can widen (US3.6).
+    /// </summary>
+    public PluginLayout Layout => PluginLayout.Fixed;
 
     private ProjectConfig _project = new();
     private string? _selectedRepositoryPath;
@@ -193,11 +198,47 @@ public class GitPlugin : IConfigurablePlugin
         builder.CloseComponent();
     };
 
+    /// <summary>Repository, state, branch and worktree, shown in the project pill.</summary>
+    public RenderFragment? RenderPillInfo() => builder =>
+    {
+        builder.OpenComponent<GitPillInfo>(0);
+        builder.AddComponentParameter(1, nameof(GitPillInfo.Plugin), this);
+        builder.CloseComponent();
+    };
+
+    /// <summary>Repositories and worktrees, listed in the project pill's menu.</summary>
+    public RenderFragment? RenderPillMenu(Func<Task> closeMenu) => builder =>
+    {
+        builder.OpenComponent<GitRepositoryMenu>(0);
+        builder.AddComponentParameter(1, nameof(GitRepositoryMenu.Plugin), this);
+        builder.AddComponentParameter(2, nameof(GitRepositoryMenu.CloseMenu), closeMenu);
+        builder.CloseComponent();
+    };
+
+    /// <summary>Worktrees may have been added or removed since the last read.</summary>
+    public Task OnPillMenuOpeningAsync() => LoadWorktreesAsync();
+
+    public string? PillTooltip => SelectedRepository is not { } repository
+        ? "No Git repository configured for this project"
+        : CurrentWorktree is { } worktree
+            ? $"{repository.Name} — worktree {worktree.Name} ({worktree.Path})"
+            : $"{repository.Name} ({repository.Path})";
+
     /// <summary>Runs <c>git pull</c> inside the selected repository and shows its real result.</summary>
     public Task PullAsync() => RunSyncAsync(_gitService.PullAsync, "Pull");
 
     /// <summary>Runs <c>git push</c> inside the selected repository and shows its real result.</summary>
     public Task PushAsync() => RunSyncAsync(_gitService.PushAsync, "Push");
+
+    /// <summary>Pull then Push in one click; Push is skipped when Pull fails or leaves conflicts.</summary>
+    public Task PullAndPushAsync() => RunSyncAsync(PullThenPushAsync, "Sync");
+
+    private async Task<GitCommandResult> PullThenPushAsync(string path, CancellationToken cancellationToken)
+    {
+        var pull = await _gitService.PullAsync(path, cancellationToken);
+        if (!pull.Success || pull.HasConflicts) return pull;
+        return await _gitService.PushAsync(path, cancellationToken);
+    }
 
     private async Task RunSyncAsync(Func<string, CancellationToken, Task<GitCommandResult>> command, string verb)
     {

@@ -24,119 +24,79 @@
 
 <CascadingValue Value="_dismiss" IsFixed="true">
 <CascadingValue Value="_layout" IsFixed="true">
-<div @ref="_shell" class="toolbar-shell" style="@ThemeService.GetCssVariables()" data-theme="@ThemeService.ThemeName"
+<div @ref="_shell" class="toolbar-shell @(_layout.IsReorganizing ? "reorganizing" : "")" style="@ThemeService.GetCssVariables()" data-theme="@ThemeService.ThemeName"
      data-interactive="@(_isInteractive ? "true" : "false")"
      @onclick="ReportActivity" @onkeydown="ReportActivity">
-    @* ── Zone 1: Project Selector (z-index: 20), always first ── *@
-    <div class="module-project">
-        <ProjectSelector />
-    </div>
-
-    @* ── Main zone: Git module and quick actions, in the user's order (US3.7) ── *@
+    @* ── Project pill (z-index: 20), always first. With the Git plugin it shows the repository,
+          branch and worktree, and the Git module (Pull / Push / Pull & Push) is glued to it:
+          both form one block that stays on the left (US5.6, US3.9). ── *@
     @{
-        var mainZone = MainZone;
+        var gitPlugin = VisiblePlugins.FirstOrDefault(p => p.UniqueId == ToolbarZones.GitPluginId && p.IsEnabled);
+        var pillContent = VisiblePlugins.Where(p => p.IsEnabled).OfType<IProjectPillContent>().FirstOrDefault();
     }
-    @foreach (var moduleId in mainZone)
+    <ModuleFrame ModuleId="@ToolbarZones.ProjectModuleId" Label="Project" CssClass="module-project"
+                 Layout="@(pillContent != null ? ProjectPillLayout : PluginLayout.Fixed)">
+        <ProjectSelector PillContent="pillContent" />
+    </ModuleFrame>
+    @if (gitPlugin?.Render() is { } gitFragment)
     {
-        @if (moduleId == ActionsModuleId)
-        {
-            @* Quick actions (z-index: 1); extra actions go into "…" (US3.4) *@
-            <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Quick actions" CssClass="module-actions" Zone="mainZone">
-                <ActionDeck Actions="@_actions" OnActionClicked="HandleActionClicked" />
-            </ModuleFrame>
-        }
-        else if (_visiblePlugins?.FirstOrDefault(p => p.UniqueId == moduleId) is { } gitPlugin && gitPlugin.Render() is { } gitFragment)
-        {
-            @* Git module (z-index: 10), overlaps under the project selector when it follows it *@
-            <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="@gitPlugin.Name" CssClass="module-git" Layout="@gitPlugin.Layout" Zone="mainZone">
-                <div class="plugin-panel git-panel" data-plugin-id="@gitPlugin.UniqueId" aria-label="@gitPlugin.Name">
-                    <div class="plugin-content">@gitFragment</div>
-                </div>
-            </ModuleFrame>
-        }
+        @* Git module (z-index: 10), overlaps under the project pill *@
+        <ModuleFrame ModuleId="@gitPlugin.UniqueId" Label="@gitPlugin.Name" CssClass="module-git" Layout="@gitPlugin.Layout">
+            <div class="plugin-panel git-panel" data-plugin-id="@gitPlugin.UniqueId" aria-label="@gitPlugin.Name">
+                <div class="plugin-content">@gitFragment</div>
+            </div>
+        </ModuleFrame>
+    }
+
+    @* ── Main zone: quick actions by default, in the user's order (US3.7, US3.9) ── *@
+    @{
+        var arrangement = _layout.Arrange(ToolbarZones.MainDefaults(VisiblePlugins), ToolbarZones.SystemDefaults(VisiblePlugins));
+        var timer = GetTimerView();
+        var reorganizing = _layout.IsReorganizing;
+    }
+    @foreach (var moduleId in arrangement.Main)
+    {
+        @RenderModule(moduleId, arrangement.Main, false, null, timer)
+    }
+    @if (reorganizing)
+    {
+        @* US3.9: drop here to put a module at the end of the main zone (also works when it is empty) *@
+        var mainTarget = ToolbarLayoutController.ZoneTargetId(ToolbarModuleLayout.MainZone);
+        <div class="module-drop-slot @(_layout.DropTargetId == mainTarget ? "drop-target" : "")" data-testid="module-drop-main"
+             title="Drop here to put the module at the end of the main zone"
+             @ondragenter="() => _layout.DragOver(mainTarget)" @ondragover="() => _layout.DragOver(mainTarget)" @ondragover:preventDefault="true"
+             @ondrop="() => _layout.DropAtEnd(ToolbarModuleLayout.MainZone)" @ondrop:preventDefault="true"></div>
     }
 
     @* ── Zone 3b: Taskbar — Open Windows (conditional) ── *@
     <TaskbarModule />
 
-    @* ── Zone 4: System — Plugin indicators + Timer (user's order) + Settings (z-index: 20) ── *@
+    @* ── Zone 4: System — Plugin indicators + Timer by default (user's order) + Settings (z-index: 20) ── *@
     <div class="module-system">
         @{
-            var activeEntry = TimeTrackingService.GetActive();
-            var isRunning = activeEntry != null && activeEntry.ProjectId == _currentProjectId;
-            var displayTime = isRunning ? activeEntry!.Duration : TimeTrackingService.GetTodayTotal(_currentProjectId);
-            var isAway = TimeTrackingService.IsIdlePaused;
-            var pendingAbsences = TimeTrackingService.PendingAbsences.Count;
-            var timerTitle = isAway ? "Away: timer paused" : isRunning ? "Timer running" : "Today's total";
-            if (pendingAbsences > 0) timerTitle += $" ({pendingAbsences} absence(s) to label)";
-            var timeTracker = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == TimeTrackerPluginId && p.IsEnabled);
-            var systemZone = SystemZone;
+            var systemZone = arrangement.System;
             var systemVisible = SystemVisibleCount(systemZone);
             var overflowEntries = new List<OverflowEntry>();
         }
         @for (var index = 0; index < systemZone.Count; index++)
         {
-            var moduleId = systemZone[index];
-            var overflowed = index >= systemVisible;
-            if (moduleId == TimerModuleId)
-            {
-                if (overflowed)
-                {
-                    overflowEntries.Add(new OverflowEntry(moduleId, isAway ? "💤" : "⏱", "Timer", FormatTime(displayTime), pendingAbsences, null, timeTracker));
-                }
-                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Timer" CssClass="module-timer" Layout="@(timeTracker?.Layout ?? PluginLayout.Fixed)" Zone="systemZone" Overflowed="overflowed">
-                    @if (timeTracker != null)
-                    {
-                        @* US5.3: the timer opens the Time Tracker panel (Start/Stop, linked work item, idle info) *@
-                        <PluginPopover Plugin="timeTracker" Title="@($"{timerTitle} — click for Time Tracker")"
-                                       CssClass="system-timer-popover">
-                            <span class="system-timer-display @(isRunning ? "running" : "") @(isAway ? "away" : "")">
-                                <span class="system-timer-icon">@(isAway ? "💤" : "⏱")</span>
-                                <span class="system-timer-value">@FormatTime(displayTime)</span>
-                                @if (pendingAbsences > 0)
-                                {
-                                    @* US5.3: absences waiting to be labelled since the user came back *@
-                                    <span class="system-timer-badge" data-testid="absence-badge" title="Absences to label">@pendingAbsences</span>
-                                }
-                            </span>
-                        </PluginPopover>
-                    }
-                    else
-                    {
-                        <span class="system-timer-display @(isRunning ? "running" : "")" title="@timerTitle">
-                            <span class="system-timer-icon">⏱</span>
-                            <span class="system-timer-value">@FormatTime(displayTime)</span>
-                        </span>
-                    }
-                </ModuleFrame>
-            }
-            else if (IndicatorPlugins.FirstOrDefault(p => p.UniqueId == moduleId) is { } plugin)
-            {
-                var indicator = (IPluginIndicator)plugin;
-                if (overflowed)
-                {
-                    overflowEntries.Add(new OverflowEntry(moduleId, plugin.Icon, plugin.Name, indicator.IndicatorText, indicator.BadgeCount, indicator.StatusLevel, plugin));
-                }
-                <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="@plugin.Name" CssClass="module-indicator" Layout="@plugin.Layout" Zone="systemZone" Overflowed="overflowed">
-                    <PluginPopover Plugin="plugin" Title="@(indicator.IndicatorTooltip ?? plugin.Name)"
-                                   TriggerClass="@($"system-indicator {(indicator.StatusLevel is { } level ? "status-" + level : "")}")">
-                        <span class="system-indicator-icon">@plugin.Icon</span>
-                        @if (!string.IsNullOrEmpty(indicator.IndicatorText))
-                        {
-                            <span class="system-indicator-text">@indicator.IndicatorText</span>
-                        }
-                        @if (indicator.BadgeCount > 0)
-                        {
-                            <span class="system-indicator-badge">@indicator.BadgeCount</span>
-                        }
-                    </PluginPopover>
-                </ModuleFrame>
-            }
+            @RenderModule(systemZone[index], systemZone, index >= systemVisible, overflowEntries, timer)
         }
         @* US3.8: modules that do not fit, in a "»" menu *@
         <ModuleOverflowMenu Entries="overflowEntries" />
         <button class="system-btn" @onclick="ToggleTimeReport" title="Time Report">📊</button>
-        <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
+        @if (reorganizing)
+        {
+            @* US3.9: accept or cancel the new layout, in place of the settings button *@
+            <button class="system-btn system-reorganize-accept" data-testid="reorganize-accept" title="Keep the new layout"
+                    aria-label="Keep the new layout" @onclick="_layout.CommitReorganizeAsync"><FaIcon Name="circle-check" /></button>
+            <button class="system-btn system-reorganize-cancel" data-testid="reorganize-cancel" title="Cancel the changes (Esc)"
+                    aria-label="Cancel the changes" @onclick="_layout.CancelReorganize"><FaIcon Name="circle-xmark" /></button>
+        }
+        else
+        {
+            <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
+        }
         @if (DebugFeatures.Enabled)
         {
             <TestDropdown />
@@ -186,13 +146,13 @@
     private const string TimerModuleId = ToolbarZones.TimerModuleId;
     private static readonly TimeSpan ClockInterval = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// The project pill is as wide as the repository / branch / worktree it shows (up to 420 px);
+    /// the user can still drag its edge (US3.6), and "Reset width" brings back the fitted width.
+    /// </summary>
+    private static readonly PluginLayout ProjectPillLayout = PluginLayout.ResizableFitContent(minWidth: 170, maxWidth: 560);
+
     private IReadOnlyList<IPlugin> VisiblePlugins => _visiblePlugins ?? Array.Empty<IPlugin>();
-
-    /// <summary>Main zone in the user's order (US3.7): Git module then quick actions by default.</summary>
-    private IReadOnlyList<string> MainZone => _layout.Arrange(ToolbarZones.MainDefaults(VisiblePlugins));
-
-    /// <summary>System zone in the user's order: plugin indicators then the timer by default.</summary>
-    private IReadOnlyList<string> SystemZone => _layout.Arrange(ToolbarZones.SystemDefaults(VisiblePlugins));
 
     /// <summary>
     /// Visible plugins shown as compact indicators in the system zone (Work Items, CI/CD...).
@@ -206,6 +166,7 @@
         _drag = Services.GetService(typeof(IWindowDragService)) as IWindowDragService;
         _layout = new ToolbarLayoutController(GlobalSettingsService);
         _layout.Changed += OnPluginStateChanged;
+        _dismiss.DismissRequested += OnDismissRequested;
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
         TimeTrackingService.OnTrackingChanged += OnPluginStateChanged;
 
@@ -227,7 +188,9 @@
         }
     }
 
+    /// <summary>How many system modules stay on the toolbar; all of them while reorganizing (US3.9).</summary>
     private int SystemVisibleCount(IReadOnlyList<string> zone) =>
+        _layout.IsReorganizing ? zone.Count :
         _systemVisible is { } visible && zone.SequenceEqual(_measuredSystemIds) ? Math.Min(visible, zone.Count) : zone.Count;
 
     /// <summary>Called by module-overflow.js with the room left for the system zone's modules.</summary>
@@ -285,6 +248,90 @@
     {
         TimeTrackingService.ReportActivity();
     }
+
+    /// <summary>Escape anywhere in the page leaves reorganize mode without saving (US3.9).</summary>
+    private void OnDismissRequested(PopupDismissRequest request)
+    {
+        if (request.Reason != PopupDismissReason.Escape || !_layout.IsReorganizing) return;
+        _ = InvokeAsync(_layout.CancelReorganize);
+    }
+
+    /// <summary>What the timer module shows (US5.3).</summary>
+    private sealed record TimerView(bool IsRunning, bool IsAway, TimeSpan Display, int PendingAbsences, string Title, IPlugin? Tracker);
+
+    private TimerView GetTimerView()
+    {
+        var activeEntry = TimeTrackingService.GetActive();
+        var isRunning = activeEntry != null && activeEntry.ProjectId == _currentProjectId;
+        var display = isRunning ? activeEntry!.Duration : TimeTrackingService.GetTodayTotal(_currentProjectId);
+        var isAway = TimeTrackingService.IsIdlePaused;
+        var pending = TimeTrackingService.PendingAbsences.Count;
+        var title = isAway ? "Away: timer paused" : isRunning ? "Timer running" : "Today's total";
+        if (pending > 0) title += $" ({pending} absence(s) to label)";
+        var tracker = _visiblePlugins?.FirstOrDefault(p => p.UniqueId == TimeTrackerPluginId && p.IsEnabled);
+        return new TimerView(isRunning, isAway, display, pending, title, tracker);
+    }
+
+    /// <summary>
+    /// One module, in whichever zone the user put it (US3.9). <paramref name="overflowEntries"/>
+    /// collects the modules that went into the "»" menu (system zone only).
+    /// </summary>
+    private RenderFragment RenderModule(string moduleId, IReadOnlyList<string> zone, bool overflowed, List<OverflowEntry>? overflowEntries, TimerView timer) => __builder =>
+    {
+        if (moduleId == ActionsModuleId)
+        {
+            if (overflowed) overflowEntries?.Add(new OverflowEntry(moduleId, "⚡", "Quick actions", null, 0, null, null));
+            <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Quick actions" CssClass="module-actions" Zone="zone" Overflowed="overflowed">
+                <ActionDeck Actions="@_actions" OnActionClicked="HandleActionClicked" />
+            </ModuleFrame>
+        }
+        else if (moduleId == TimerModuleId)
+        {
+            if (overflowed) overflowEntries?.Add(new OverflowEntry(moduleId, timer.IsAway ? "💤" : "⏱", "Timer", FormatTime(timer.Display), timer.PendingAbsences, null, timer.Tracker));
+            <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="Timer" CssClass="module-timer" Layout="@(timer.Tracker?.Layout ?? PluginLayout.Fixed)" Zone="zone" Overflowed="overflowed">
+                @if (timer.Tracker != null)
+                {
+                    <PluginPopover Plugin="timer.Tracker" Title="@($"{timer.Title} — click for Time Tracker")"
+                                   CssClass="system-timer-popover">
+                        <span class="system-timer-display @(timer.IsRunning ? "running" : "") @(timer.IsAway ? "away" : "")">
+                            <span class="system-timer-icon">@(timer.IsAway ? "💤" : "⏱")</span>
+                            <span class="system-timer-value">@FormatTime(timer.Display)</span>
+                            @if (timer.PendingAbsences > 0)
+                            {
+                                <span class="system-timer-badge" data-testid="absence-badge" title="Absences to label">@timer.PendingAbsences</span>
+                            }
+                        </span>
+                    </PluginPopover>
+                }
+                else
+                {
+                    <span class="system-timer-display @(timer.IsRunning ? "running" : "")" title="@timer.Title">
+                        <span class="system-timer-icon">⏱</span>
+                        <span class="system-timer-value">@FormatTime(timer.Display)</span>
+                    </span>
+                }
+            </ModuleFrame>
+        }
+        else if (IndicatorPlugins.FirstOrDefault(p => p.UniqueId == moduleId) is { } plugin)
+        {
+            var indicator = (IPluginIndicator)plugin;
+            if (overflowed) overflowEntries?.Add(new OverflowEntry(moduleId, plugin.Icon, plugin.Name, indicator.IndicatorText, indicator.BadgeCount, indicator.StatusLevel, plugin));
+            <ModuleFrame @key="moduleId" ModuleId="@moduleId" Label="@plugin.Name" CssClass="module-indicator" Layout="@plugin.Layout" Zone="zone" Overflowed="overflowed">
+                <PluginPopover Plugin="plugin" Title="@(indicator.IndicatorTooltip ?? plugin.Name)"
+                               TriggerClass="@($"system-indicator {(indicator.StatusLevel is { } level ? "status-" + level : "")}")">
+                    <span class="system-indicator-icon">@plugin.Icon</span>
+                    @if (!string.IsNullOrEmpty(indicator.IndicatorText))
+                    {
+                        <span class="system-indicator-text">@indicator.IndicatorText</span>
+                    }
+                    @if (indicator.BadgeCount > 0)
+                    {
+                        <span class="system-indicator-badge">@indicator.BadgeCount</span>
+                    }
+                </PluginPopover>
+            </ModuleFrame>
+        }
+    };
 
     private void OnThemeChanged()
     {
@@ -384,6 +431,7 @@
         _self?.Dispose();
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
         _layout.Changed -= OnPluginStateChanged;
+        _dismiss.DismissRequested -= OnDismissRequested;
         ThemeService.OnThemeChanged -= OnThemeChanged;
         TimeTrackingService.OnTrackingChanged -= OnPluginStateChanged;
         foreach (var plugin in _subscribedPlugins)

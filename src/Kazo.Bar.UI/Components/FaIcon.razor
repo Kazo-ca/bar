@@ -1,0 +1,14 @@
+@*
+    A Font Awesome Free icon (CC BY 4.0) drawn as inline SVG, sized like the text around it
+    (1em) and coloured with currentColor. Names are those of FaIcons (e.g. "code-branch").
+*@
+@if (FaIcons.All.TryGetValue(Name, out var icon))
+{
+    <svg class="fa-icon fa-@Name @CssClass" viewBox="@icon.ViewBox" aria-hidden="true" focusable="false"><path fill="currentColor" d="@icon.Path" /></svg>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+
+    [Parameter] public string? CssClass { get; set; }
+}

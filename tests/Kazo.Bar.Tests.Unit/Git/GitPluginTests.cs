@@ -136,6 +136,34 @@ public class GitPluginTests
     }
 
     [Test]
+    public async Task PullAndPushButton_PullsThenPushes()
+    {
+        var git = new FakeGitService();
+        var plugin = new GitPlugin(git, new SilentNotifications());
+        await plugin.OnProjectChangedAsync(new PluginContext { Project = TwoRepoProject() });
+        git.Calls.Clear();
+
+        await plugin.PullAndPushAsync();
+
+        Assert.That(git.Calls.Where(c => c.Command != "status").Select(c => c.Command), Is.EqualTo(new[] { "pull", "push" }));
+        Assert.That(plugin.SyncStatus, Is.EqualTo("✓ Sync complete"));
+    }
+
+    [Test]
+    public async Task PullAndPushButton_DoesNotPush_WhenPullFails()
+    {
+        var git = new FakeGitService { NextResult = new(false, 1, string.Empty, "fatal: no network\n") };
+        var plugin = new GitPlugin(git, new SilentNotifications());
+        await plugin.OnProjectChangedAsync(new PluginContext { Project = TwoRepoProject() });
+        git.Calls.Clear();
+
+        await plugin.PullAndPushAsync();
+
+        Assert.That(git.Calls.Select(c => c.Command), Does.Not.Contain("push"));
+        Assert.That(plugin.SyncStatus, Does.StartWith("✗ Sync failed"));
+    }
+
+    [Test]
     public async Task FailedPull_ShowsGitError()
     {
         var git = new FakeGitService { NextResult = new(false, 1, string.Empty, "fatal: could not read Username\n") };
@@ -277,12 +305,12 @@ public class GitPluginTests
     }
 
     [Test]
-    public void GitModule_IsResizable()
+    public void GitModule_IsFixed_AndFillsTheProjectPill()
     {
         IPlugin plugin = new GitPlugin(new FakeGitService(), new SilentNotifications());
 
-        Assert.That(plugin.Layout.Resizable, Is.True);
-        Assert.That(plugin.Layout.MinWidth, Is.LessThan(plugin.Layout.DefaultWidth));
-        Assert.That(plugin.Layout.MaxWidth, Is.GreaterThan(plugin.Layout.DefaultWidth));
+        Assert.That(plugin.Layout.Resizable, Is.False, "names live in the project pill, which is the resizable one");
+        Assert.That(plugin, Is.InstanceOf<IProjectPillContent>());
+        Assert.That(((IProjectPillContent)plugin).RenderPillInfo(), Is.Not.Null);
     }
 }

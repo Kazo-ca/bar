@@ -12,6 +12,13 @@ public sealed record PluginLayout
     /// <summary>True when the user can drag the module's right edge to change its width.</summary>
     public bool Resizable { get; init; }
 
+    /// <summary>
+    /// True when the module is as wide as its content (between min and max) until the user
+    /// resizes it, and again after "Reset width". <see cref="DefaultWidth"/> is then only used
+    /// as a fallback.
+    /// </summary>
+    public bool FitsContent { get; init; }
+
     /// <summary>Width in CSS px used until the user resizes, and after "Reset width".</summary>
     public int DefaultWidth { get; init; }
 
@@ -34,6 +41,13 @@ public sealed record PluginLayout
             DefaultWidth = Math.Clamp(defaultWidth, min, max),
         };
     }
+
+    /// <summary>
+    /// A resizable module that is as wide as its content (up to <paramref name="maxWidth"/>)
+    /// until the user drags its edge.
+    /// </summary>
+    public static PluginLayout ResizableFitContent(int minWidth, int maxWidth) =>
+        ResizableWidth(minWidth, minWidth, maxWidth) with { FitsContent = true };
 
     /// <summary>The width to use for a saved value: clamped, or the default when nothing is saved.</summary>
     public int EffectiveWidth(int? savedWidth) =>

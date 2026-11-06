@@ -3532,3 +3532,187 @@ body.dock-bottom .module-overflow-panel { top: auto; bottom: calc(100% + 14px); 
     background: rgba(255, 255, 255, 0.1);
     user-select: all;
 }
+
+/* ==========================================================================
+   Reorganize mode: drag and drop modules (US3.9)
+   ========================================================================== */
+/* Module content does not react while reorganizing: the frame itself is dragged. */
+.toolbar-shell.reorganizing .module-frame.reorganizing > :not(.module-menu) { pointer-events: none; }
+.toolbar-shell.reorganizing .module-resize-grip { display: none; }
+
+/* Only movable modules change look; pinned ones (project pill, Git module, timer) stay as they are. */
+.module-frame.reorganizing:not(.pinned) {
+    cursor: grab;
+    outline: 1px dashed color-mix(in srgb, var(--accent-color, #4da3ff) 70%, transparent);
+    outline-offset: 2px;
+    border-radius: var(--radius-pill);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.module-frame.reorganizing:hover:not(.pinned) { transform: translateY(-1px); }
+
+.module-frame.reorganizing.pinned { cursor: not-allowed; }
+
+.module-frame.reorganizing.dragging { opacity: 0.4; cursor: grabbing; }
+
+/* Where the module will land: a bar on the target's left edge. */
+.module-frame.reorganizing.drop-target::before,
+.module-drop-slot.drop-target::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: -5px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent-color, #4da3ff);
+    box-shadow: 0 0 8px var(--accent-color, #4da3ff);
+    z-index: 30;
+}
+
+/* End of the main zone, also the drop target when the zone is empty. */
+.module-drop-slot {
+    position: relative;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    margin: 0 4px;
+    border: 1px dashed rgba(255, 255, 255, 0.35);
+    border-radius: var(--radius-pill);
+}
+
+.module-drop-slot.drop-target { background: color-mix(in srgb, var(--accent-color, #4da3ff) 18%, transparent); }
+
+.system-reorganize-accept,
+.system-reorganize-cancel { font-size: 1.05em; }
+
+.system-reorganize-accept:hover { background: rgba(60, 200, 120, 0.2); }
+.system-reorganize-cancel:hover { background: rgba(230, 80, 80, 0.2); }
+
+/* ==========================================================================
+   Font Awesome icons (FaIcon) — inline SVG sized like the text around it
+   ========================================================================== */
+.fa-icon {
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    vertical-align: -0.125em;
+    overflow: visible;
+}
+
+.fa-spin { animation: fa-spin 1s linear infinite; }
+
+@keyframes fa-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .fa-spin { animation: none; }
+}
+
+/* ==========================================================================
+   Project pill with the Git information (US5.6): repository + state, branch + worktree.
+   The Git module glued to its right only holds Pull, Push and Pull & Push.
+   ========================================================================== */
+.module-frame.module-project { box-sizing: border-box; }
+
+.module-project .project-selector { flex: 1; min-width: 0; display: flex; }
+
+.project-selector.has-pill-content .project-selector-trigger {
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+}
+
+.git-pill-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+    font-weight: 400;
+}
+
+.git-pill-info .git-repo-name { color: #fff; }
+
+.git-pill-info .git-detail-line { color: rgba(255, 255, 255, 0.78); }
+
+.git-pill-info .git-detail-line .git-branch { color: rgba(255, 255, 255, 0.85); }
+
+.git-pill-info .git-status.clean { color: #b8f5c4; }
+.git-pill-info .git-status.dirty { color: #ffe08a; }
+.git-pill-info .git-status.unavailable { color: #ffc2c2; }
+.git-pill-info .git-status.dirty .git-status-icon { width: 0.6em; height: 0.6em; vertical-align: 0.05em; }
+.git-pill-info .git-worktree { color: #c6f0cd; }
+.git-pill-info .git-branch-name { max-width: none; min-width: 0; }
+
+/* Git module: the sync buttons only */
+.module-git .plugin-git { display: flex; align-items: center; gap: 6px; width: auto; }
+
+.git-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.git-btn-sync { padding: 2px 7px; }
+
+/* Project pill menu: projects, then repositories and worktrees */
+.project-dropdown { min-width: 240px; max-width: 380px; max-height: 340px; overflow-y: auto; }
+
+body.dock-bottom .project-dropdown { top: auto; bottom: calc(100% + 12px); }
+
+.project-dropdown-title {
+    padding: 4px 10px 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.project-dropdown-item.active { background: rgba(255, 255, 255, 0.08); font-weight: 700; }
+
+.project-dropdown-separator {
+    height: 1px;
+    margin: 6px 4px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.git-selector-empty {
+    padding: 6px 10px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8em;
+}
+
+.system-reorganize-accept { color: #4cd685; }
+.system-reorganize-cancel { color: #ff7a7a; }
+.system-reorganize-accept .fa-icon,
+.system-reorganize-cancel .fa-icon { width: 1.15em; height: 1.15em; }
+
+/* A resizable module the user has not resized yet is as wide as its content (no size
+   containment, which would collapse it to its min width). */
+.module-frame.resizable.fit-content { container-type: normal; flex: 0 0 auto; }
+
+.module-frame.fit-content .project-selector.has-pill-content .project-selector-trigger { width: auto; }
+
+/* Read by screen readers, not shown. */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Quick actions moved to the system zone (US3.9): they take what they need and shrink
+   into their "…" menu (US3.4) instead of pushing the system buttons out of the toolbar. */
+.module-system .module-actions { flex: 0 1 auto; min-width: 38px; padding: 0 4px; }
+
+/* While reorganizing, nothing goes into "»": the system zone may shrink so ✅ / ❎ stay visible. */
+.toolbar-shell.reorganizing .module-system { flex-shrink: 1; min-width: 0; }
+.toolbar-shell.reorganizing .module-system > .system-btn { flex-shrink: 0; }

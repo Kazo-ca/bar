@@ -43,6 +43,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 | Work items | Configurables **par dépôt** : Azure DevOps (cloud) et GitHub Issues. Authentification par PAT pour commencer. | 3 nov. 2026 |
 | Suivi GitHub (F7) | Configurable **par dépôt** : workflows GitHub Actions, sessions d'agents, ou les deux. | 3 nov. 2026 |
 | Git | État lu dans le dossier local du dépôt avec **LibGit2Sharp** (pas de la configuration). | 3 nov. 2026 |
+| Glisser-déposer des modules | Mode « ✏️ Réorganiser » depuis le clic droit : on glisse les modules dans leur zone ou d'une zone à l'autre, ✅ / ❎ remplacent le bouton Paramètres. Le dernier module (minuteur) ne bouge pas (US3.9). | 6 nov. 2026 |
 | Débordement des modules | Les modules de la zone système qui ne tiennent plus passent dans un bouton « » » (US3.8). | 4 nov. 2026 |
 | Maquette | `doc/Toolbar-desing-exemple.png` est une **ligne directrice** : les éléments restent les mêmes, les thèmes proposés à l'utilisateur changent le style. | 3 nov. 2026 |
 | Fonctions de debug | Visibles uniquement dans une build `Debug` (`#if DEBUG` ou `IsDevelopment`). Seul le bouton 🧪 « Test Dropdown » est concerné. Les modes d'ancrage, l'écran cible, la hauteur, et les fenêtres actives sont des fonctions normales. | 3 nov. 2026 |
@@ -55,7 +56,7 @@ Dernière revue complète contre le code : 3 novembre 2026 (branche `main`, apr�
 
 Les nouvelles questions s'ajoutent ici avec un numéro.
 
-1. **Ordre des modules (US3.7)** : le clic droit (« Déplacer à gauche / à droite ») et la page Paramètres sont en place. Faut-il aussi le glisser-déposer directement dans la toolbar ? Un module peut-il passer d'une zone à l'autre (par exemple Git dans la zone système) ?
+*(Aucune pour l'instant. La question n° 1, glisser-déposer et changement de zone, est réglée par US3.9.)*
 
 ## Vue d'ensemble
 
@@ -76,6 +77,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.6 | Modules redimensionnables | ✅ 🔍 |
 | US3.7 | Ordre des modules | ✅ 🔍 |
 | US3.8 | Débordement des modules et de leurs éléments | ✅ 🔍 |
+| US3.9 | Réorganiser les modules par glisser-déposer | ✅ 🔍 |
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | ✅ 🔍 |
 | US4.3 | Bouton script et sortie terminal | ✅ 🔍 |
@@ -379,11 +381,30 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 
 **Critères d'acceptation :**
 - [x] La toolbar a des zones : le sélecteur de projet (toujours à gauche), la **zone principale** (module Git, actions rapides) et la **zone système** (indicateurs des plugins, minuteur). Les boutons Rapport, Paramètres et 🧪 restent toujours à droite.
-- [x] Le clic droit sur un module propose « ◀ Move left » et « Move right ▶ », à l'intérieur de sa zone.
+- [x] Le clic droit sur un module propose « ◀ Move left » et « Move right ▶ », à l'intérieur de sa zone (jamais pour le minuteur, ni au-delà de lui : voir US3.9).
 - [x] Paramètres → *Toolbar Modules* liste les modules de chaque zone dans l'ordre choisi, avec ▲ / ▼, et « Reset order » remet l'ordre par défaut.
 - [x] L'ordre est enregistré dans `settings.toolbarLayout.moduleOrder` (un seul ordre pour tous les projets). Un module absent de la liste (nouveau plugin activé) se place à la fin de sa zone ; un id inconnu est ignoré (`ToolbarModuleOrder`).
 - [x] Quand le module Git suit directement le projet, il passe sous la pilule du projet comme sur la maquette ; ailleurs, c'est une pilule à part entière.
-- [ ] *(Question ouverte n° 1)* Glisser-déposer dans la toolbar ; changement de zone.
+- [x] *(Question ouverte n° 1, réglée le 6 nov. 2026)* Glisser-déposer dans la toolbar et changement de zone : voir US3.9.
+
+## US3.9 Réorganiser les modules par glisser-déposer
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant qu'** utilisateur
+**Je veux** déplacer les modules de la toolbar à la souris, dans leur zone ou d'une zone à l'autre
+**Afin de** composer ma toolbar sans passer par les menus ni les Paramètres.
+
+**Critères d'acceptation :**
+- [x] Le clic droit sur un module propose « Réorganiser » (icône crayon), qui active le mode réorganisation. Les modules sont alors encadrés en pointillé ; leur contenu ne réagit plus aux clics, et on les glisse en entier.
+- [x] Pendant ce mode, les boutons ✅ (garder) et ❎ (annuler), en icônes Font Awesome, remplacent le bouton ⚙️ Paramètres. ✅ enregistre le nouvel ordre ; ❎ ou `Échap` remet la toolbar comme avant. Rien n'est enregistré avant ✅.
+- [x] Déposé sur un module de la même zone, un module prend sa place (comme une liste triable). Déposé sur un module d'une autre zone, il se place devant lui. Un trait de couleur montre où il va tomber.
+- [x] Un module peut changer de zone (par exemple Git dans la zone système). Une case pointillée au bout de la zone principale permet d'y ajouter un module à la fin, même si la zone est vide.
+- [x] Le seul module qui ne peut pas être déplacé est le **dernier**, le minuteur : il reste toujours à la fin de la zone système, à côté des boutons, et rien ne peut être déposé après lui. « Move left / right » et ▲ / ▼ dans les Paramètres le respectent aussi.
+- [x] La pilule du projet et le module Git, collés à gauche, ne bougent pas non plus (voir US5.6). La zone principale contient donc les actions rapides et les modules qu'on y dépose.
+- [x] Pendant le mode, aucun module ne part dans le menu « » » (US3.8), pour qu'on puisse tous les déplacer.
+- [x] La zone de chaque module est enregistrée dans `settings.toolbarLayout.moduleZones` (id → `main` ou `system`), à côté de `moduleOrder`. Une zone inconnue est ignorée ; « Reset order » remet aussi les zones par défaut. Pas de changement de version de schéma : la propriété est facultative.
+- Capture : `doc/screenshots/19-reorganize-mode.png`.
+- Composants : `ModuleFrame.razor` (glisser, menu), `MainLayout.razor` (zones, ✅ / ❎), `ToolbarLayoutController` (brouillon, enregistrement), `ToolbarModuleLayout` et `ToolbarArrangement` (logique pure, testée).
 
 ## US3.8 Débordement des modules et de leurs éléments
 **État :** ✅ Fait, 🔍 à recetter sur PC
@@ -465,7 +486,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 **État :** ✅ Fait, 🔍 à recetter sur PC
 
 **En tant que** développeur qui travaille dans plusieurs dépôts ou worktrees
-**Je veux** un seul sélecteur dans le module Git, qui me montre d'abord le dépôt, puis la branche et le worktree courant
+**Je veux** un seul sélecteur (la pilule du projet), qui me montre d'abord le dépôt, puis la branche et le worktree courant
 **Afin de** savoir tout de suite où je travaille et changer de dossier en un clic.
 
 **Critères d'acceptation :**
@@ -474,6 +495,9 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Affichage du module, dans l'ordre : le **nom du dépôt** en premier (gras), puis plus petit la **branche** (⎇) et, si le dépôt a des worktrees, le **worktree courant** (🌿). L'état (✓ Clean / ● n modified, ⚠ si le dossier est absent) suit le nom du dépôt ; ↑/↓ suit la branche.
 - [x] La liste des worktrees vient de `git worktree list --porcelain` (`GitService.GetWorktreesAsync`, `GitWorktreeParser`), relue à l'ouverture du menu. Un dépôt nu (bare) n'apparaît pas comme worktree. Sans Git ou hors dépôt : aucun worktree, le reste fonctionne.
 - [x] Le module se redimensionne (US3.6) quand les noms sont trop longs ; clic droit pour revenir à la largeur par défaut.
+- [x] *(Demandé par Benoit le 6 nov. 2026)* Comme sur la maquette, la pilule bleue du projet et le module Git forment **un seul bloc, toujours à gauche** (ni l'un ni l'autre ne se déplace, US3.9). La **pilule bleue** affiche le dépôt et son état, puis la branche et le worktree (contrat `IProjectPillContent`, composant `GitPillInfo`) ; c'est elle qui se redimensionne. Son menu liste les projets, puis les dépôts et leurs worktrees (`GitRepositoryMenu`). Le nom du projet reste dans l'info-bulle et dans le menu.
+- [x] Le **module Git** ne garde que les boutons : ⬇ Pull, ⬆ Push et un bouton icône seule « Pull & Push » (`GitPlugin.PullAndPushAsync` : Pull puis Push ; le Push n'est pas lancé si le Pull échoue ou laisse des conflits).
+- [x] Les icônes viennent de **Font Awesome Free 7.3.1** (SVG intégrés hors ligne, licence CC BY 4.0) : composant `FaIcon`, liste `FaIcons.cs`. Seules les icônes utilisées sont intégrées. Les emojis restants de la toolbar pourront suivre.
 - [x] L'hôte Web simule deux worktrees pour le premier dépôt de chaque projet (tests et captures).
 
 ## US5.2 Plugin Work Items

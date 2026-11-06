@@ -64,7 +64,7 @@ public class PluginSettingsTests : PageTest
     private async Task OpenToolbarAsync()
     {
         await Page.GotoAsync(BaseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
-        await Expect(Page.Locator(".git-selector-trigger")).ToBeVisibleAsync(new() { Timeout = 30000 });
+        await Expect(Page.GetByTestId("project-selector")).ToBeVisibleAsync(new() { Timeout = 30000 });
         await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToHaveCountAsync(1, new() { Timeout = 30000 });
     }
 

@@ -1,0 +1,71 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.UI.Components
+@implements IDisposable
+
+@*
+    Git information inside the project pill (US5.6): repository name and local state on the
+    first line, branch and worktree (and commits to push / pull) smaller on the second line.
+    Long names are cut with "…" and shown whole in the tooltips; the pill can be widened (US3.6).
+*@
+@{
+    var selected = Plugin.SelectedRepository;
+    var status = Plugin.Status;
+    var worktree = Plugin.CurrentWorktree;
+}
+<span class="git-pill-info" data-testid="git-selector">
+    <span class="git-repo-line">
+        <span class="git-repo-name" data-testid="git-repo-name">@(selected?.Name ?? "No repository")</span>
+        @if (status is { IsRepository: false })
+        {
+            <span class="git-status unavailable" title="@status.Error"><FaIcon Name="triangle-exclamation" /> @UnavailableLabel(status.Kind)</span>
+        }
+        else if (selected != null)
+        {
+            <span class="@(Plugin.IsDirty ? "git-status dirty" : "git-status clean")"
+                  title="@(Plugin.IsDirty ? $"{status?.ChangedFiles} changed file(s)" : "No local changes")"><FaIcon Name="@(Plugin.IsDirty ? "circle" : "check")" CssClass="git-status-icon" />@(Plugin.IsDirty ? $" {status?.ChangedFiles}" : "")<span class="git-status-label">@(Plugin.IsDirty ? " modified" : " Clean")</span></span>
+        }
+    </span>
+    @if (selected != null)
+    {
+        <span class="git-detail-line">
+            <span class="git-branch" title="@Plugin.CurrentBranch"><FaIcon Name="code-branch" /> <span class="git-branch-name">@Plugin.CurrentBranch</span></span>
+            @if (worktree != null)
+            {
+                <span class="git-worktree" data-testid="git-worktree" title="@($"Worktree: {worktree.Path}")"><FaIcon Name="folder-tree" /> <span class="git-worktree-name">@worktree.Name</span></span>
+            }
+            @if (status is { IsRepository: true } && (status is { Ahead: > 0 } || status is { Behind: > 0 }))
+            {
+                <span class="git-tracking" title="Commits to push / to pull (as of the last fetch)">↑@status.Ahead ↓@status.Behind</span>
+            }
+        </span>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public GitPlugin Plugin { get; set; } = default!;
+
+    private GitPlugin? _subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Plugin)) return;
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+        Plugin.OnStateChanged += OnPluginStateChanged;
+        _subscribed = Plugin;
+    }
+
+    private static string UnavailableLabel(GitStatusKind kind) => kind switch
+    {
+        GitStatusKind.FolderNotFound => "Folder missing",
+        GitStatusKind.NotARepository => "Not a Git repo",
+        _ => "Unreadable",
+    };
+
+    private void OnPluginStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+    }
+}

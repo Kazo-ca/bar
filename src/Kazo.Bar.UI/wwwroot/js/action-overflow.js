@@ -24,7 +24,10 @@ function available(host) {
     const shellMax = Math.min(px(shellStyle.maxWidth) || Infinity, window.innerWidth - 16);
     let others = 0;
     for (const child of shell.children) {
-        if (child !== zone && getComputedStyle(child).position !== 'absolute') others += outerWidth(child);
+        if (child === zone || getComputedStyle(child).position === 'absolute') continue;
+        // The actions can sit inside another zone (US3.9, e.g. the system zone): count that
+        // zone without the actions, or the actions would compete with their own width.
+        others += child.contains(zone) ? outerWidth(child) - outerWidth(zone) : outerWidth(child);
     }
     const zoneStyle = getComputedStyle(zone);
     const zonePadding = px(zoneStyle.paddingLeft) + px(zoneStyle.paddingRight);
