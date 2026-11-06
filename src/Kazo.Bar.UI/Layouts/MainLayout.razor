@@ -146,8 +146,11 @@
     private const string TimerModuleId = ToolbarZones.TimerModuleId;
     private static readonly TimeSpan ClockInterval = TimeSpan.FromSeconds(1);
 
-    /// <summary>The project pill can be widened when it shows long repository or branch names (US3.6).</summary>
-    private static readonly PluginLayout ProjectPillLayout = PluginLayout.ResizableWidth(defaultWidth: 300, minWidth: 170, maxWidth: 560);
+    /// <summary>
+    /// The project pill is as wide as the repository / branch / worktree it shows (up to 420 px);
+    /// the user can still drag its edge (US3.6), and "Reset width" brings back the fitted width.
+    /// </summary>
+    private static readonly PluginLayout ProjectPillLayout = PluginLayout.ResizableFitContent(minWidth: 170, maxWidth: 560);
 
     private IReadOnlyList<IPlugin> VisiblePlugins => _visiblePlugins ?? Array.Empty<IPlugin>();
 

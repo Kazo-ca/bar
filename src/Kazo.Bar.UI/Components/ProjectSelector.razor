@@ -21,6 +21,8 @@
         </span>
         @if (PillContent?.RenderPillInfo() is { } info)
         {
+            @* The project name stays for screen readers (and in the tooltip and the menu). *@
+            <span class="project-name visually-hidden">@(_activeProject?.Name ?? "No Project")</span>
             @info
         }
         else

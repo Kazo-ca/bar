@@ -403,7 +403,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] La pilule du projet et le module Git, collés à gauche, ne bougent pas non plus (voir US5.6). La zone principale contient donc les actions rapides et les modules qu'on y dépose.
 - [x] Pendant le mode, aucun module ne part dans le menu « » » (US3.8), pour qu'on puisse tous les déplacer.
 - [x] La zone de chaque module est enregistrée dans `settings.toolbarLayout.moduleZones` (id → `main` ou `system`), à côté de `moduleOrder`. Une zone inconnue est ignorée ; « Reset order » remet aussi les zones par défaut. Pas de changement de version de schéma : la propriété est facultative.
-- Capture : `doc/screenshots/16-reorganize-mode.png`.
+- Capture : `doc/screenshots/19-reorganize-mode.png`.
 - Composants : `ModuleFrame.razor` (glisser, menu), `MainLayout.razor` (zones, ✅ / ❎), `ToolbarLayoutController` (brouillon, enregistrement), `ToolbarModuleLayout` et `ToolbarArrangement` (logique pure, testée).
 
 ## US3.8 Débordement des modules et de leurs éléments

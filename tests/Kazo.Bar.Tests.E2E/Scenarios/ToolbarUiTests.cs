@@ -115,10 +115,11 @@ public class ToolbarUiTests : PageTest
     public async Task ProjectSelector_ShouldHaveThreeProjects()
     {
         await NavigateAndWait();
-        // Active project is shown in the trigger; open dropdown to see the other 2
+        // The menu lists every project, the active one checked
         await Page.Locator(".project-selector-trigger").ClickAsync();
         await Expect(Page.Locator(".project-dropdown")).ToBeVisibleAsync(new() { Timeout = 3000 });
-        await Expect(Page.Locator(".project-dropdown-item")).ToHaveCountAsync(2);
+        await Expect(Page.Locator(".project-dropdown-item")).ToHaveCountAsync(3);
+        await Expect(Page.Locator(".project-dropdown-item.active")).ToContainTextAsync("MyWebAPI");
     }
 
     [Test]

@@ -17,7 +17,7 @@
     - in reorganize mode (US3.9) the module can be dragged onto another module or the end of a
       zone; the pinned module (the last one) cannot be dragged.
 *@
-<div @ref="_frame" class="module-frame @CssClass @(Layout.Resizable ? "resizable" : "") @(_menuOpen ? "menu-open" : "") @(Overflowed ? "overflowed" : "") @ReorganizeClasses"
+<div @ref="_frame" class="module-frame @CssClass @(Layout.Resizable ? "resizable" : "") @(FitsContentNow ? "fit-content" : "") @(_menuOpen ? "menu-open" : "") @(Overflowed ? "overflowed" : "") @ReorganizeClasses"
      data-module-id="@ModuleId" data-popup-root="@RootName" style="@FrameStyle"
      aria-hidden="@(Overflowed ? "true" : null)" inert="@Overflowed"
      draggable="@(CanDrag ? "true" : null)" title="@ReorganizeTitle"
@@ -104,9 +104,12 @@
 
     private int Width => Layout.EffectiveWidth(SavedWidth);
 
-    private string? FrameStyle => Layout.Resizable
-        ? $"width: {Width}px; min-width: {Layout.MinWidth}px; max-width: {Layout.MaxWidth}px;"
-        : null;
+    /// <summary>A fit-content module the user has not resized: its content decides its width.</summary>
+    private bool FitsContentNow => Layout.Resizable && Layout.FitsContent && SavedWidth == null;
+
+    private string? FrameStyle => !Layout.Resizable ? null
+        : FitsContentNow ? $"min-width: {Layout.MinWidth}px; max-width: {Layout.MaxWidth}px;"
+        : $"width: {Width}px; min-width: {Layout.MinWidth}px; max-width: {Layout.MaxWidth}px;";
 
     protected override void OnParametersSet()
     {

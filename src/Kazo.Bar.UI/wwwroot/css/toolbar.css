@@ -3692,3 +3692,30 @@ body.dock-bottom .project-dropdown { top: auto; bottom: calc(100% + 12px); }
 .system-reorganize-cancel { color: #ff7a7a; }
 .system-reorganize-accept .fa-icon,
 .system-reorganize-cancel .fa-icon { width: 1.15em; height: 1.15em; }
+
+/* A resizable module the user has not resized yet is as wide as its content (no size
+   containment, which would collapse it to its min width). */
+.module-frame.resizable.fit-content { container-type: normal; flex: 0 0 auto; }
+
+.module-frame.fit-content .project-selector.has-pill-content .project-selector-trigger { width: auto; }
+
+/* Read by screen readers, not shown. */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Quick actions moved to the system zone (US3.9): they take what they need and shrink
+   into their "…" menu (US3.4) instead of pushing the system buttons out of the toolbar. */
+.module-system .module-actions { flex: 0 1 auto; min-width: 38px; padding: 0 4px; }
+
+/* While reorganizing, nothing goes into "»": the system zone may shrink so ✅ / ❎ stay visible. */
+.toolbar-shell.reorganizing .module-system { flex-shrink: 1; min-width: 0; }
+.toolbar-shell.reorganizing .module-system > .system-btn { flex-shrink: 0; }

@@ -168,10 +168,11 @@ public class FeatureSpecTests : PageTest
     }
 
     [Test]
-    public async Task US3_6_GitModule_IsResizedByDraggingItsEdge_AndRightClickResetsTheWidth()
+    public async Task US3_6_ProjectPill_FitsItsContent_IsResizedByDraggingItsEdge_AndResetWidthFitsAgain()
     {
         await OpenToolbar();
-        var module = Page.Locator(".module-frame[data-module-id='git-tools']");
+        var module = Page.Locator(".module-frame[data-module-id='core.project']");
+        await Expect(module).ToHaveClassAsync(new System.Text.RegularExpressions.Regex("fit-content"));
         var start = (await module.BoundingBoxAsync())!;
         var grip = module.GetByTestId("module-resize-grip");
         var box = (await grip.BoundingBoxAsync())!;
@@ -187,10 +188,13 @@ public class FeatureSpecTests : PageTest
             // Saved: still wider after a reload.
             await OpenToolbar();
             await WaitForWidth(module, w => w > start.Width + 60);
+            await Expect(module).Not.ToHaveClassAsync(new System.Text.RegularExpressions.Regex("fit-content"));
 
             await module.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 20, Y = 10 } });
             var menu = module.GetByTestId("module-menu");
             await Expect(menu).ToBeVisibleAsync();
+            // The project pill never moves: no Move left / right.
+            await Expect(menu.GetByTestId("module-move-left")).ToHaveCountAsync(0);
             await menu.GetByTestId("module-reset-width").ClickAsync();
             await Expect(menu).ToHaveCountAsync(0);
             await WaitForWidth(module, w => Math.Abs(w - start.Width) < 1);
@@ -205,88 +209,103 @@ public class FeatureSpecTests : PageTest
     public async Task US3_7_ModulesAreReordered_FromTheirRightClickMenu()
     {
         await OpenToolbar();
-        var git = Page.Locator(".module-frame[data-module-id='git-tools']");
-        await Expect(Page.Locator(".toolbar-shell > .module-frame").First).ToHaveAttributeAsync("data-module-id", "git-tools");
+        var frames = Page.Locator(".toolbar-shell > .module-frame");
+        // Project pill, then the Git module glued to it, then the quick actions.
+        await Expect(frames.Nth(0)).ToHaveAttributeAsync("data-module-id", "core.project");
+        await Expect(frames.Nth(1)).ToHaveAttributeAsync("data-module-id", "git-tools");
+        await Expect(frames.Nth(2)).ToHaveAttributeAsync("data-module-id", "core.actions");
 
         try
         {
-            await git.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 20, Y = 10 } });
-            await Expect(git.GetByTestId("module-move-left")).ToBeDisabledAsync();
-            await git.GetByTestId("module-move-right").ClickAsync();
+            var system = Page.Locator(".module-system > .module-frame");
+            var first = (await system.First.GetAttributeAsync("data-module-id"))!;
+            var second = (await system.Nth(1).GetAttributeAsync("data-module-id"))!;
+            Assert.That(second, Is.Not.EqualTo("core.timer"), "the test project needs two indicators");
 
-            await Expect(Page.Locator(".toolbar-shell > .module-frame").First).ToHaveAttributeAsync("data-module-id", "core.actions");
-            // Not right after the project pill any more: the Git module is a pill of its own.
-            await Expect(git).Not.ToHaveCSSAsync("margin-left", "-18px");
+            var firstFrame = Page.Locator($".module-frame[data-module-id='{first}']");
+            await firstFrame.ClickAsync(new() { Button = MouseButton.Right });
+            await Expect(firstFrame.GetByTestId("module-move-left")).ToBeDisabledAsync();
+            await firstFrame.GetByTestId("module-move-right").ClickAsync();
+            await Expect(system.First).ToHaveAttributeAsync("data-module-id", second);
+            await Expect(system.Nth(1)).ToHaveAttributeAsync("data-module-id", first);
 
-            // System zone: the timer is the last module and cannot move (US3.9).
+            // The timer is the last module and cannot move (US3.9).
             var timer = Page.Locator(".module-frame[data-module-id='core.timer']");
             await timer.ClickAsync(new() { Button = MouseButton.Right });
             await Expect(timer.GetByTestId("module-move-left")).ToBeDisabledAsync();
             await Expect(timer.GetByTestId("module-move-right")).ToBeDisabledAsync();
             await Page.Keyboard.PressAsync("Escape");
-            await Expect(Page.Locator(".module-system > .module-frame").Last).ToHaveAttributeAsync("data-module-id", "core.timer");
+            await Expect(system.Last).ToHaveAttributeAsync("data-module-id", "core.timer");
 
             // The order is listed (and can be reset) in Settings.
             await Page.Locator(".system-settings").ClickAsync();
             var section = Page.GetByTestId("settings-modules-section");
-            await Expect(section.Locator(".settings-module-row").First).ToHaveAttributeAsync("data-module-id", "core.actions");
+            var systemRows = section.Locator(".settings-modules-zone").Nth(1).Locator(".settings-module-row");
+            await Expect(systemRows.First).ToHaveAttributeAsync("data-module-id", second);
             await section.GetByTestId("settings-reset-order").ClickAsync();
-            await Expect(section.Locator(".settings-module-row").First).ToHaveAttributeAsync("data-module-id", "git-tools");
+            await Expect(systemRows.First).ToHaveAttributeAsync("data-module-id", first);
         }
         finally
         {
             await ResetToolbarLayout();
         }
-        await OpenToolbar();
-        await Expect(Page.Locator(".toolbar-shell > .module-frame").First).ToHaveAttributeAsync("data-module-id", "git-tools");
     }
 
     [Test]
     public async Task US3_9_ReorganizeMode_DragsModulesBetweenZones_AcceptAndCancel()
     {
         await OpenToolbar();
+        var actions = Page.Locator(".module-frame[data-module-id='core.actions']");
         var git = Page.Locator(".module-frame[data-module-id='git-tools']");
+        var project = Page.Locator(".module-frame[data-module-id='core.project']");
         var timer = Page.Locator(".module-frame[data-module-id='core.timer']");
         var settingsButton = Page.Locator(".system-settings");
+        var inSystem = Page.Locator(".module-system > .module-frame[data-module-id='core.actions']");
+
+        async Task StartReorganizing()
+        {
+            await timer.ClickAsync(new() { Button = MouseButton.Right });
+            await timer.GetByTestId("module-reorganize").ClickAsync();
+            await Expect(Page.Locator(".toolbar-shell.reorganizing")).ToHaveCountAsync(1);
+        }
 
         try
         {
-            // Context menu → ✏️ Réorganiser: ✅ and ❎ replace the settings button.
-            await git.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 20, Y = 10 } });
-            await git.GetByTestId("module-reorganize").ClickAsync();
-            await Expect(Page.Locator(".toolbar-shell.reorganizing")).ToHaveCountAsync(1);
+            // Context menu → Réorganiser: ✅ and ❎ replace the settings button.
+            await StartReorganizing();
             await Expect(settingsButton).ToHaveCountAsync(0);
             await Expect(Page.GetByTestId("reorganize-accept")).ToBeVisibleAsync();
             await Expect(Page.GetByTestId("reorganize-cancel")).ToBeVisibleAsync();
-            await Expect(timer).Not.ToHaveAttributeAsync("draggable", "true");
+            // Pinned: the project pill and Git module on the left, the timer on the right.
+            foreach (var pinned in new[] { project, git, timer })
+                await Expect(pinned).Not.ToHaveAttributeAsync("draggable", "true");
+            await Expect(actions).ToHaveAttributeAsync("draggable", "true");
 
-            // Drag Git onto the timer: it lands in the system zone, just before the timer.
-            await git.DragToAsync(timer);
-            await Expect(Page.Locator(".module-system > .module-frame[data-module-id='git-tools']")).ToHaveCountAsync(1);
+            // Drag the quick actions onto the timer: they land in the system zone, before the timer.
+            await actions.DragToAsync(timer);
+            await Expect(inSystem).ToHaveCountAsync(1);
             await Expect(Page.Locator(".module-system > .module-frame").Last).ToHaveAttributeAsync("data-module-id", "core.timer");
 
             // ❎ puts everything back.
             await Page.GetByTestId("reorganize-cancel").ClickAsync();
             await Expect(settingsButton).ToBeVisibleAsync();
-            await Expect(Page.Locator(".toolbar-shell > .module-frame").First).ToHaveAttributeAsync("data-module-id", "git-tools");
+            await Expect(inSystem).ToHaveCountAsync(0);
 
             // Again, then ✅ keeps it, also after a reload.
-            await git.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 20, Y = 10 } });
-            await git.GetByTestId("module-reorganize").ClickAsync();
-            await git.DragToAsync(timer);
+            await StartReorganizing();
+            await actions.DragToAsync(timer);
             await Page.GetByTestId("reorganize-accept").ClickAsync();
             await Expect(settingsButton).ToBeVisibleAsync();
             await OpenToolbar();
-            await Expect(Page.Locator(".module-system > .module-frame[data-module-id='git-tools']")).ToHaveCountAsync(1);
+            await Expect(inSystem).ToHaveCountAsync(1);
 
-            // Back to the main zone through its drop slot.
-            var actions = Page.Locator(".module-frame[data-module-id='core.actions']");
-            await actions.ClickAsync(new() { Button = MouseButton.Right, Position = new() { X = 4, Y = 4 } });
-            await actions.GetByTestId("module-reorganize").ClickAsync();
-            await git.DragToAsync(Page.GetByTestId("module-drop-main"));
-            await Expect(Page.Locator(".toolbar-shell > .module-frame").Last).ToHaveAttributeAsync("data-module-id", "git-tools");
+            // Back to the (now empty) main zone through its drop slot; Esc cancels.
+            await StartReorganizing();
+            await actions.DragToAsync(Page.GetByTestId("module-drop-main"));
+            await Expect(Page.Locator(".toolbar-shell > .module-frame[data-module-id='core.actions']")).ToHaveCountAsync(1);
             await Page.Keyboard.PressAsync("Escape");
             await Expect(settingsButton).ToBeVisibleAsync();
+            await Expect(inSystem).ToHaveCountAsync(1);
         }
         finally
         {
