@@ -113,12 +113,31 @@ public class MockSettingsService : ISettingsService
         return Task.CompletedTask;
     }
 
+    public Task RemoveProjectAsync(string projectId)
+    {
+        var project = _projects.FirstOrDefault(p => p.Id == projectId);
+        if (project == null)
+            return Task.CompletedTask;
+        if (_projects.Count <= 1)
+            throw new InvalidOperationException("The last project cannot be removed.");
+
+        _projects.Remove(project);
+        if (_activeProject?.Id == project.Id)
+        {
+            _activeProject = _projects[0];
+            OnActiveProjectChanged?.Invoke(_activeProject);
+        }
+        return Task.CompletedTask;
+    }
+
     public Task SaveProjectAsync(ProjectConfig project)
     {
         var index = _projects.FindIndex(p => p.Id == project.Id);
         if (index >= 0)
         {
             _projects[index] = project;
+            if (_activeProject?.Id == project.Id)
+                _activeProject = project;
         }
         return Task.CompletedTask;
     }

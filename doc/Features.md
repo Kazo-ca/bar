@@ -78,6 +78,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.7 | Ordre des modules | ✅ 🔍 |
 | US3.8 | Débordement des modules et de leurs éléments | ✅ 🔍 |
 | US3.9 | Réorganiser les modules par glisser-déposer | ✅ 🔍 |
+| US3.10 | Page des paramètres d'un projet | ✅ 🔍 |
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | ✅ 🔍 |
 | US4.3 | Bouton script et sortie terminal | ✅ 🔍 |
@@ -405,6 +406,24 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] La zone de chaque module est enregistrée dans `settings.toolbarLayout.moduleZones` (id → `main` ou `system`), à côté de `moduleOrder`. Une zone inconnue est ignorée ; « Reset order » remet aussi les zones par défaut. Pas de changement de version de schéma : la propriété est facultative.
 - Capture : `doc/screenshots/19-reorganize-mode.png`.
 - Composants : `ModuleFrame.razor` (glisser, menu), `MainLayout.razor` (zones, ✅ / ❎), `ToolbarLayoutController` (brouillon, enregistrement), `ToolbarModuleLayout` et `ToolbarArrangement` (logique pure, testée).
+
+## US3.10 Page des paramètres d'un projet
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant qu'** utilisateur
+**Je veux** une page pour changer les paramètres d'un projet (couleur, nom affiché, etc.)
+**Afin de** ne pas modifier `config.json` à la main.
+
+**Critères d'acceptation :**
+- [x] *(Demandé par Benoit le 7 nov. 2026)* La page `/project-settings/{id}` modifie le **nom affiché**, le type, le **dossier local** (*Browse…*), la branche par défaut, l'URL du dépôt, le **thème**, la **couleur d'accent** (sélecteur ou code `#RRGGBB`), la police et le CSS personnalisé. Un aperçu de la pilule montre le nom et la couleur.
+- [x] On l'ouvre depuis Paramètres (« ✏️ Edit project… » sur le projet actif, ✏️ sur chaque ligne de *All Projects*) ou depuis le menu de la pilule du projet (« Project settings… »).
+- [x] Les changements sont un **brouillon** : rien n'est enregistré avant « Save » ; « Cancel » les abandonne. Les champs invalides (nom vide, couleur, nom de branche, URL non http(s), CSS qui ferme la balise `style`) affichent leur erreur et rien n'est enregistré.
+- [x] Enregistrer le projet actif l'applique tout de suite à la toolbar (nom, thème, couleur, dossier pour le plugin Git). Si le dossier change, le dépôt qui pointait vers l'ancien dossier le suit.
+- [x] « Remove project… » retire le projet de Kazo Bar après confirmation (le dossier et le dépôt ne sont pas touchés). Le dernier projet ne peut pas être retiré ; si le projet retiré était actif, le premier projet restant devient actif.
+- La gestion des worktrees et des branches a sa propre demande ; les plugins et les actions rapides restent dans Paramètres.
+- Prévu pour une fenêtre de dialogue : le formulaire est un composant à paramètres (`ProjectSettingsForm`, `ProjectId`, `OnSaved`, `OnClose`) que la page `ProjectSettings.razor` affiche.
+- Capture : `doc/screenshots/20-project-settings.png`.
+- Logique : `ProjectSettingsDraft` (validation et projet à enregistrer, pure, testée), `ISettingsService.RemoveProjectAsync`.
 
 ## US3.8 Débordement des modules et de leurs éléments
 **État :** ✅ Fait, 🔍 à recetter sur PC

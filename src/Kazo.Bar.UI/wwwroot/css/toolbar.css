@@ -3716,3 +3716,119 @@ body.dock-bottom .project-dropdown { top: auto; bottom: calc(100% + 12px); }
 /* While reorganizing, nothing goes into "»": the system zone may shrink so ✅ / ❎ stay visible. */
 .toolbar-shell.reorganizing .module-system { flex-shrink: 1; min-width: 0; }
 .toolbar-shell.reorganizing .module-system > .system-btn { flex-shrink: 0; }
+
+/* ==========================================================================
+   Project settings page (/project-settings): name, folder, branch, theme
+   ========================================================================== */
+.settings-edit-project,
+.settings-project-edit {
+    text-decoration: none;
+}
+
+.settings-project-edit {
+    margin-left: auto;
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: 0.7;
+}
+
+.settings-project-edit:hover,
+.settings-project-edit:focus-visible {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.project-settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.project-settings-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(45, 45, 45, 0.7);
+}
+
+.project-settings-preview-pill {
+    background: var(--preview-accent, #0078d7);
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-weight: 600;
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-settings-preview-meta {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.project-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.project-settings-grid > label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.project-settings-grid .project-settings-wide {
+    grid-column: 1 / -1;
+}
+
+.project-settings-grid select {
+    font: inherit;
+}
+
+.project-settings-color {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.project-settings-css {
+    font-family: Consolas, 'Cascadia Code', monospace;
+    resize: vertical;
+}
+
+.project-settings-field-error {
+    color: #ff8a80;
+    font-size: 0.95em;
+}
+
+.project-settings-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.project-settings-actions .settings-hint {
+    margin: 0;
+}
+
+.settings-btn-primary:not(:disabled) {
+    background: var(--accent-color, #0078d4);
+    border-color: var(--accent-color, #0078d4);
+}
+
+.project-settings-danger {
+    border-left-color: rgba(209, 52, 56, 1);
+}
+
+@media (max-width: 640px) {
+    .project-settings-grid {
+        grid-template-columns: 1fr;
+    }
+}

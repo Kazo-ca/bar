@@ -27,6 +27,14 @@ public interface ISettingsService
         throw new NotSupportedException("This host cannot create projects.");
 
     /// <summary>
+    /// Removes a project from the configuration. When it was the active project, the first
+    /// remaining project becomes active. The last project cannot be removed.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">It is the only project left.</exception>
+    Task RemoveProjectAsync(string projectId) =>
+        throw new NotSupportedException("This host cannot remove projects.");
+
+    /// <summary>
     /// Where the configuration lives, shown in Settings (for example the path of
     /// <c>config.json</c>). Null when the host keeps it in memory.
     /// </summary>
