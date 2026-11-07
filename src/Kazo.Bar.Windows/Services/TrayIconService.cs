@@ -75,7 +75,17 @@ public sealed class TrayIconService : IDisposable
     }
 
     /// <summary>Settings open in their own window, even while the toolbar is hidden.</summary>
-    private void OpenSettings() => _ = _dialogs.OpenSettingsAsync();
+    private async void OpenSettings()
+    {
+        try
+        {
+            await _dialogs.OpenSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"Could not open the Settings window: {ex}");
+        }
+    }
 
     private void Quit()
     {

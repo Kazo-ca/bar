@@ -169,6 +169,8 @@
         _layout.Changed += OnPluginStateChanged;
         _dismiss.DismissRequested += OnDismissRequested;
         SettingsService.OnActiveProjectChanged += OnProjectChanged;
+        // Settings now live in another window: redraw when they change there (module order, behavior...).
+        GlobalSettingsService.OnSettingsChanged += OnGlobalSettingsChanged;
         TimeTrackingService.OnTrackingChanged += OnPluginStateChanged;
 
         // Plugins render through RenderFragments whose handlers belong to the plugin, not to
@@ -236,6 +238,8 @@
     {
         _ = InvokeAsync(StateHasChanged);
     }
+
+    private void OnGlobalSettingsChanged(GlobalSettings settings) => _ = InvokeAsync(StateHasChanged);
 
     private void OnClockTick()
     {
@@ -426,6 +430,7 @@
         }
         _self?.Dispose();
         SettingsService.OnActiveProjectChanged -= OnProjectChanged;
+        GlobalSettingsService.OnSettingsChanged -= OnGlobalSettingsChanged;
         _layout.Changed -= OnPluginStateChanged;
         _dismiss.DismissRequested -= OnDismissRequested;
         ThemeService.OnThemeChanged -= OnThemeChanged;

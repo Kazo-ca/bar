@@ -59,7 +59,15 @@ public sealed class DialogWindow : Window
         {
             IsClosed = true;
             Program.Log($"Dialog closed: {context.Key}.");
-            await _webView.DisposeAsync();
+            try
+            {
+                await _webView.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                // async void handler: never let a teardown error reach the dispatcher.
+                Program.Log($"Dialog {context.Key}: WebView dispose failed: {ex.Message}");
+            }
         };
     }
 

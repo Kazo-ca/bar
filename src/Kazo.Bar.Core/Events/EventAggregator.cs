@@ -41,7 +41,11 @@ public class EventAggregator
         }
     }
 
-    /// <summary>Publish an event to all subscribers of exactly <typeparamref name="TEvent"/>.</summary>
+    /// <summary>
+    /// Publish an event to all subscribers of exactly <typeparamref name="TEvent"/>. Every handler
+    /// runs even if one throws (a closing window must not stop the others); the exceptions are then
+    /// rethrown together as an <see cref="AggregateException"/>.
+    /// </summary>
     public void Publish<TEvent>(TEvent eventData)
     {
         Delegate[] snapshot;
@@ -50,10 +54,19 @@ public class EventAggregator
             if (!_subscriptions.TryGetValue(typeof(TEvent), out var handlers)) return;
             snapshot = handlers.ToArray();
         }
+        List<Exception>? errors = null;
         foreach (var handler in snapshot)
         {
-            ((Action<TEvent>)handler)(eventData);
+            try
+            {
+                ((Action<TEvent>)handler)(eventData);
+            }
+            catch (Exception ex)
+            {
+                (errors ??= new List<Exception>()).Add(ex);
+            }
         }
+        if (errors != null) throw new AggregateException(errors);
     }
 
     private sealed class Subscription(Action unsubscribe) : IDisposable
