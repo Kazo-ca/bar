@@ -124,6 +124,8 @@ public static class Program
         services.AddSingleton<ToolbarHost>();
         services.AddSingleton<PopupDismissService>();
         services.AddSingleton<TrayIconService>();
+        // Silent update check every 30 minutes; installs go through Kazo.Bar.Updater.exe.
+        services.AddSingleton<BarUpdateService>();
         // Dialogs (Settings, Time Report, Git...) open in their own windows sharing these singletons.
         services.AddSingleton<Kazo.Bar.Core.Dialogs.IDialogService, WpfDialogService>();
 
@@ -218,10 +220,25 @@ public static class Program
         app.MainWindow = window;
         // Tray icon: show / hide / quit even when the toolbar is hidden or transparent.
         var tray = provider.GetRequiredService<TrayIconService>();
-        window.SourceInitialized += (_, _) => tray.Show();
+        var updates = provider.GetRequiredService<BarUpdateService>();
+        updates.UpdateAvailable += update => app.Dispatcher.BeginInvoke(() => tray.ShowUpdateAvailable(update));
+        window.SourceInitialized += (_, _) =>
+        {
+            tray.Show();
+            updates.Start();
+        };
+        using var updaterShutdown = ListenForUpdaterShutdown(app, tray);
         app.Exit += (_, _) =>
         {
             tray.Dispose();
+            try
+            {
+                updates.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException ex)
+            {
+                Log($"Update check shutdown failed: {ex.InnerException}");
+            }
             // Closing the toolbar ends the work day: stop the timer and record the time (US5.5).
             try
             {
@@ -235,5 +252,41 @@ public static class Program
         var code = app.Run(window);
         Log($"Exited with code {code}.");
         return code;
+    }
+
+    /// <summary>
+    /// Kazo.Bar.Updater sets a named event to ask the toolbar to quit normally (time tracking saved)
+    /// before it replaces the program files. Returns null when the event cannot be created.
+    /// </summary>
+    private static IDisposable? ListenForUpdaterShutdown(Application app, TrayIconService tray)
+    {
+        try
+        {
+            var signal = new EventWaitHandle(false, EventResetMode.ManualReset, Kazo.Bar.Updates.UpdateConstants.ShutdownEventName);
+            // A previous updater may have left it set: do not quit at once.
+            signal.Reset();
+            var registration = ThreadPool.RegisterWaitForSingleObject(signal, (_, _) =>
+                app.Dispatcher.BeginInvoke(() =>
+                {
+                    Log("Closing: Kazo Bar Updater is installing a new version.");
+                    tray.Dispose();
+                    app.Shutdown();
+                }), null, Timeout.Infinite, executeOnlyOnce: true);
+            return new UpdaterShutdownListener(signal, registration);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+        {
+            Log($"Updater shutdown signal unavailable: {ex.Message}");
+            return null;
+        }
+    }
+
+    private sealed class UpdaterShutdownListener(EventWaitHandle signal, RegisteredWaitHandle registration) : IDisposable
+    {
+        public void Dispose()
+        {
+            registration.Unregister(null);
+            signal.Dispose();
+        }
     }
 }

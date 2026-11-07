@@ -108,6 +108,20 @@ Files written for the current user, all in `%APPDATA%\Kazo\Bar`:
 
 Upgrading from the DevToolbar name: on first start, the Windows host copies `%APPDATA%\DevToolbar` to `%APPDATA%\Kazo\Bar` (only when the new folder is empty), then leaves `migrated-to-kazo-bar.txt` in the old folder, which is kept as a backup. Credential Manager secrets move from `DevToolbar:<ref>` to `Kazo.Bar:<ref>`. The frozen MAUI host still uses `%APPDATA%\DevToolbar`.
 
+### Updates (Kazo Bar Updater)
+The release zip ships `Kazo.Bar.Updater.exe` next to `Kazo.Bar.Windows.exe`.
+
+- **Background check**: a minute after start, then every 30 minutes, the toolbar asks the public GitHub API for the releases of `Kazo-ca/bar` (pre-releases included while Kazo Bar is 0.x). It is silent: with no internet, GitHub down or rate limited, it writes one line in `windows-host.log` and tries again 30 minutes later. When a newer release exists, the tray icon shows a notification and a bold *Install Kazo Bar x.y.z…* menu item. *Check for updates…* in the tray menu runs the updater on demand. Debug builds never check.
+- **Updater**: copies itself to `%LOCALAPPDATA%\Kazo\Bar\updates\runner` and runs from there, downloads `Kazo.Bar-<version>-win-x64.zip` and checks GitHub's SHA-256 digest, extracts it, then asks the toolbar to close normally (a named event, so the work day is saved; it is ended after 20 s otherwise). It moves the current files into `<install folder>\.kazo-update-backup-<time>`, copies the new ones, and puts the old ones back if anything fails. Then it starts the toolbar again. `%APPDATA%\Kazo\Bar` (settings and data) is never touched. Log: `%LOCALAPPDATA%\Kazo\Bar\logs\updater.log`.
+- Command line: `Kazo.Bar.Updater.exe [--install-dir <folder>] [--tag v0.2.0] [--force] [--no-start] [--stable-only]`.
+
+### Publish a release
+```powershell
+./build/Publish-Release.ps1 -Version 0.2.0
+gh release create v0.2.0 artifacts/Kazo.Bar-0.2.0-win-x64.zip --prerelease --title "Kazo Bar 0.2.0"
+```
+The script publishes the toolbar and the updater (self-contained, `-p:Version=0.2.0`) into one folder and zips it. The tag must be `v<version>` and the asset name `Kazo.Bar-<version>-win-x64.zip`: the update check relies on both. The default version of a local build is set in `Directory.Build.props`.
+
 ### Run the Web test host
 ```bash
 dotnet run --project src/Kazo.Bar.Web

@@ -102,6 +102,8 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US8.5 | Fenêtres actives | ✅ 🔍 |
 | US9.1 | Hôte WPF principal | ✅ 🔍 |
 | US9.2 | Hôte MAUI gelé | 🧊 |
+| US11.1 | Application Kazo Bar Updater | ✅ 🔍 |
+| US11.2 | Vérification des mises à jour aux 30 minutes | ✅ 🔍 |
 | US10.1 | Sessions et coûts IA (v2) | ⬜ v2 |
 | US10.2 | Rapport des coûts IA (v2) | ⬜ v2 |
 
@@ -764,6 +766,41 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 **État :** 🧊 Gelé
 
 `src/Kazo.Bar.Maui` reste dans la solution mais ne reçoit plus de nouvelles fonctions. Il n'est pas compilé dans le conteneur Linux et n'est pas recetté.
+
+---
+
+# F11. Mises à jour
+
+Demandé le 7 nov. 2026. Les versions sont publiées comme releases GitHub de `Kazo-ca/bar` (tag `v<version>`, fichier `Kazo.Bar-<version>-win-x64.zip`, produit par `build/Publish-Release.ps1`).
+
+## US11.1 Application Kazo Bar Updater
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant qu'** utilisateur
+**Je veux** une application `Kazo Bar Updater` qui ferme la barre, applique la mise à jour depuis GitHub puis redémarre la barre
+**Afin de** passer à la nouvelle version sans rien faire à la main.
+
+**Critères d'acceptation :**
+- [x] `src/Kazo.Bar.Updater` (WPF) livré dans le même zip que la barre ; logique dans `src/Kazo.Bar.Updates` (testée sous Linux).
+- [x] Trouve la release la plus récente (ou celle passée par `--tag`), ignore les brouillons, accepte les pré-versions tant que Kazo Bar est en 0.x.
+- [x] Télécharge le zip et vérifie l'empreinte SHA-256 donnée par GitHub, avant de fermer la barre.
+- [x] Ferme la barre proprement (événement nommé : la journée de travail est enregistrée), et la termine seulement après 20 s.
+- [x] Remplace les fichiers en gardant l'ancienne version dans `.kazo-update-backup-*` ; en cas d'échec, l'ancienne version est remise et relancée.
+- [x] Redémarre la barre après la mise à jour.
+- [x] Ne touche jamais `%APPDATA%\Kazo\Bar` (paramètres, données) ; refuse un dossier qui le chevauche ou qui ne contient pas `Kazo.Bar.Windows.exe`.
+- [x] S'exécute depuis une copie dans `%LOCALAPPDATA%\Kazo\Bar\updates\runner`, pour ne jamais remplacer ses propres fichiers en cours de route.
+- [ ] Recette sur PC : mise à jour réelle d'une 0.x vers la suivante, barre masquée ou ancrée, retour arrière.
+
+## US11.2 Vérification des mises à jour aux 30 minutes
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**Critères d'acceptation :**
+- [x] Une minute après le démarrage, puis toutes les 30 minutes, la barre interroge l'API GitHub publique (sans jeton).
+- [x] Silencieuse : sans internet, GitHub en panne ou limite d'appels atteinte, une ligne dans le journal et rien d'autre ; la barre ne plante pas.
+- [x] Nouvelle version trouvée : une notification de la zone de notification (une seule fois par version) et un élément « Install Kazo Bar x.y.z… » dans son menu, qui lance l'Updater.
+- [x] « Check for updates… » dans le menu de la zone de notification lance l'Updater à la demande.
+- [x] Désactivée dans les builds Debug (pour ne pas remplacer `bin\`).
+- Note : la v0.1.0 déjà publiée ne contient ni l'Updater ni la vérification ; il faut installer la version suivante à la main une fois.
 
 ---
 

@@ -5,6 +5,8 @@
     <Project Path="src/Kazo.Bar.Maui/Kazo.Bar.Maui.csproj" />
     <Project Path="src/Kazo.Bar.Plugins/Kazo.Bar.Plugins.csproj" />
     <Project Path="src/Kazo.Bar.UI/Kazo.Bar.UI.csproj" />
+    <Project Path="src/Kazo.Bar.Updater/Kazo.Bar.Updater.csproj" />
+    <Project Path="src/Kazo.Bar.Updates/Kazo.Bar.Updates.csproj" />
     <Project Path="src/Kazo.Bar.Web/Kazo.Bar.Web.csproj" />
     <Project Path="src/Kazo.Bar.Windows/Kazo.Bar.Windows.csproj" />
   </Folder>

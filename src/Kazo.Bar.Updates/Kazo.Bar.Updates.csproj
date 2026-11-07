@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Update logic shared by the toolbar (background check every 30 minutes) and
+    Kazo.Bar.Updater (download, apply with rollback, restart).
+    BCL only, no host dependency, so it is unit-tested on Linux.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kazo.Bar.Tests.Unit" />
+  </ItemGroup>
+
+</Project>
