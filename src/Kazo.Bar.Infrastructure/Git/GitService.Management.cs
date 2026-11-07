@@ -71,7 +71,7 @@ public sealed partial class GitService
     public Task<GitCommandResult> UnstageAsync(string localPath, IReadOnlyList<string> paths, CancellationToken cancellationToken = default)
     {
         // Before the first commit there is no HEAD to restore from: take the files out of the index.
-        string[] command = IsHeadUnborn(localPath) ? ["rm", "--cached", "-r", "--quiet", "--"] : ["restore", "--staged", "--"];
+        string[] command = IsHeadUnborn(localPath) ? ["rm", "--cached", "-r", "--force", "--quiet", "--"] : ["restore", "--staged", "--"];
         return RunOnPathsAsync(localPath, command, paths, cancellationToken);
     }
 
@@ -79,6 +79,9 @@ public sealed partial class GitService
     {
         ArgumentNullException.ThrowIfNull(changes);
         var untracked = changes.Where(c => c.Kind == GitChangeKind.Untracked).Select(c => c.Path).ToList();
+        // A nested repository is listed as "dir/"; git clean leaves it alone, so say so.
+        if (untracked.FirstOrDefault(p => p.EndsWith('/')) is { } nested)
+            return Failed($"{nested} is a separate Git repository: delete it by hand if you really want to.");
         var tracked = changes.Where(c => c.Kind != GitChangeKind.Untracked && !c.IsStaged).Select(c => c.Path).ToList();
 
         var result = Succeeded();
@@ -129,6 +132,8 @@ public sealed partial class GitService
     {
         if (GitBranchNames.Validate(name) is { } error)
             return Task.FromResult(Failed(error));
+        if (startPoint != null && startPoint.TrimStart().StartsWith('-'))
+            return Task.FromResult(Failed("Invalid source branch."));
         var arguments = new List<string>(checkout ? ["switch", "--create", name.Trim()] : ["branch", name.Trim()]);
         if (!string.IsNullOrWhiteSpace(startPoint)) arguments.Add(startPoint.Trim());
         return RunAsync(localPath, arguments.ToArray(), cancellationToken);
@@ -146,7 +151,7 @@ public sealed partial class GitService
     {
         if (GitWorktreeLocations.ValidateFolder(worktreePath) is { } folderError)
             return Failed(folderError);
-        if (string.IsNullOrWhiteSpace(sourceBranch) || sourceBranch.StartsWith('-'))
+        if (string.IsNullOrWhiteSpace(sourceBranch) || sourceBranch.StartsWith('-') || (newBranch?.TrimStart().StartsWith('-') ?? false))
             return Failed("Choose the source branch.");
         var target = worktreePath.Trim();
         if (Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any())
@@ -174,13 +179,13 @@ public sealed partial class GitService
     }
 
     public Task<GitCommandResult> RemoveWorktreeAsync(string repositoryPath, string worktreePath, bool force = false, CancellationToken cancellationToken = default) =>
-        string.IsNullOrWhiteSpace(worktreePath)
+        string.IsNullOrWhiteSpace(worktreePath) || worktreePath.StartsWith('-')
             ? Task.FromResult(Failed("The worktree folder is required."))
             : RunAsync(repositoryPath, force ? ["worktree", "remove", "--force", worktreePath] : ["worktree", "remove", worktreePath], cancellationToken);
 
     public Task<GitCommandResult> MoveWorktreeAsync(string repositoryPath, string worktreePath, string newPath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(worktreePath))
+        if (string.IsNullOrWhiteSpace(worktreePath) || worktreePath.StartsWith('-'))
             return Task.FromResult(Failed("The worktree folder is required."));
         if (GitWorktreeLocations.ValidateFolder(newPath) is { } error)
             return Task.FromResult(Failed(error));

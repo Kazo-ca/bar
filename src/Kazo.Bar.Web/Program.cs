@@ -31,7 +31,9 @@ builder.Services.AddSingleton<ISecretStoreSelector>(sp => sp.GetRequiredService<
 builder.Services.AddSingleton<IOAuthSignInService, MockOAuthSignInService>();
 
 // Register plugins
-builder.Services.AddSingleton<IGitService, MockGitService>();
+builder.Services.AddSingleton<MockGitService>();
+builder.Services.AddSingleton<IGitService>(sp => sp.GetRequiredService<MockGitService>());
+builder.Services.AddSingleton<IGitRepositoryManager>(sp => sp.GetRequiredService<MockGitService>());
 builder.Services.AddSingleton<IPlugin, GitPlugin>();
 builder.Services.AddSingleton<IWorkItemProvider, MockWorkItemProvider>();
 builder.Services.AddSingleton<IPlugin, WorkItemsPlugin>();

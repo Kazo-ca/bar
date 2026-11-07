@@ -208,6 +208,43 @@ public class GitRepositoryManagerTests
         Assert.That(changes.HasChanges, Is.False);
     }
 
+    [Test]
+    public async Task Unstage_BeforeTheFirstCommit_WorksForAFileEditedAfterStaging()
+    {
+        var fresh = Path.Combine(_temp.Root, "fresh");
+        Directory.CreateDirectory(fresh);
+        Git(fresh, "init", "--initial-branch=main");
+        File.WriteAllText(Path.Combine(fresh, "f.txt"), "one\n");
+        Git(fresh, "add", "f.txt");
+        File.WriteAllText(Path.Combine(fresh, "f.txt"), "two\n");
+
+        var result = await _git.UnstageAsync(fresh, ["f.txt"]);
+
+        Assert.That(result.Success, Is.True, result.Error);
+        Assert.That((await _git.GetChangesAsync(fresh)).Staged, Is.Empty);
+    }
+
+    [Test]
+    public async Task StagedRename_IsListedWithItsOldPath_AndUnstagedWithIt()
+    {
+        Git(_repo, "mv", "readme.md", "README.txt");
+        var rename = (await _git.GetChangesAsync(_repo)).Staged.Single();
+        Assert.That((rename.Kind, rename.Path, rename.OldPath), Is.EqualTo((GitChangeKind.Renamed, "README.txt", "readme.md")));
+
+        var result = await _git.UnstageAsync(_repo, [rename.Path, rename.OldPath!]);
+
+        Assert.That(result.Success, Is.True, result.Error);
+        Assert.That((await _git.GetChangesAsync(_repo)).Staged, Is.Empty);
+    }
+
+    [Test]
+    public async Task OptionLikeNames_AreRefused()
+    {
+        Assert.That((await _git.CreateBranchAsync(_repo, "ok", "--orphan", checkout: false)).Success, Is.False);
+        Assert.That((await _git.RemoveWorktreeAsync(_repo, "--force")).Success, Is.False);
+        Assert.That((await _git.DeleteBranchAsync(_repo, "-D")).Success, Is.False);
+    }
+
     private static void Git(string directory, params string[] arguments)
     {
         var (code, _, error) = Run(directory, arguments);

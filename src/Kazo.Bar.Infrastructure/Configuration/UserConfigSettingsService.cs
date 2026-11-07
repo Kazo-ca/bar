@@ -53,6 +53,27 @@ public sealed class UserConfigSettingsService : ISettingsService
         OnActiveProjectChanged?.Invoke(project);
     }
 
+    public async Task RemoveProjectAsync(string projectId)
+    {
+        var projects = _store.Current.Projects;
+        var project = projects.FirstOrDefault(p => p.Id == projectId);
+        if (project == null)
+            return;
+        if (projects.Count <= 1)
+            throw new InvalidOperationException("The last project cannot be removed.");
+
+        var wasActive = GetActiveProject()?.Id == project.Id;
+        var remaining = projects.Where(p => p.Id != project.Id).ToList();
+        await _store.UpdateAsync(c =>
+        {
+            c.Projects = remaining;
+            if (wasActive)
+                c.ActiveProjectId = remaining[0].Id;
+        });
+        if (wasActive)
+            OnActiveProjectChanged?.Invoke(remaining[0]);
+    }
+
     public Task SaveProjectAsync(ProjectConfig project)
     {
         ArgumentNullException.ThrowIfNull(project);

@@ -31,7 +31,7 @@ public static class GitChangeParser
         var parts = numstat.Split('\0');
         for (var i = 0; i < parts.Length; i++)
         {
-            var fields = parts[i].TrimStart('\n', '\r').Split('\t');
+            var fields = parts[i].Split('\t', 3);
             if (fields.Length < 3) continue;
             var stat = new LineStat(ParseCount(fields[0]), ParseCount(fields[1]));
             var path = fields[2];

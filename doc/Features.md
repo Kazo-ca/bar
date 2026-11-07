@@ -78,12 +78,15 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.7 | Ordre des modules | ✅ 🔍 |
 | US3.8 | Débordement des modules et de leurs éléments | ✅ 🔍 |
 | US3.9 | Réorganiser les modules par glisser-déposer | ✅ 🔍 |
+| US3.10 | Page des paramètres d'un projet | ✅ 🔍 |
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | ✅ 🔍 |
 | US4.3 | Bouton script et sortie terminal | ✅ 🔍 |
 | US5.1 | Plugin Git | ✅ 🔍 |
 | US5.2 | Plugin Work Items | 🟡 🔍 |
 | US5.6 | Sélecteur de dépôt et worktrees Git | ✅ 🔍 |
+| US5.7 | Gestion du dépôt : changements, diff, commit, branches | ✅ 🔍 |
+| US5.8 | Gestion des worktrees et de leur emplacement | ✅ 🔍 |
 | US5.3 | Suivi du temps et inactivité | ✅ 🔍 |
 | US5.4 | Rapports de temps | ✅ 🔍 |
 | US5.5 | Journée de travail (arrivée, dîner, réunion) | ✅ 🔍 |
@@ -406,6 +409,24 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - Capture : `doc/screenshots/19-reorganize-mode.png`.
 - Composants : `ModuleFrame.razor` (glisser, menu), `MainLayout.razor` (zones, ✅ / ❎), `ToolbarLayoutController` (brouillon, enregistrement), `ToolbarModuleLayout` et `ToolbarArrangement` (logique pure, testée).
 
+## US3.10 Page des paramètres d'un projet
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant qu'** utilisateur
+**Je veux** une page pour changer les paramètres d'un projet (couleur, nom affiché, etc.)
+**Afin de** ne pas modifier `config.json` à la main.
+
+**Critères d'acceptation :**
+- [x] *(Demandé par Benoit le 7 nov. 2026)* La page `/project-settings/{id}` modifie le **nom affiché**, le type, le **dossier local** (*Browse…*), la branche par défaut, l'URL du dépôt, le **thème**, la **couleur d'accent** (sélecteur ou code `#RRGGBB`), la police et le CSS personnalisé. Un aperçu de la pilule montre le nom et la couleur.
+- [x] On l'ouvre depuis Paramètres (« ✏️ Edit project… » sur le projet actif, ✏️ sur chaque ligne de *All Projects*) ou depuis le menu de la pilule du projet (« Project settings… »).
+- [x] Les changements sont un **brouillon** : rien n'est enregistré avant « Save » ; « Cancel » les abandonne. Les champs invalides (nom vide, couleur, nom de branche, URL non http(s), CSS qui ferme la balise `style`) affichent leur erreur et rien n'est enregistré.
+- [x] Enregistrer le projet actif l'applique tout de suite à la toolbar (nom, thème, couleur, dossier pour le plugin Git). Si le dossier change, le dépôt qui pointait vers l'ancien dossier le suit.
+- [x] « Remove project… » retire le projet de Kazo Bar après confirmation (le dossier et le dépôt ne sont pas touchés). Le dernier projet ne peut pas être retiré ; si le projet retiré était actif, le premier projet restant devient actif.
+- La gestion des worktrees et des branches a sa propre demande ; les plugins et les actions rapides restent dans Paramètres.
+- Prévu pour une fenêtre de dialogue : le formulaire est un composant à paramètres (`ProjectSettingsForm`, `ProjectId`, `OnSaved`, `OnClose`) que la page `ProjectSettings.razor` affiche.
+- Capture : `doc/screenshots/20-project-settings.png`.
+- Logique : `ProjectSettingsDraft` (validation et projet à enregistrer, pure, testée), `ISettingsService.RemoveProjectAsync`.
+
 ## US3.8 Débordement des modules et de leurs éléments
 **État :** ✅ Fait, 🔍 à recetter sur PC
 
@@ -499,6 +520,39 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] Le **module Git** ne garde que les boutons : ⬇ Pull, ⬆ Push et un bouton icône seule « Pull & Push » (`GitPlugin.PullAndPushAsync` : Pull puis Push ; le Push n'est pas lancé si le Pull échoue ou laisse des conflits).
 - [x] Les icônes viennent de **Font Awesome Free 7.3.1** (SVG intégrés hors ligne, licence CC BY 4.0) : composant `FaIcon`, liste `FaIcons.cs`. Seules les icônes utilisées sont intégrées. Les emojis restants de la toolbar pourront suivre.
 - [x] L'hôte Web simule deux worktrees pour le premier dépôt de chaque projet (tests et captures).
+
+## US5.7 Gestion du dépôt : changements, diff, commit, branches
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+*(Demandé par Benoit le 7 nov. 2026 : « Faire un outil de gestion complète de la repository. »)*
+
+**En tant que** développeur
+**Je veux** voir mes changements, les committer et changer de branche sans quitter la toolbar
+**Afin de** ne pas ouvrir un autre outil pour les opérations Git courantes.
+
+**Critères d'acceptation :**
+- [x] Le module Git affiche le **nombre de lignes ajoutées et retirées** (`+12 −3`) quand le dossier a des changements (lu avec LibGit2Sharp : index et copie de travail comparés à HEAD, fichiers non suivis compris). Un clic ouvre la fenêtre du dépôt sur l'onglet **Changements**.
+- [x] La fenêtre du dépôt (`GitManagerPanel`) s'ouvre aussi depuis le menu de la pilule : « Changes & commit », « Branches », « Worktrees ». Elle agit sur le dossier où travaille la toolbar (dépôt ou worktree sélectionné). Échap ou ✕ la ferme.
+- [x] **Changements** : fichiers indexés (staged) et non indexés, chacun avec son type (M, A, D, R, U, !) et ses `+/−`. Un clic sur un fichier montre son **diff** (numéros de ligne, ajouts en vert, retraits en rouge ; fichier binaire ou trop long signalé). Boutons par fichier ou pour toute la liste : indexer, désindexer, annuler les changements (avec confirmation, un nouveau fichier est supprimé).
+- [x] **Commit** : message (Ctrl+Entrée), « Commit N staged » s'il y a des fichiers indexés, sinon « Commit all » qui indexe tout. Option « Amend last commit ». Le commit passe par le CLI `git` : hooks, signature et configuration de l'utilisateur s'appliquent. Bloqué tant qu'il reste des conflits.
+- [x] **Branches** : branches locales et distantes (suivi, ↑/↓, dernier commit), filtre. « Switch » change la branche du dossier (`git switch`, une branche distante devient une branche locale qui la suit). Création d'une branche depuis une branche source choisie, avec ou sans bascule. Suppression avec confirmation (option « force »). Une branche ouverte dans un autre worktree propose d'ouvrir ce worktree. « Fetch » met à jour les branches distantes.
+- [x] Le nom d'une nouvelle branche est vérifié avant tout appel à Git (`GitBranchNames`). Le message d'erreur de Git est affiché tel quel quand une commande échoue.
+- [x] Service : `IGitRepositoryManager`, implémenté par `GitService` (LibGit2Sharp pour lire les branches, CLI `git` avec des pathspecs littéraux pour tout le reste). Tests sur de vrais dépôts créés par les tests.
+- [ ] Quand l'API de dialogues multi-fenêtres sera disponible, ouvrir le panneau dans sa propre fenêtre (il est déjà un composant autonome ; pour l'instant il s'affiche par-dessus la toolbar, `IPluginOverlay`).
+
+## US5.8 Gestion des worktrees et de leur emplacement
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant que** développeur qui travaille sur plusieurs branches en même temps
+**Je veux** créer, déplacer et supprimer mes worktrees depuis la toolbar
+**Afin de** ne plus taper `git worktree` à la main.
+
+**Critères d'acceptation :**
+- [x] Onglet **Worktrees** : liste des worktrees (dossier, branche, « main »), le worktree actif coché. « Open » fait travailler la toolbar dans ce worktree.
+- [x] **Nouveau worktree** : choisir une branche source (locale ou distante), créer ou non une nouvelle branche, dossier proposé automatiquement (modifiable), option « l'ouvrir dans la toolbar ».
+- [x] **Emplacement** : par défaut, un dossier `<dépôt>.worktrees` à côté du dépôt (`C:\src\api` → `C:\src\api.worktrees\feature-login`). Le dossier se change par dépôt (`gitRepositories[].worktreesFolder` dans la configuration, champ optionnel, pas de changement de schéma).
+- [x] **Déplacer** un worktree existant (`git worktree move`) et le **supprimer** avec son dossier (`git worktree remove`, confirmation ; « force » si le worktree a des changements). La branche est gardée.
+- [x] L'hôte Web simule les changements, les branches et les worktrees (tests Playwright et captures).
 
 ## US5.2 Plugin Work Items
 **État :** 🟡 Partiel, 🔍 à recetter sur PC (réel dans l'hôte WPF, simulé dans l'hôte Web)

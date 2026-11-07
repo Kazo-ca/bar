@@ -1,0 +1,305 @@
+@using Kazo.Bar.Core.Configuration
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.Core.Models
+@inject ISettingsService SettingsService
+@inject INotificationService NotificationService
+@inject IServiceProvider Services
+
+@*
+    Settings of one project: display name, folder, type, branch, repository URL and theme
+    (color, font, custom CSS). Edits a draft: nothing is saved until "Save". Plain component
+    with parameters so it can be shown in a page (/project-settings) or in a dialog window.
+*@
+@if (_project == null)
+{
+    <section class="settings-section" data-testid="project-settings-missing">
+        <p class="settings-description">This project no longer exists.</p>
+        <button type="button" class="settings-btn" @onclick="OnClose">Close</button>
+    </section>
+}
+else
+{
+    <form class="project-settings-form" data-testid="project-settings-form" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
+        <div class="project-settings-preview" data-testid="project-settings-preview" style="--preview-accent: @PreviewAccent">
+            <span class="project-settings-preview-pill">@(string.IsNullOrWhiteSpace(_name) ? "…" : _name.Trim())</span>
+            <span class="project-settings-preview-meta">@ThemeNames.DisplayName(_themeName) · @PreviewAccent.ToUpperInvariant()</span>
+        </div>
+
+        <section class="settings-section">
+            <h3>General</h3>
+            <div class="project-settings-grid">
+                <label>
+                    <span>Display name *</span>
+                    <input class="settings-text-input" data-testid="project-settings-name" maxlength="@ProjectFactory.MaxNameLength"
+                           @bind="_name" @bind:event="oninput" />
+                    @FieldError(nameof(ProjectSettingsDraft.Name))
+                </label>
+                <label>
+                    <span>Type</span>
+                    <input class="settings-text-input" data-testid="project-settings-type" placeholder="WebApi, SPA…" maxlength="@ProjectSettingsDraft.MaxTypeLength"
+                           @bind="_type" @bind:event="oninput" />
+                    @FieldError(nameof(ProjectSettingsDraft.ProjectType))
+                </label>
+                <label class="project-settings-wide">
+                    <span>Local folder *</span>
+                    <span class="new-project-folder">
+                        <input class="settings-text-input" data-testid="project-settings-path" @bind="_path" @bind:event="oninput" />
+                        @if (_folderPicker != null)
+                        {
+                            <button type="button" class="settings-btn" data-testid="project-settings-browse" @onclick="BrowseAsync">Browse…</button>
+                        }
+                    </span>
+                    @FieldError(nameof(ProjectSettingsDraft.Path))
+                </label>
+                <label>
+                    <span>Default branch *</span>
+                    <input class="settings-text-input" data-testid="project-settings-branch" @bind="_branch" @bind:event="oninput" />
+                    @FieldError(nameof(ProjectSettingsDraft.DefaultBranch))
+                </label>
+                <label>
+                    <span>Repository URL</span>
+                    <input class="settings-text-input" data-testid="project-settings-url" placeholder="https://github.com/…" @bind="_url" @bind:event="oninput" />
+                    @FieldError(nameof(ProjectSettingsDraft.RepositoryUrl))
+                </label>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h3>Appearance</h3>
+            <div class="project-settings-grid">
+                <label>
+                    <span>Theme</span>
+                    <select class="settings-theme-select" data-testid="project-settings-theme" @bind="_themeName">
+                        @foreach (var name in ThemeNames.All)
+                        {
+                            <option value="@name">@ThemeNames.DisplayName(name)</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    <span>Accent color</span>
+                    <span class="project-settings-color">
+                        <input type="color" class="settings-color-picker" data-testid="project-settings-color-picker"
+                               value="@PreviewAccent" @oninput="@(e => _accent = e.Value?.ToString() ?? _accent)" />
+                        <input class="settings-text-input" data-testid="project-settings-color" maxlength="7" @bind="_accent" @bind:event="oninput" />
+                    </span>
+                    @FieldError(nameof(ProjectSettingsDraft.AccentColor))
+                </label>
+                <label>
+                    <span>Font</span>
+                    <select class="settings-font-select" data-testid="project-settings-font" @bind="_font">
+                        @foreach (var font in FontChoices())
+                        {
+                            <option value="@font.Value">@font.Label</option>
+                        }
+                    </select>
+                </label>
+                <label class="project-settings-wide">
+                    <span>Custom CSS (applied to the toolbar after the theme)</span>
+                    <textarea class="settings-text-input project-settings-css" data-testid="project-settings-css" rows="4" spellcheck="false"
+                              placeholder=".toolbar-shell { … }" @bind="_customCss" @bind:event="oninput"></textarea>
+                    @FieldError(nameof(ProjectSettingsDraft.CustomCss))
+                </label>
+            </div>
+        </section>
+
+        @if (_saveError != null)
+        {
+            <div class="settings-form-error" role="alert" data-testid="project-settings-error">@_saveError</div>
+        }
+        <div class="project-settings-actions">
+            <button type="submit" class="settings-btn settings-btn-primary" data-testid="project-settings-save" disabled="@(_saving || !IsDirty)">Save</button>
+            <button type="button" class="settings-btn" data-testid="project-settings-cancel" @onclick="OnClose">@(IsDirty ? "Cancel" : "Close")</button>
+            @if (IsDirty)
+            {
+                <span class="settings-hint" data-testid="project-settings-dirty">Unsaved changes</span>
+            }
+        </div>
+
+        <section class="settings-section project-settings-danger">
+            <h3>Remove project</h3>
+            <p class="settings-description">Removes the project from Kazo Bar only. The local folder and the repository are not touched.</p>
+            @if (_confirmRemove)
+            {
+                <div class="settings-quit-confirm">
+                    <span class="settings-quit-question">Remove @_project.Name?</span>
+                    <button type="button" class="settings-btn settings-btn-danger" data-testid="project-settings-remove-confirm" @onclick="RemoveAsync">Remove</button>
+                    <button type="button" class="settings-btn" @onclick="() => _confirmRemove = false">Cancel</button>
+                </div>
+            }
+            else
+            {
+                <button type="button" class="settings-btn settings-btn-danger" data-testid="project-settings-remove"
+                        disabled="@(!_canRemove)" title="@(_canRemove ? "Remove this project" : "The last project cannot be removed")"
+                        @onclick="() => _confirmRemove = true">Remove project…</button>
+            }
+        </section>
+    </form>
+}
+
+@code {
+    /// <summary>Project to edit; the active project when null or empty.</summary>
+    [Parameter] public string? ProjectId { get; set; }
+
+    /// <summary>Raised with the saved project.</summary>
+    [Parameter] public EventCallback<ProjectConfig> OnSaved { get; set; }
+
+    /// <summary>Raised when the user closes the form (Cancel / Close) or after a removal.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private static readonly (string Value, string Label)[] Fonts =
+    [
+        ("'Segoe UI', sans-serif", "Segoe UI"),
+        ("Inter, sans-serif", "Inter"),
+        ("'Cascadia Code', monospace", "Cascadia Code"),
+        ("Consolas, monospace", "Consolas"),
+        ("'JetBrains Mono', monospace", "JetBrains Mono"),
+        ("'Fira Code', monospace", "Fira Code"),
+    ];
+
+    private ProjectConfig? _project;
+    private ProjectSettingsDraft _original = new();
+    private IFolderPickerService? _folderPicker;
+    private IReadOnlyDictionary<string, string> _errors = new Dictionary<string, string>();
+    private string? _saveError;
+    private bool _saving;
+    private bool _confirmRemove;
+    private bool _canRemove;
+    private bool _loaded;
+    private string? _loadedId;
+
+    private string _name = string.Empty;
+    private string _type = string.Empty;
+    private string _path = string.Empty;
+    private string _branch = string.Empty;
+    private string _url = string.Empty;
+    private string _themeName = ThemeNames.Light;
+    private string _accent = ProjectSettingsDraft.DefaultAccentColor;
+    private string _font = string.Empty;
+    private string _customCss = string.Empty;
+
+    protected override void OnInitialized() =>
+        _folderPicker = Services.GetService(typeof(IFolderPickerService)) as IFolderPickerService;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loaded && _loadedId == ProjectId) return;
+        _loaded = true;
+        _loadedId = ProjectId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var projects = await SettingsService.GetProjectsAsync();
+        _project = string.IsNullOrEmpty(ProjectId)
+            ? SettingsService.GetActiveProject()
+            : projects.FirstOrDefault(p => p.Id == ProjectId);
+        _canRemove = projects.Count > 1;
+        _confirmRemove = false;
+        if (_project != null)
+            Fill(ProjectSettingsDraft.From(_project));
+    }
+
+    private void Fill(ProjectSettingsDraft draft)
+    {
+        _original = draft;
+        _name = draft.Name;
+        _type = draft.ProjectType;
+        _path = draft.Path;
+        _branch = draft.DefaultBranch;
+        _url = draft.RepositoryUrl;
+        _themeName = draft.ThemeName;
+        _accent = draft.AccentColor;
+        _font = draft.FontFamily;
+        _customCss = draft.CustomCss;
+        _errors = new Dictionary<string, string>();
+        _saveError = null;
+    }
+
+    private ProjectSettingsDraft Current => new()
+    {
+        Name = _name,
+        ProjectType = _type,
+        Path = _path,
+        DefaultBranch = _branch,
+        RepositoryUrl = _url,
+        ThemeName = _themeName,
+        AccentColor = _accent,
+        FontFamily = _font,
+        CustomCss = _customCss,
+    };
+
+    private bool IsDirty => Current != _original;
+
+    /// <summary>Accent shown in the preview and the color picker; falls back while the text is incomplete.</summary>
+    private string PreviewAccent => (ProjectSettingsDraft.IsHexColor(_accent) ? _accent : _original.AccentColor).ToLowerInvariant();
+
+    /// <summary>The usual fonts, plus the project's own when it is not one of them.</summary>
+    private IEnumerable<(string Value, string Label)> FontChoices()
+    {
+        if (!string.IsNullOrWhiteSpace(_original.FontFamily) && Fonts.All(f => f.Value != _original.FontFamily))
+            yield return (_original.FontFamily, _original.FontFamily);
+        foreach (var font in Fonts)
+            yield return font;
+    }
+
+    private RenderFragment? FieldError(string field) => _errors.TryGetValue(field, out var message)
+        ? @<span class="project-settings-field-error" role="alert" data-testid="@($"project-settings-error-{field}")">@message</span>
+        : null;
+
+    private async Task BrowseAsync()
+    {
+        var folder = await _folderPicker!.PickFolderAsync(string.IsNullOrWhiteSpace(_path) ? null : _path);
+        if (!string.IsNullOrEmpty(folder))
+            _path = folder;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_project == null || _saving) return;
+        var draft = Current;
+        _errors = draft.Validate();
+        _saveError = null;
+        if (_errors.Count > 0) return;
+
+        _saving = true;
+        try
+        {
+            var updated = draft.ApplyTo(_project);
+            await SettingsService.SaveProjectAsync(updated);
+            // The toolbar re-applies the active project (name, theme, folder for the Git plugin).
+            if (SettingsService.GetActiveProject()?.Id == updated.Id)
+                await SettingsService.SetActiveProjectAsync(updated.Id);
+            _project = updated;
+            Fill(ProjectSettingsDraft.From(updated));
+            NotificationService.ShowSuccess($"Project {updated.Name} saved.", "Project settings");
+            await OnSaved.InvokeAsync(updated);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            _saveError = $"Could not save the project: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        if (_project == null) return;
+        _confirmRemove = false;
+        try
+        {
+            var name = _project.Name;
+            await SettingsService.RemoveProjectAsync(_project.Id);
+            NotificationService.ShowSuccess($"Project {name} removed.", "Project settings");
+            await OnClose.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            _saveError = $"Could not remove the project: {ex.Message}";
+        }
+    }
+}
