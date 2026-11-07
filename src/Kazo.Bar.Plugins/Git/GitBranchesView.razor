@@ -1,0 +1,184 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.Core.Git
+@using Kazo.Bar.UI.Components
+
+@*
+    Branches tab (US5.7): switch the folder to another branch (a remote one gets its local
+    branch), create a branch from a chosen source, delete a local branch.
+*@
+<div class="git-branches" data-testid="git-branches">
+    <form class="git-form" data-testid="git-new-branch" @onsubmit="CreateAsync" @onsubmit:preventDefault="true">
+        <h5><FaIcon Name="plus" /> New branch</h5>
+        <div class="git-form-grid">
+            <label>Name
+                <input type="text" data-testid="git-new-branch-name" placeholder="feature/my-change" @bind="_newName" @bind:event="oninput" />
+            </label>
+            <label>From
+                <select data-testid="git-new-branch-source" @bind="_source">
+                    @foreach (var branch in _branches)
+                    {
+                        <option value="@branch.Name">@branch.Name@(branch.IsCurrent ? " (current)" : "")</option>
+                    }
+                </select>
+            </label>
+            <label class="git-form-check">
+                <input type="checkbox" @bind="_checkoutNew" /> Switch to it
+            </label>
+            <button type="submit" class="git-primary-btn" disabled="@(Panel.IsBusy || string.IsNullOrWhiteSpace(_newName))">Create</button>
+        </div>
+        @if (_newName.Length > 0 && GitBranchNames.Validate(_newName) is { } nameError)
+        {
+            <p class="git-form-error">@nameError</p>
+        }
+    </form>
+
+    <div class="git-branch-filter">
+        <input type="search" placeholder="Filter branches" aria-label="Filter branches" @bind="_filter" @bind:event="oninput" />
+    </div>
+
+    @if (!_loaded)
+    {
+        <p class="git-manager-empty">Reading the branches…</p>
+    }
+    else
+    {
+        @BranchList("Local", Visible(false))
+        @BranchList("Remote", Visible(true))
+    }
+</div>
+
+@code {
+    [CascadingParameter] public GitManagerPanel Panel { get; set; } = default!;
+
+    [Parameter] public int Version { get; set; }
+
+    private IReadOnlyList<GitBranch> _branches = Array.Empty<GitBranch>();
+    private int? _loadedVersion;
+    private bool _loaded;
+    private int _loadCount;
+    private string _filter = string.Empty;
+    private string _newName = string.Empty;
+    private string _source = string.Empty;
+    private bool _checkoutNew = true;
+    private string? _confirmDelete;
+    private bool _forceDelete;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedVersion == Version) return;
+        _loadedVersion = Version;
+        var load = ++_loadCount;
+        var branches = await Panel.Manager.GetBranchesAsync(Panel.Path);
+        if (load != _loadCount) return; // A newer read was started meanwhile.
+        _branches = branches;
+        _loaded = true;
+        _confirmDelete = null;
+        if (!_branches.Any(b => b.Name == _source))
+            _source = _branches.FirstOrDefault(b => b.IsCurrent)?.Name ?? _branches.FirstOrDefault()?.Name ?? string.Empty;
+    }
+
+    private IReadOnlyList<GitBranch> Visible(bool remote) => _branches
+        .Where(b => b.IsRemote == remote)
+        .Where(b => _filter.Length == 0 || b.Name.Contains(_filter.Trim(), StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private RenderFragment BranchList(string title, IReadOnlyList<GitBranch> branches) => __builder =>
+    {
+        <section class="git-branch-section">
+            <header class="git-file-section-header"><span>@title <span class="git-count">@branches.Count</span></span></header>
+            @if (branches.Count == 0)
+            {
+                <p class="git-manager-empty">@(title == "Remote" ? "No remote branch (try Fetch)." : "No branch.")</p>
+            }
+            @foreach (var branch in branches)
+            {
+                <div class="git-branch-row @(branch.IsCurrent ? "current" : "")" @key="branch.Name" data-testid="git-branch-row" data-branch="@branch.Name">
+                    <span class="git-branch-icon">@if (branch.IsCurrent) { <FaIcon Name="check" /> } else { <FaIcon Name="code-branch" /> }</span>
+                    <span class="git-branch-main">
+                        <span class="git-branch-title">@branch.Name</span>
+                        <span class="git-branch-meta" title="@branch.Tip">@Meta(branch)</span>
+                    </span>
+                    @if (branch.CheckedOutIn != null)
+                    {
+                        <button class="git-badge" title="@($"Checked out in {branch.CheckedOutIn}: open that worktree")"
+                                @onclick="() => Panel.SwitchToWorktreeAsync(branch.CheckedOutIn)"><FaIcon Name="folder-tree" /> worktree</button>
+                    }
+                    <span class="git-row-actions visible">
+                        @if (!branch.IsCurrent && branch.CheckedOutIn == null && !LocalUsedElsewhere(branch))
+                        {
+                            <button class="git-text-btn" data-testid="git-checkout" disabled="@Panel.IsBusy"
+                                    title="@(branch.IsRemote ? $"Check out {branch.LocalName} following {branch.Name}" : $"Switch the folder to {branch.Name}")"
+                                    @onclick="() => CheckoutAsync(branch)">Switch</button>
+                        }
+                        @if (!branch.IsRemote && !branch.IsCurrent && branch.CheckedOutIn == null)
+                        {
+                            @if (_confirmDelete == branch.Name)
+                            {
+                                <label class="git-form-check" title="Delete even if the branch is not merged (its commits may be lost)">
+                                    <input type="checkbox" @bind="_forceDelete" /> force
+                                </label>
+                                <button class="git-row-btn danger confirm" @onclick="() => DeleteAsync(branch)">Delete?</button>
+                                <button class="git-row-btn" aria-label="Cancel" @onclick="() => _confirmDelete = null"><FaIcon Name="xmark" /></button>
+                            }
+                            else
+                            {
+                                <button class="git-row-btn" title="Delete this branch" aria-label="Delete" disabled="@Panel.IsBusy"
+                                        @onclick="() => { _confirmDelete = branch.Name; _forceDelete = false; }"><FaIcon Name="trash" /></button>
+                            }
+                        }
+                    </span>
+                </div>
+            }
+        </section>
+    };
+
+    private async Task CheckoutAsync(GitBranch branch) =>
+        await Panel.RunAsync(() => Panel.Manager.CheckoutAsync(Panel.Path, branch), $"Switched to {branch.LocalName}.");
+
+    private async Task DeleteAsync(GitBranch branch)
+    {
+        _confirmDelete = null;
+        var force = _forceDelete;
+        await Panel.RunAsync(() => Panel.Manager.DeleteBranchAsync(Panel.Path, branch.Name, force), $"Branch {branch.Name} deleted.");
+    }
+
+    private async Task CreateAsync()
+    {
+        var name = _newName.Trim();
+        if (GitBranchNames.Validate(name) is { } error)
+        {
+            Panel.ShowMessage(error, isError: true);
+            return;
+        }
+        var source = string.IsNullOrEmpty(_source) ? null : _source;
+        var checkout = _checkoutNew;
+        var result = await Panel.RunAsync(
+            () => Panel.Manager.CreateBranchAsync(Panel.Path, name, source, checkout),
+            checkout ? $"Branch {name} created and checked out." : $"Branch {name} created.");
+        if (result.Success) _newName = string.Empty;
+    }
+
+    /// <summary>A remote branch whose local branch is checked out in another worktree cannot be switched to.</summary>
+    private bool LocalUsedElsewhere(GitBranch branch) =>
+        branch.IsRemote && _branches.Any(b => !b.IsRemote && b.Name == branch.LocalName && (b.CheckedOutIn != null || b.IsCurrent));
+
+    private static string Meta(GitBranch branch)
+    {
+        var parts = new List<string>();
+        if (branch.Upstream != null)
+            parts.Add(branch.Ahead > 0 || branch.Behind > 0 ? $"→ {branch.Upstream} ↑{branch.Ahead} ↓{branch.Behind}" : $"→ {branch.Upstream}");
+        if (!string.IsNullOrEmpty(branch.TipMessage)) parts.Add(branch.TipMessage);
+        if (branch.TipDate is { } date) parts.Add(Ago(date));
+        return string.Join(" · ", parts);
+    }
+
+    private static string Ago(DateTimeOffset date)
+    {
+        var span = DateTimeOffset.Now - date;
+        if (span.TotalMinutes < 1) return "just now";
+        if (span.TotalHours < 1) return $"{(int)span.TotalMinutes} min ago";
+        if (span.TotalDays < 1) return $"{(int)span.TotalHours} h ago";
+        if (span.TotalDays < 60) return $"{(int)span.TotalDays} d ago";
+        return date.ToString("yyyy-MM-dd");
+    }
+}

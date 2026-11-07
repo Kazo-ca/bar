@@ -24,6 +24,13 @@ public sealed record GitRepository
     [JsonPropertyName("defaultBranch")]
     public string DefaultBranch { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Folder where new worktrees of this repository are created (US5.8); empty means a
+    /// <c>&lt;repository&gt;.worktrees</c> folder next to the repository.
+    /// </summary>
+    [JsonPropertyName("worktreesFolder")]
+    public string WorktreesFolder { get; init; } = string.Empty;
+
     /// <summary>Work item provider of this repository (US5.2); null when none is configured.</summary>
     [JsonPropertyName("workItems")]
     public WorkItemSource? WorkItems { get; init; }

@@ -44,9 +44,24 @@
             }
         </div>
     }
+    @if (Plugin.Manager != null && Plugin.SelectedRepository != null)
+    {
+        <div class="git-selector-menu-title">Manage @Plugin.SelectedRepository.Name</div>
+        <div class="git-manage-links" data-testid="git-manage-links">
+            <button class="git-manage-link" role="menuitem" data-testid="git-manage-changes" @onclick="() => OpenAsync(GitManagerTab.Changes)"><FaIcon Name="pen-to-square" /> Changes &amp; commit</button>
+            <button class="git-manage-link" role="menuitem" data-testid="git-manage-branches" @onclick="() => OpenAsync(GitManagerTab.Branches)"><FaIcon Name="code-branch" /> Branches</button>
+            <button class="git-manage-link" role="menuitem" data-testid="git-manage-worktrees" @onclick="() => OpenAsync(GitManagerTab.Worktrees)"><FaIcon Name="folder-tree" /> Worktrees</button>
+        </div>
+    }
 </div>
 
 @code {
+    private async Task OpenAsync(GitManagerTab tab)
+    {
+        if (CloseMenu != null) await CloseMenu();
+        Plugin.OpenManager(tab);
+    }
+
     [Parameter, EditorRequired] public GitPlugin Plugin { get; set; } = default!;
 
     /// <summary>Closes the project pill's menu.</summary>

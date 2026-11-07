@@ -3,12 +3,29 @@
 @implements IDisposable
 
 @*
-    Git module (US5.1, US5.6). Glued to the right of the project pill, which shows the
-    repository, branch and worktree (GitPillInfo). The module only holds the sync buttons:
-    Pull, Push, and Pull & Push (icon only), plus the last sync message.
+    Git module (US5.1, US5.6, US5.7). Glued to the right of the project pill, which shows the
+    repository, branch and worktree (GitPillInfo). The module holds the +/- counter of the local
+    changes (opens the changes and the commit) and the sync buttons: Pull, Push, and Pull & Push
+    (icon only), plus the last sync message.
 *@
 <div class="plugin-git">
     <div class="git-sync">
+        @if (Plugin.Manager != null && Plugin.Status is { IsRepository: true, IsDirty: true } status)
+        {
+            @* US5.7: lines added / removed by the local changes; opens the changes and the commit. *@
+            <button class="git-btn git-btn-changes" data-testid="git-changes-counter"
+                    title="@($"{status.ChangedFiles} changed file(s): see the changes and commit")"
+                    @onclick="() => Plugin.OpenManager(GitManagerTab.Changes)">
+                @if (status.LinesAdded == 0 && status.LinesDeleted == 0)
+                {
+                    <FaIcon Name="pen-to-square" /><span> @status.ChangedFiles</span>
+                }
+                else
+                {
+                    <span class="git-lines-added">+@status.LinesAdded</span><span class="git-lines-deleted">−@status.LinesDeleted</span>
+                }
+            </button>
+        }
         <button class="git-btn git-btn-pull" data-testid="git-pull" title="Pull latest changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PullAsync"><FaIcon Name="arrow-down" /><span class="git-btn-label"> Pull</span></button>
         <button class="git-btn git-btn-push" data-testid="git-push" title="Push local changes" disabled="@Plugin.IsSyncing" @onclick="Plugin.PushAsync"><FaIcon Name="arrow-up" /><span class="git-btn-label"> Push</span></button>
         <button class="git-btn git-btn-sync" data-testid="git-sync" title="Pull then push" aria-label="Pull then push" disabled="@Plugin.IsSyncing" @onclick="Plugin.PullAndPushAsync"><FaIcon Name="arrows-rotate" CssClass="@(Plugin.IsSyncing ? "fa-spin" : null)" /></button>

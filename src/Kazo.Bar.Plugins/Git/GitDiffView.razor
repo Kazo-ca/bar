@@ -1,0 +1,89 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.UI.Components
+
+@*
+    Diff of one file (US5.7): hunks with old / new line numbers, added lines in green and
+    removed lines in red. Binary and very large files get a short note instead.
+*@
+<div class="git-diff" data-testid="git-diff">
+    <header class="git-diff-header">
+        <FaIcon Name="file" />
+        <span class="git-diff-path" title="@Change.Path">@(Change.OldPath != null ? $"{Change.OldPath} → " : "")@Change.Path</span>
+        <span class="git-diff-area">@(Change.IsStaged ? "staged" : Change.Kind == GitChangeKind.Untracked ? "new file" : "working tree")</span>
+        @if (_diff != null && !_diff.IsBinary)
+        {
+            <span class="git-lines-added">+@_diff.LinesAdded</span>
+            <span class="git-lines-deleted">−@_diff.LinesDeleted</span>
+        }
+    </header>
+    <div class="git-diff-body">
+        @if (_diff == null)
+        {
+            <p class="git-manager-empty">Reading the diff…</p>
+        }
+        else if (_diff.Error != null)
+        {
+            <p class="git-manager-empty">@_diff.Error</p>
+        }
+        else if (_diff.IsBinary)
+        {
+            <p class="git-manager-empty">Binary file: no line to show.</p>
+        }
+        else if (_diff.Hunks.Count == 0)
+        {
+            <p class="git-manager-empty">No line changed (renamed, mode change or empty file).</p>
+        }
+        else
+        {
+            <table class="git-diff-table">
+                @foreach (var hunk in _diff.Hunks)
+                {
+                    <tbody>
+                        <tr class="git-diff-hunk"><td colspan="3">@hunk.Header</td></tr>
+                        @foreach (var line in hunk.Lines)
+                        {
+                            <tr class="git-diff-line @line.Kind.ToString().ToLowerInvariant()">
+                                <td class="git-diff-num">@line.OldNumber</td>
+                                <td class="git-diff-num">@line.NewNumber</td>
+                                <td class="git-diff-text"><span class="git-diff-marker">@Marker(line.Kind)</span>@line.Text</td>
+                            </tr>
+                        }
+                    </tbody>
+                }
+            </table>
+            @if (_diff.IsTruncated)
+            {
+                <p class="git-manager-empty">The diff is too long: only its beginning is shown.</p>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public GitManagerPanel Panel { get; set; } = default!;
+
+    [Parameter, EditorRequired] public GitFileChange Change { get; set; } = default!;
+
+    /// <summary>Changes when the repository was changed: the diff is read again.</summary>
+    [Parameter] public int Version { get; set; }
+
+    private GitFileDiff? _diff;
+    private (GitFileChange Change, int Version)? _loadedFor;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor is { } loaded && loaded.Change == Change && loaded.Version == Version) return;
+        _loadedFor = (Change, Version);
+        _diff = null;
+        var change = Change;
+        var diff = await Panel.Manager.GetFileDiffAsync(Panel.Path, change);
+        if (ReferenceEquals(change, Change)) _diff = diff;
+    }
+
+    private static string Marker(GitDiffLineKind kind) => kind switch
+    {
+        GitDiffLineKind.Added => "+",
+        GitDiffLineKind.Deleted => "−",
+        _ => " ",
+    };
+}

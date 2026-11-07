@@ -13,10 +13,12 @@ using Microsoft.AspNetCore.Components;
 /// in the project pill (<see cref="IProjectPillContent"/>); the Git module itself only holds
 /// Pull, Push and Pull &amp; Push, and stays glued to the pill.
 /// </summary>
-public class GitPlugin : IConfigurablePlugin, IProjectPillContent
+public class GitPlugin : IConfigurablePlugin, IProjectPillContent, IPluginOverlay
 {
     private readonly IGitService _gitService;
     private readonly INotificationService _notificationService;
+    private readonly IGitRepositoryManager? _manager;
+    private GitManagerTab? _openManagerTab;
 
     public string UniqueId => "git-tools";
     public string Name => "Git Tools";
@@ -40,11 +42,62 @@ public class GitPlugin : IConfigurablePlugin, IProjectPillContent
     private int _refreshing;
     private bool _isSyncing;
 
-    public GitPlugin(IGitService gitService, INotificationService notificationService)
+    public GitPlugin(IGitService gitService, INotificationService notificationService, IGitRepositoryManager? manager = null)
     {
         _gitService = gitService;
         _notificationService = notificationService;
+        _manager = manager;
     }
+
+    /// <summary>Repository management (changes, commit, branches, worktrees); null on hosts without it.</summary>
+    public IGitRepositoryManager? Manager => _manager;
+
+    /// <summary>The active project (its repositories hold the worktree folder setting).</summary>
+    public ProjectConfig Project => _project;
+
+    /// <summary>Tab of the repository manager when it is open (US5.7); null when it is closed.</summary>
+    public GitManagerTab? OpenManagerTab => _openManagerTab;
+
+    /// <summary>Opens the repository manager on a tab. Does nothing on hosts without <see cref="Manager"/>.</summary>
+    public void OpenManager(GitManagerTab tab)
+    {
+        if (_manager == null || SelectedRepository == null) return;
+        _openManagerTab = tab;
+        OnStateChanged?.Invoke();
+    }
+
+    /// <summary>Closes the repository manager.</summary>
+    public void CloseManager()
+    {
+        if (_openManagerTab == null) return;
+        _openManagerTab = null;
+        OnStateChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Reads the state and the worktree list again after the repository was changed from the
+    /// manager (commit, checkout, new worktree...). When the selected worktree no longer exists,
+    /// the toolbar goes back to the repository folder.
+    /// </summary>
+    public async Task OnRepositoryChangedAsync()
+    {
+        await LoadWorktreesAsync();
+        if (_selectedWorktreePath != null && SelectedRepository is { } repository
+            && !WorktreesOf(repository).Any(w => GitRepositoryCatalog.SamePath(w.Path, _selectedWorktreePath)))
+        {
+            _selectedWorktreePath = null;
+        }
+        _status = null;
+        await RefreshStatusAsync();
+    }
+
+    /// <summary>Renders the repository manager window while it is open.</summary>
+    public RenderFragment? RenderOverlay() => builder =>
+    {
+        builder.OpenComponent<GitManagerWindow>(0);
+        builder.AddComponentParameter(1, nameof(GitManagerWindow.Plugin), this);
+        builder.CloseComponent();
+    };
 
     /// <summary>Repositories available for the active project.</summary>
     public IReadOnlyList<GitRepository> Repositories => GitRepositoryCatalog.Resolve(_project);
@@ -62,6 +115,7 @@ public class GitPlugin : IConfigurablePlugin, IProjectPillContent
         _worktrees = new(StringComparer.OrdinalIgnoreCase);
         _status = null;
         _syncStatus = string.Empty;
+        _openManagerTab = null;
         await Task.WhenAll(RefreshStatusAsync(), LoadWorktreesAsync());
     }
 

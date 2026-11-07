@@ -1,0 +1,225 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.UI.Components
+@implements IDisposable
+
+@*
+    Git repository manager (US5.7, US5.8): changes and commit, branches, worktrees of the
+    folder the toolbar works in (the selected repository or worktree). A plain component with
+    parameters, so it can live in an overlay (GitManagerWindow) or in a separate dialog window.
+*@
+@{
+    var repository = Plugin.SelectedRepository;
+    var worktree = Plugin.CurrentWorktree;
+}
+<div class="git-manager">
+    <header class="git-manager-header">
+        <FaIcon Name="code-branch" CssClass="git-manager-logo" />
+        <div class="git-manager-title">
+            <span class="git-manager-repo" data-testid="git-manager-repo">@(repository?.Name ?? "No repository")</span>
+            <span class="git-manager-where" title="@Plugin.ActivePath">
+                <span class="git-manager-branch">@Plugin.CurrentBranch</span>
+                @if (worktree is { IsMain: false })
+                {
+                    <span> · worktree @worktree.Name</span>
+                }
+                <span class="git-manager-path"> · @Plugin.ActivePath</span>
+            </span>
+        </div>
+        <div class="git-manager-header-actions">
+            <button class="git-manager-icon-btn" title="Fetch the remote branches" aria-label="Fetch" disabled="@IsBusy" @onclick="FetchAsync"><FaIcon Name="cloud-arrow-down" /></button>
+            <button class="git-manager-icon-btn" title="Read the repository again" aria-label="Refresh" disabled="@IsBusy" @onclick="RefreshAsync"><FaIcon Name="arrows-rotate" CssClass="@(IsBusy ? "fa-spin" : null)" /></button>
+            @if (OnClose.HasDelegate)
+            {
+                <button class="git-manager-icon-btn" title="Close (Esc)" aria-label="Close" @onclick="OnClose"><FaIcon Name="xmark" /></button>
+            }
+        </div>
+    </header>
+
+    <nav class="git-manager-tabs" role="tablist">
+        @foreach (var item in Enum.GetValues<GitManagerTab>())
+        {
+            <button role="tab" class="git-manager-tab @(item == _tab ? "active" : "")" aria-selected="@(item == _tab ? "true" : "false")"
+                    data-testid="@($"git-tab-{item.ToString().ToLowerInvariant()}")" @onclick="() => _tab = item">
+                <FaIcon Name="@TabIcon(item)" /> @TabLabel(item)
+            </button>
+        }
+    </nav>
+
+    @if (_message != null)
+    {
+        <div class="git-manager-message @(_messageIsError ? "error" : "success")" role="status" data-testid="git-manager-message">
+            <FaIcon Name="@(_messageIsError ? "triangle-exclamation" : "circle-check")" />
+            <span class="git-manager-message-text">@_message</span>
+            <button class="git-manager-message-close" aria-label="Dismiss" @onclick="() => _message = null"><FaIcon Name="xmark" /></button>
+        </div>
+    }
+
+    <div class="git-manager-body">
+        @if (Plugin.Manager == null || Plugin.ActivePath == null)
+        {
+            <p class="git-manager-empty">No Git repository configured for this project.</p>
+        }
+        else
+        {
+            <CascadingValue Value="this" IsFixed="true">
+                @switch (_tab)
+                {
+                    case GitManagerTab.Changes:
+                        <GitChangesView @key="Plugin.ActivePath" Version="_version" />
+                        break;
+                    case GitManagerTab.Branches:
+                        <GitBranchesView @key="Plugin.ActivePath" Version="_version" />
+                        break;
+                    case GitManagerTab.Worktrees:
+                        <GitWorktreesView @key="Plugin.ActivePath" Version="_version" />
+                        break;
+                }
+            </CascadingValue>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public GitPlugin Plugin { get; set; } = default!;
+
+    /// <summary>Tab shown first.</summary>
+    [Parameter] public GitManagerTab InitialTab { get; set; }
+
+    /// <summary>Closes the window hosting the panel; no close button without it.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private GitManagerTab _tab;
+    private GitManagerTab? _appliedInitialTab;
+    private GitPlugin? _subscribed;
+    private string? _message;
+    private bool _messageIsError;
+    private int _busy;
+
+    /// <summary>Bumped after every change so the views read the repository again.</summary>
+    private int _version;
+
+    /// <summary>True while a Git command runs.</summary>
+    public bool IsBusy => _busy > 0;
+
+    /// <summary>Folder the commands run in: the selected worktree, else the repository.</summary>
+    public string Path => Plugin.ActivePath ?? string.Empty;
+
+    public IGitRepositoryManager Manager => Plugin.Manager!;
+
+    protected override void OnParametersSet()
+    {
+        if (_appliedInitialTab != InitialTab)
+        {
+            _tab = InitialTab;
+            _appliedInitialTab = InitialTab;
+        }
+        if (ReferenceEquals(_subscribed, Plugin)) return;
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+        Plugin.OnStateChanged += OnPluginStateChanged;
+        _subscribed = Plugin;
+    }
+
+    /// <summary>
+    /// Runs a Git command, shows its result, then lets the toolbar and the views read the
+    /// repository again. Returns the result so the caller can react (clear a form...).
+    /// </summary>
+    public async Task<GitCommandResult> RunAsync(Func<Task<GitCommandResult>> command, string successMessage)
+    {
+        _busy++;
+        _message = null;
+        StateHasChanged();
+        GitCommandResult result;
+        try
+        {
+            result = await command();
+        }
+        catch (Exception ex)
+        {
+            result = new GitCommandResult(false, -1, string.Empty, ex.Message);
+        }
+        finally
+        {
+            _busy--;
+        }
+        ShowResult(result, successMessage);
+        await AfterChangeAsync();
+        return result;
+    }
+
+    /// <summary>Shows a message above the views.</summary>
+    public void ShowMessage(string message, bool isError)
+    {
+        _message = message;
+        _messageIsError = isError;
+        StateHasChanged();
+    }
+
+    /// <summary>Switches the toolbar (and this panel) to another worktree of the repository.</summary>
+    public async Task SwitchToWorktreeAsync(string worktreePath)
+    {
+        if (Plugin.SelectedRepository is not { } repository) return;
+        await Plugin.SelectWorktreeAsync(repository.Path, worktreePath);
+        _version++;
+    }
+
+    public void ShowTab(GitManagerTab tab)
+    {
+        _tab = tab;
+        StateHasChanged();
+    }
+
+    private void ShowResult(GitCommandResult result, string successMessage)
+    {
+        if (result.Success)
+            ShowMessage(successMessage, isError: false);
+        else
+            ShowMessage(string.IsNullOrWhiteSpace(result.Summary) ? "Git reported an error." : result.Summary, isError: true);
+    }
+
+    private async Task AfterChangeAsync()
+    {
+        try
+        {
+            await Plugin.OnRepositoryChangedAsync();
+        }
+        catch (Exception)
+        {
+            // The toolbar keeps its last state; its periodic refresh tries again.
+        }
+        _version++;
+        StateHasChanged();
+    }
+
+    private async Task FetchAsync()
+    {
+        await RunAsync(() => Manager.FetchAsync(Path), "Remote branches updated.");
+    }
+
+    private async Task RefreshAsync()
+    {
+        _message = null;
+        await AfterChangeAsync();
+    }
+
+    private static string TabLabel(GitManagerTab tab) => tab switch
+    {
+        GitManagerTab.Changes => "Changes",
+        GitManagerTab.Branches => "Branches",
+        _ => "Worktrees",
+    };
+
+    private static string TabIcon(GitManagerTab tab) => tab switch
+    {
+        GitManagerTab.Changes => "pen-to-square",
+        GitManagerTab.Branches => "code-branch",
+        _ => "folder-tree",
+    };
+
+    private void OnPluginStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+    }
+}

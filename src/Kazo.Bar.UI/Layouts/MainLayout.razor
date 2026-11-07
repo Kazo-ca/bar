@@ -109,6 +109,10 @@
 
 @* ── Overlays ── *@
 <TimeReport IsVisible="@_showTimeReport" OnClose="CloseTimeReport" />
+@foreach (var overlay in VisiblePlugins.OfType<IPluginOverlay>())
+{
+    @overlay.RenderOverlay()
+}
 <TerminalOutput @ref="_terminalOutput" IsVisible="@_showTerminal" OnClose="CloseTerminal" />
 <ToastContainer />
 </CascadingValue>

@@ -1,0 +1,65 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.UI.Components
+@implements IDisposable
+
+@*
+    In-window host of the repository manager (US5.7): an overlay above the toolbar that asks
+    the host for room (HostSizeRequest). GitManagerPanel holds everything else, so it can also
+    be shown in a separate dialog window.
+*@
+@if (Plugin.OpenManagerTab is { } tab)
+{
+    <HostSizeRequest Id="git-manager-window" Width="1100" Height="720" />
+    <div class="git-manager-overlay" @onclick="Plugin.CloseManager">
+        <div class="git-manager-window" role="dialog" aria-modal="true" aria-label="Git repository" data-testid="git-manager"
+             @ref="_window" @onclick:stopPropagation="true" @onkeydown="OnKeyDown" tabindex="-1">
+            <GitManagerPanel Plugin="Plugin" InitialTab="tab" OnClose="Plugin.CloseManager" />
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public GitPlugin Plugin { get; set; } = default!;
+
+    private GitPlugin? _subscribed;
+    private ElementReference _window;
+    private bool _wasOpen;
+
+    /// <summary>Focuses the window when it opens so Escape closes it at once.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var isOpen = Plugin.OpenManagerTab != null;
+        if (isOpen && !_wasOpen)
+        {
+            try
+            {
+                await _window.FocusAsync();
+            }
+            catch (Exception)
+            {
+                // Focus is a convenience: the window still works without it.
+            }
+        }
+        _wasOpen = isOpen;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Plugin)) return;
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+        Plugin.OnStateChanged += OnPluginStateChanged;
+        _subscribed = Plugin;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Plugin.CloseManager();
+    }
+
+    private void OnPluginStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
+    }
+}
