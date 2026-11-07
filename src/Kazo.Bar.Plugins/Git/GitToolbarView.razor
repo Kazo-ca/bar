@@ -1,6 +1,8 @@
 @namespace Kazo.Bar.Plugins.Git
 @using Kazo.Bar.UI.Components
+@using Kazo.Bar.Core.Dialogs
 @implements IDisposable
+@inject IDialogService Dialogs
 
 @*
     Git module (US5.1, US5.6, US5.7). Glued to the right of the project pill, which shows the
@@ -15,7 +17,7 @@
             @* US5.7: lines added / removed by the local changes; opens the changes and the commit. *@
             <button class="git-btn git-btn-changes" data-testid="git-changes-counter"
                     title="@($"{status.ChangedFiles} changed file(s): see the changes and commit")"
-                    @onclick="() => Plugin.OpenManager(GitManagerTab.Changes)">
+                    @onclick="() => Dialogs.OpenGitManagerAsync(Plugin, GitManagerTab.Changes)">
                 @if (status.LinesAdded == 0 && status.LinesDeleted == 0)
                 {
                     <FaIcon Name="pen-to-square" /><span> @status.ChangedFiles</span>
