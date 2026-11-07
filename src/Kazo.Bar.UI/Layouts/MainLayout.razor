@@ -15,6 +15,8 @@
 @inject ThemeService ThemeService
 @inject IGlobalSettingsService GlobalSettingsService
 @inject IServiceProvider Services
+@inject Kazo.Bar.Core.Dialogs.IDialogService Dialogs
+@using Kazo.Bar.UI.Dialogs
 
 @* US3.2: project-provided custom CSS is injected after the base theme variables *@
 @if (ThemeService.GetCustomCss() is { Length: > 0 } customCss)
@@ -84,7 +86,7 @@
         }
         @* US3.8: modules that do not fit, in a "»" menu *@
         <ModuleOverflowMenu Entries="overflowEntries" />
-        <button class="system-btn" @onclick="ToggleTimeReport" title="Time Report">📊</button>
+        <button class="system-btn" @onclick="OpenTimeReport" title="Time Report">📊</button>
         @if (reorganizing)
         {
             @* US3.9: accept or cancel the new layout, in place of the settings button *@
@@ -95,7 +97,8 @@
         }
         else
         {
-            <a href="/settings" class="system-btn system-settings" title="Settings">⚙️</a>
+            @* Its own window in the Windows host, the /settings page elsewhere. *@
+            <button class="system-btn system-settings" title="Settings" @onclick="OpenSettings">⚙️</button>
         }
         @if (DebugFeatures.Enabled)
         {
@@ -108,7 +111,6 @@
 </div>
 
 @* ── Overlays ── *@
-<TimeReport IsVisible="@_showTimeReport" OnClose="CloseTimeReport" />
 <TerminalOutput @ref="_terminalOutput" IsVisible="@_showTerminal" OnClose="CloseTerminal" />
 <ToastContainer />
 </CascadingValue>
@@ -133,7 +135,6 @@
     private IWindowDragService? _drag;
     private List<ActionConfig> _actions = new();
     private IReadOnlyList<IPlugin>? _visiblePlugins;
-    private bool _showTimeReport;
     private bool _showTerminal;
     private TerminalOutput? _terminalOutput;
     private string _currentProjectId = "";
@@ -364,15 +365,10 @@
         });
     }
 
-    private void ToggleTimeReport()
-    {
-        _showTimeReport = !_showTimeReport;
-    }
+    /// <summary>Time report in a dialog: its own window in the Windows host, an overlay elsewhere.</summary>
+    private Task OpenTimeReport() => Dialogs.OpenTimeReportAsync();
 
-    private void CloseTimeReport()
-    {
-        _showTimeReport = false;
-    }
+    private Task OpenSettings() => Dialogs.OpenSettingsAsync();
 
     private void CloseTerminal()
     {

@@ -4,8 +4,10 @@
 @inject ITimeTrackingService TimeTrackingService
 @inject ISettingsService SettingsService
 @inject IJSRuntime JSRuntime
+@using Kazo.Bar.Core.Dialogs
 
-<div class="time-report-overlay @(_isVisible ? "visible" : "")" @onclick="Close">
+@* In its own window (Windows host) the report fills the window; elsewhere it is a modal overlay. *@
+<div class="time-report-overlay @(_isVisible ? "visible" : "") @(Dialog?.IsWindow == true ? "in-window" : "")" @onclick="Close">
     <div class="time-report-modal" @onclick:stopPropagation="true"
          role="dialog" aria-label="Time Report" tabindex="-1" @ref="_modalRef" @onkeydown="OnKeyDown">
         <header class="time-report-header">
@@ -201,6 +203,10 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>Set when the report is opened as a dialog (IDialogService); closing closes the dialog.</summary>
+    [CascadingParameter]
+    public DialogContext? Dialog { get; set; }
+
     private bool _isVisible;
     private string _period = "day";
     private string _groupBy = "none";
@@ -291,6 +297,11 @@
     private async Task Close()
     {
         _isVisible = false;
+        if (Dialog != null)
+        {
+            await Dialog.CancelAsync();
+            return;
+        }
         await OnClose.InvokeAsync();
     }
 

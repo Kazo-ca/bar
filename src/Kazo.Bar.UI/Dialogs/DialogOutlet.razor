@@ -1,0 +1,59 @@
+@using Kazo.Bar.Core.Dialogs
+@implements IDisposable
+@inject IDialogService DialogService
+
+@*
+    Renders the dialogs of hosts without native windows (InPageDialogService) as overlays.
+    Put one in each host's layout; it renders nothing when the host opens real windows.
+*@
+@if (_service != null)
+{
+    @foreach (var dialog in _service.Dialogs)
+    {
+        <CascadingValue @key="dialog.Context" Value="dialog.Context" IsFixed="true">
+            @if (dialog.Options.InPageFrame)
+            {
+                <div class="dialog-overlay" data-dialog-key="@dialog.Context.Key" @onclick="dialog.Context.CancelAsync">
+                    <div class="dialog-frame" role="dialog" aria-label="@dialog.Context.Title" tabindex="-1"
+                         style="@FrameStyle(dialog.Options)"
+                         @onclick:stopPropagation="true" @onkeydown="e => OnKeyDown(e, dialog.Context)">
+                        <header class="dialog-frame-header">
+                            <h3 class="dialog-frame-title">@dialog.Context.Title</h3>
+                            <button class="dialog-frame-close" title="Close" aria-label="Close" @onclick="dialog.Context.CancelAsync">✕</button>
+                        </header>
+                        <div class="dialog-frame-body">
+                            <DynamicComponent Type="dialog.ComponentType" Parameters="dialog.Parameters" />
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <DynamicComponent Type="dialog.ComponentType" Parameters="dialog.Parameters" />
+            }
+        </CascadingValue>
+    }
+}
+
+@code {
+    private InPageDialogService? _service;
+
+    protected override void OnInitialized()
+    {
+        _service = DialogService as InPageDialogService;
+        if (_service != null) _service.Changed += OnChanged;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static Task OnKeyDown(KeyboardEventArgs e, DialogContext context) =>
+        e.Key == "Escape" ? context.CancelAsync() : Task.CompletedTask;
+
+    private static string FrameStyle(DialogOptions options) =>
+        FormattableString.Invariant($"width: min({options.Width}px, 96vw); height: min({options.Height}px, 92vh);");
+
+    public void Dispose()
+    {
+        if (_service != null) _service.Changed -= OnChanged;
+    }
+}

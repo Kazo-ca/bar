@@ -124,6 +124,8 @@ public static class Program
         services.AddSingleton<ToolbarHost>();
         services.AddSingleton<PopupDismissService>();
         services.AddSingleton<TrayIconService>();
+        // Dialogs (Settings, Time Report, Git...) open in their own windows sharing these singletons.
+        services.AddSingleton<Kazo.Bar.Core.Dialogs.IDialogService, WpfDialogService>();
 
         // Native services shared with the MAUI host (linked sources).
         services.AddSingleton<IProcessService, WindowsProcessService>();

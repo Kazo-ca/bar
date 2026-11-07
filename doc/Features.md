@@ -78,6 +78,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US3.7 | Ordre des modules | ✅ 🔍 |
 | US3.8 | Débordement des modules et de leurs éléments | ✅ 🔍 |
 | US3.9 | Réorganiser les modules par glisser-déposer | ✅ 🔍 |
+| US3.10 | Boîtes de dialogue dans leur propre fenêtre | ✅ 🔍 |
 | US4.1 | Bouton « Lancer processus » | ✅ |
 | US4.2 | Smart Focus | ✅ 🔍 |
 | US4.3 | Bouton script et sortie terminal | ✅ 🔍 |
@@ -420,6 +421,22 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] 4. **Éléments dans un module** : un module redimensionnable est un conteneur CSS (`container-name: module`). Il cache d'abord ses libellés, puis ses compteurs et messages, selon sa largeur (`@container module (max-width: …)`). Module Git : sous 240 px, Pull/Push n'affichent que leur icône et l'état « Clean / modified » seulement son symbole ; sous 190 px, l'avance/retard et le message de synchro disparaissent (toujours visibles dans les info-bulles). Un plugin tiers suit la même règle dans sa propre feuille de style.
 - [x] 5. *(Choisi par Benoit le 4 nov. 2026)* Si ça ne tient toujours pas, les derniers modules de la zone système passent dans un bouton « » » placé avant les boutons Rapport et Paramètres. L'ordre de US3.7 décide qui part en premier (le plus à droite). Le menu liste chaque module masqué (icône, texte de l'indicateur, badge, couleur d'état) ; un clic ouvre son panneau à la place de la liste (« ← » pour revenir). Le bouton porte le total des badges masqués. Quand la place revient, les modules reviennent dans la toolbar. Calcul : `module-overflow.js` mesure la place qu'auraient les modules si les autres zones étaient au plus petit (actions réduites à « … », modules redimensionnables à leur minimum) ; `ModuleOverflow.VisibleCount` décide combien restent. Un module masqué reste rendu, invisible et hors du flux, pour pouvoir être mesuré.
 
+## US3.10 Boîtes de dialogue dans leur propre fenêtre
+**État :** ✅ Fait, 🔍 à recetter sur PC
+
+**En tant qu'** utilisateur
+**Je veux** que les écrans plus grands que la toolbar (Paramètres, Rapport de temps, Git...) s'ouvrent dans une vraie fenêtre
+**Afin de** les déplacer, les redimensionner et les garder ouverts à côté de la toolbar.
+
+**Critères d'acceptation :**
+- [x] *(Demandé par Benoit le 7 nov. 2026)* N'importe quel composant Razor peut s'ouvrir dans une fenêtre séparée avec `IDialogService.OpenAsync` (paramètres du composant, titre, taille). Dans l'hôte WPF, c'est une fenêtre Windows normale (barre de titre, redimensionnable, bouton dans la barre des tâches).
+- [x] Toutes les fenêtres partagent les mêmes services (même instance des paramètres, de Git, du suivi du temps...) : un changement fait dans une fenêtre se voit tout de suite dans les autres, comme deux onglets d'une application Blazor Server.
+- [x] Les fenêtres s'échangent des messages par l'`EventAggregator` partagé (publier / s'abonner, sûr entre threads), et une boîte de dialogue peut renvoyer un résultat à celui qui l'a ouverte.
+- [x] Une seule fenêtre par clé : rouvrir les Paramètres ramène la fenêtre déjà ouverte au premier plan. Une clé différente permet une fenêtre par dépôt.
+- [x] Les **Paramètres** (bouton ⚙️ et menu de la zone de notification) et le **Rapport de temps** (📊) s'ouvrent dans leur fenêtre. La toolbar ne grandit plus pour les afficher.
+- [x] Les hôtes sans fenêtres (hôte Web de test, MAUI gelé) affichent la boîte de dialogue par-dessus la page, ou vont à la page `/settings` pour les Paramètres.
+- Guide développeur : [Dialogs.md](Dialogs.md). Composants : `WpfDialogService`, `DialogWindow` (WPF), `DialogWindowRoot`, `InPageDialogService`, `DialogOutlet`, `KnownDialogs` (UI).
+
 ---
 
 # F4. Actions rapides
@@ -684,7 +701,7 @@ Le suivi se configure **par dépôt** : workflows GitHub Actions, sessions d'age
 ## US9.1 Hôte WPF principal
 **État :** ✅ Fait, 🔍 à recetter sur PC
 
-- [x] `src/Kazo.Bar.Windows` : fenêtre WPF transparente (`AllowsTransparency`), `BlazorWebView` WPF officiel 10.0.110, une seule fenêtre.
+- [x] `src/Kazo.Bar.Windows` : fenêtre WPF transparente (`AllowsTransparency`), `BlazorWebView` WPF officiel 10.0.110, pour la toolbar ; les boîtes de dialogue ont leur propre fenêtre opaque (US3.10).
 - [x] Routes `/` (toolbar) et `/settings`.
 - [x] Services Windows réels pour processus, fichiers, scripts, fenêtres, configuration.
 - Historique et preuves du choix : [`spikes/window-feasibility/INTEGRATION.md`](../spikes/window-feasibility/INTEGRATION.md).

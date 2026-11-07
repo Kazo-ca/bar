@@ -65,13 +65,14 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Work items**: in the Work Items plugin settings, pick Azure DevOps (organization + project) or GitHub Issues (`owner/name`) for a repository and paste a token. The popover lists your open items, searches by title or number and links to the item on the web.
 - **GitHub Actions**: in the GitHub plugin settings, turn on Actions tracking for a repository. The pill shows the overall state and the number of unread finished runs; opening a run marks it as read.
 - **Quick actions**: launch a program, or focus its window if already open (Smart Focus; when several windows match, a menu lets you pick one). Run a `pwsh`/`cmd`/`python` script and watch its output live, with a Stop button.
+- **Dialog windows** (Windows host): Settings and the Time Report open in their own resizable window instead of growing the toolbar. All windows share the same services, so changes show up everywhere at once; components open dialogs with `IDialogService` and windows exchange messages through `EventAggregator`. See [doc/Dialogs.md](doc/Dialogs.md). The Web host shows dialogs over the page.
 - **Debug tools**: the 🧪 test dropdown only appears in Debug builds.
 - **Plugin indicators**: work item and CI/CD status in the system group, each with its own popover.
 - **Timer** (Windows host): Start/Stop on the active project and work item; paused while you are away, then resumed. The ⏱ panel shows when you arrived, your last lock, and the absences to label; a badge on the timer counts them. Rules in Settings → *Time tracking*.
 - **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export, plus each work day with its arrival, last lock and absences.
 - **Theme**: light, dark or green toolbar theme (from the design mockup), accent color, font and custom CSS, per project.
 - **Window placement** (Windows host): docked top, docked bottom, floating or overlay, target monitor, drag handle.
-- **Tray icon** (Windows host): left click shows or hides the toolbar; right click offers Settings and Quit. Closing the toolbar window quits the app.
+- **Tray icon** (Windows host): left click shows or hides the toolbar; right click offers Settings (in its own window) and Quit. Closing the toolbar window quits the app.
 - **Popups** close on outside click, on `Esc` (focus returns to the trigger) and when another application is activated.
 
 ## Getting started
