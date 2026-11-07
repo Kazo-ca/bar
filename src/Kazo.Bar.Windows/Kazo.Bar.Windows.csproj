@@ -47,6 +47,7 @@
     <ProjectReference Include="..\Kazo.Bar.Infrastructure\Kazo.Bar.Infrastructure.csproj" />
     <ProjectReference Include="..\Kazo.Bar.UI\Kazo.Bar.UI.csproj" />
     <ProjectReference Include="..\Kazo.Bar.Plugins\Kazo.Bar.Plugins.csproj" />
+    <ProjectReference Include="..\Kazo.Bar.Updates\Kazo.Bar.Updates.csproj" />
   </ItemGroup>
 
   <!--

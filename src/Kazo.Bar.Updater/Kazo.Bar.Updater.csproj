@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Kazo Bar Updater: closes the toolbar, installs the newest GitHub release, starts the toolbar again.
+    Shipped next to Kazo.Bar.Windows.exe in the release zip (build/Publish-Release.ps1).
+    The update logic lives in Kazo.Bar.Updates (unit-tested); this project is only the window and
+    the Windows process handling.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Kazo.Bar.Updater</RootNamespace>
+    <AssemblyName>Kazo.Bar.Updater</AssemblyName>
+    <StartupObject>Kazo.Bar.Updater.Program</StartupObject>
+    <!-- Allow building/compile-checking from non-Windows machines (CI, Linux). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kazo.Bar.Updates\Kazo.Bar.Updates.csproj" />
+  </ItemGroup>
+
+</Project>

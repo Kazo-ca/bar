@@ -3,6 +3,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using Kazo.Bar.Core.Dialogs;
 using Kazo.Bar.UI.Dialogs;
+using Kazo.Bar.Updates;
 using WinForms = System.Windows.Forms;
 
 namespace Kazo.Bar.Windows.Services;
@@ -22,13 +23,16 @@ public sealed class TrayIconService : IDisposable
 
     private readonly ToolbarHost _host;
     private readonly IDialogService _dialogs;
+    private readonly BarUpdateService _updates;
     private WinForms.NotifyIcon? _notifyIcon;
+    private WinForms.ToolStripMenuItem? _installUpdateItem;
     private Icon? _icon;
 
-    public TrayIconService(ToolbarHost host, IDialogService dialogs)
+    public TrayIconService(ToolbarHost host, IDialogService dialogs, BarUpdateService updates)
     {
         _host = host;
         _dialogs = dialogs;
+        _updates = updates;
     }
 
     /// <summary>Creates the tray icon. Must run on the UI thread, after the window exists.</summary>
@@ -40,6 +44,18 @@ public sealed class TrayIconService : IDisposable
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add(toggleItem);
         menu.Items.Add(new WinForms.ToolStripMenuItem("Settings…", null, (_, _) => OpenSettings()));
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+        // Shown once the background check finds a newer release (BarUpdateService).
+        _installUpdateItem = new WinForms.ToolStripMenuItem("Install update…", null, (_, _) => InstallUpdate(_updates.Latest?.Release.Tag))
+        {
+            Visible = false,
+            Font = new Font(menu.Font, System.Drawing.FontStyle.Bold),
+        };
+        menu.Items.Add(_installUpdateItem);
+        menu.Items.Add(new WinForms.ToolStripMenuItem("Check for updates…", null, (_, _) => InstallUpdate(null))
+        {
+            Enabled = BarUpdateService.IsUpdaterInstalled,
+        });
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(new WinForms.ToolStripMenuItem("Quit Kazo Bar", null, (_, _) => Quit()));
         menu.Opening += (_, _) => toggleItem.Text = IsToolbarVisible ? "Hide toolbar" : "Show toolbar";
@@ -56,7 +72,30 @@ public sealed class TrayIconService : IDisposable
         {
             if (e.Button == WinForms.MouseButtons.Left) ToggleToolbar();
         };
+        _notifyIcon.BalloonTipClicked += (_, _) => InstallUpdate(_updates.Latest?.Release.Tag);
         Program.Log("Tray icon shown.");
+    }
+
+    /// <summary>
+    /// A newer release exists: bold "Install update" item in the menu and one notification balloon.
+    /// Must run on the UI thread.
+    /// </summary>
+    public void ShowUpdateAvailable(AvailableUpdate update)
+    {
+        if (_notifyIcon == null || _installUpdateItem == null) return;
+        _installUpdateItem.Text = $"Install Kazo Bar {update.Version}…";
+        _installUpdateItem.Visible = BarUpdateService.IsUpdaterInstalled;
+        _notifyIcon.Text = $"{AppName} — update {update.Version} available";
+        if (BarUpdateService.IsUpdaterInstalled)
+            _notifyIcon.ShowBalloonTip(10_000, $"Kazo Bar {update.Version} is available",
+                "Click here, or use the tray menu, to install it. Kazo Bar restarts by itself.", WinForms.ToolTipIcon.Info);
+    }
+
+    /// <summary>Starts Kazo.Bar.Updater.exe; it closes this toolbar itself before replacing files.</summary>
+    private void InstallUpdate(string? tag)
+    {
+        if (!_updates.LaunchUpdater(tag))
+            _notifyIcon?.ShowBalloonTip(5_000, AppName, "The updater could not be started. See the log for details.", WinForms.ToolTipIcon.Warning);
     }
 
     private bool IsToolbarVisible => _host.Window?.IsVisible == true;

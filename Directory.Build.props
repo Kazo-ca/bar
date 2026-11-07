@@ -1,0 +1,9 @@
+<Project>
+  <!--
+    Kazo Bar version, shown in the toolbar and compared with GitHub release tags by the
+    update check. The release script overrides it: -p:Version=0.2.0 (see build/Publish-Release.ps1).
+  -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+</Project>
