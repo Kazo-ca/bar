@@ -70,6 +70,49 @@ public class UserConfigServicesTests
     }
 
     [Test]
+    public async Task RemoveProject_DeletesIt_AndActivatesTheFirstRemaining_WhenItWasActive()
+    {
+        using var temp = new TempDirectory();
+        var service = new UserConfigSettingsService(await StoreWithTwoProjectsAsync(temp));
+        ProjectConfig? notified = null;
+        service.OnActiveProjectChanged += p => notified = p;
+
+        await service.RemoveProjectAsync("a");
+
+        Assert.That(notified?.Id, Is.EqualTo("b"));
+        var reloaded = new UserConfigSettingsService(new UserConfigurationStore(temp.Paths));
+        Assert.That((await reloaded.GetProjectsAsync()).Select(p => p.Id), Is.EqualTo(new[] { "b" }));
+        Assert.That(reloaded.GetActiveProject()?.Id, Is.EqualTo("b"));
+    }
+
+    [Test]
+    public async Task RemoveProject_KeepsTheActiveProject_WhenAnotherIsRemoved()
+    {
+        using var temp = new TempDirectory();
+        var service = new UserConfigSettingsService(await StoreWithTwoProjectsAsync(temp));
+        var notified = false;
+        service.OnActiveProjectChanged += _ => notified = true;
+
+        await service.RemoveProjectAsync("b");
+
+        Assert.That(notified, Is.False);
+        Assert.That(service.GetActiveProject()?.Id, Is.EqualTo("a"));
+    }
+
+    [Test]
+    public async Task RemoveProject_RefusesTheLastProject_AndIgnoresUnknownIds()
+    {
+        using var temp = new TempDirectory();
+        var service = new UserConfigSettingsService(await StoreWithTwoProjectsAsync(temp));
+
+        await service.RemoveProjectAsync("missing");
+        await service.RemoveProjectAsync("b");
+
+        Assert.ThrowsAsync<InvalidOperationException>(() => service.RemoveProjectAsync("a"));
+        Assert.That((await service.GetProjectsAsync()).Select(p => p.Id), Is.EqualTo(new[] { "a" }));
+    }
+
+    [Test]
     public async Task GlobalSettings_UpdateIsPersistedInSettingsSection_AndRaisesEvent()
     {
         using var temp = new TempDirectory();

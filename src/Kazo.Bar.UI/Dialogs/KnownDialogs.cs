@@ -23,6 +23,19 @@ public static class KnownDialogs
         InPageFrame = false,
     };
 
+    /// <summary>Project settings (name, folder, theme...) of <paramref name="projectId"/>: one window per project.</summary>
+    public static Task<IDialogReference> OpenProjectSettingsAsync(this IDialogService dialogs, string projectId) =>
+        dialogs.OpenAsync<ProjectSettings>(
+            new Dictionary<string, object?> { [nameof(ProjectSettings.ProjectId)] = projectId },
+            new DialogOptions
+            {
+                Title = "Kazo Bar — Project settings",
+                Width = 820,
+                Height = 820,
+                Key = $"project-settings:{projectId}",
+                FallbackRoute = $"/project-settings/{Uri.EscapeDataString(projectId)}",
+            });
+
     public static Task<IDialogReference> OpenSettingsAsync(this IDialogService dialogs) =>
         dialogs.OpenAsync<Settings>(options: SettingsOptions);
 

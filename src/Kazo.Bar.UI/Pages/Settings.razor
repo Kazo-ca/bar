@@ -10,6 +10,8 @@
 @inject INotificationService NotificationService
 @inject INativeService NativeService
 @using Kazo.Bar.Core.Dialogs
+@using Kazo.Bar.UI.Dialogs
+@inject IDialogService Dialogs
 
 <PageTitle>Kazo Bar - Settings</PageTitle>
 
@@ -28,7 +30,11 @@
         @if (_activeProject != null)
         {
             <section class="settings-section">
-                <h3>Active Project</h3>
+                <div class="settings-section-title-row">
+                    <h3>Active Project</h3>
+                    <button type="button" class="settings-btn settings-edit-project" data-testid="settings-edit-project"
+                            @onclick="() => Dialogs.OpenProjectSettingsAsync(_activeProject.Id)">✏️ Edit project…</button>
+                </div>
                 <div class="settings-field">
                     <label>Name</label>
                     <span class="settings-value">@_activeProject.Name</span>
@@ -248,6 +254,9 @@
                             {
                                 <span class="settings-project-badge">Active</span>
                             }
+                            <button type="button" class="settings-project-edit" data-testid="settings-project-edit"
+                                    title="Edit @project.Name" aria-label="Edit @project.Name"
+                                    @onclick="() => Dialogs.OpenProjectSettingsAsync(project.Id)" @onclick:stopPropagation="true">✏️</button>
                         </div>
                     }
                 }
