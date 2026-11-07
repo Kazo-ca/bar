@@ -14,6 +14,7 @@ public class StylesheetSyntaxTests
     {
         "src/Kazo.Bar.UI/wwwroot/css/toolbar.css",
         "src/Kazo.Bar.UI/wwwroot/css/themes.css",
+        "src/Kazo.Bar.UI/wwwroot/css/git-manager.css",
         "src/Kazo.Bar.Windows/wwwroot/css/wpf-host.css",
     };
 

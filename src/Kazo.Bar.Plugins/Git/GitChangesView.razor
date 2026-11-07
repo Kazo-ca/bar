@@ -1,0 +1,254 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.UI.Components
+
+@*
+    Changes tab (US5.7): commit box, staged and not staged files with their +/- counts, and the
+    diff of the selected file. Stage / unstage / discard per file or for a whole list.
+*@
+<div class="git-changes" data-testid="git-changes">
+    <aside class="git-changes-side">
+        <div class="git-commit-box">
+            <textarea class="git-commit-message" data-testid="git-commit-message" rows="3"
+                      placeholder="@(_amend ? "New message of the last commit" : "Commit message (Ctrl+Enter to commit)")"
+                      @bind="_message" @bind:event="oninput" @onkeydown="OnMessageKeyDown"></textarea>
+            <div class="git-commit-row">
+                <label class="git-commit-amend" title="Replace the last commit (message and content) instead of adding one">
+                    <input type="checkbox" @bind="_amend" /> Amend last commit
+                </label>
+                <span class="git-changes-total" title="Lines added / removed by all local changes">
+                    <span class="git-lines-added">+@_changes.LinesAdded</span>
+                    <span class="git-lines-deleted">−@_changes.LinesDeleted</span>
+                </span>
+            </div>
+            <button class="git-commit-btn" data-testid="git-commit" disabled="@(!CanCommit)" @onclick="CommitAsync">
+                <FaIcon Name="code-commit" /> @CommitLabel
+            </button>
+        </div>
+
+        @if (_changes.Error != null)
+        {
+            <p class="git-manager-empty">@_changes.Error</p>
+        }
+        else if (!_loaded)
+        {
+            <p class="git-manager-empty">Reading the changes…</p>
+        }
+        else if (!_changes.HasChanges)
+        {
+            <p class="git-manager-empty" data-testid="git-no-changes"><FaIcon Name="check" /> No local changes.</p>
+        }
+
+        <div class="git-file-lists">
+            @if (_changes.Staged.Count > 0)
+            {
+                <section class="git-file-section" data-testid="git-staged">
+                    <header class="git-file-section-header">
+                        <span>Staged <span class="git-count">@_changes.Staged.Count</span></span>
+                        <button class="git-row-btn" title="Unstage all" aria-label="Unstage all" disabled="@Panel.IsBusy"
+                                @onclick="() => UnstageAsync(_changes.Staged)"><FaIcon Name="minus" /></button>
+                    </header>
+                    @foreach (var change in _changes.Staged)
+                    {
+                        @FileRow(change)
+                    }
+                </section>
+            }
+            @if (_changes.Unstaged.Count > 0)
+            {
+                <section class="git-file-section" data-testid="git-unstaged">
+                    <header class="git-file-section-header">
+                        <span>Changes <span class="git-count">@_changes.Unstaged.Count</span></span>
+                        <span class="git-row-actions">
+                            @if (_confirmDiscard == AllKey)
+                            {
+                                <button class="git-row-btn danger confirm" title="Throw away every change below: this cannot be undone"
+                                        @onclick="() => DiscardAsync(_changes.Unstaged.Where(c => c.Kind != GitChangeKind.Conflicted).ToList())">Discard all?</button>
+                            }
+                            else
+                            {
+                                <button class="git-row-btn" title="Discard all changes" aria-label="Discard all changes" disabled="@Panel.IsBusy"
+                                        @onclick="() => _confirmDiscard = AllKey"><FaIcon Name="rotate-left" /></button>
+                            }
+                            <button class="git-row-btn" title="Stage all" aria-label="Stage all" disabled="@Panel.IsBusy"
+                                    @onclick="() => StageAsync(_changes.Unstaged)"><FaIcon Name="plus" /></button>
+                        </span>
+                    </header>
+                    @foreach (var change in _changes.Unstaged)
+                    {
+                        @FileRow(change)
+                    }
+                </section>
+            }
+        </div>
+    </aside>
+
+    <section class="git-changes-diff">
+        @if (_selected != null)
+        {
+            <GitDiffView Change="_selected" Version="Version" />
+        }
+        else if (_changes.HasChanges)
+        {
+            <p class="git-manager-empty">Select a file to see its changes.</p>
+        }
+    </section>
+</div>
+
+@code {
+    [CascadingParameter] public GitManagerPanel Panel { get; set; } = default!;
+
+    /// <summary>Changes when the repository was changed: the lists are read again.</summary>
+    [Parameter] public int Version { get; set; }
+
+    private const string AllKey = "\0all";
+
+    private GitChangeSet _changes = GitChangeSet.Empty;
+    private GitFileChange? _selected;
+    private bool _loaded;
+    private int? _loadedVersion;
+    private string _message = string.Empty;
+    private bool _amend;
+    private string? _confirmDiscard;
+
+    private bool CanCommit => !Panel.IsBusy && !string.IsNullOrWhiteSpace(_message) && (_amend || _changes.HasChanges) && !_changes.HasConflicts;
+
+    private string CommitLabel => _amend
+        ? "Amend last commit"
+        : _changes.Staged.Count > 0
+            ? $"Commit {_changes.Staged.Count} staged file(s)"
+            : $"Commit all ({_changes.Unstaged.Count})";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedVersion == Version) return;
+        _loadedVersion = Version;
+        await LoadAsync();
+    }
+
+    private int _loadCount;
+
+    private async Task LoadAsync()
+    {
+        var load = ++_loadCount;
+        var changes = await Panel.Manager.GetChangesAsync(Panel.Path);
+        if (load != _loadCount) return; // A newer read was started meanwhile.
+        _changes = changes;
+        _loaded = true;
+        _confirmDiscard = null;
+        // Keep the selected file when it is still listed (it may have moved between the lists).
+        _selected = _selected == null
+            ? All().FirstOrDefault()
+            : All().FirstOrDefault(c => c.Path == _selected.Path && c.IsStaged == _selected.IsStaged)
+              ?? All().FirstOrDefault(c => c.Path == _selected.Path)
+              ?? All().FirstOrDefault();
+    }
+
+    private IEnumerable<GitFileChange> All() => _changes.Staged.Concat(_changes.Unstaged);
+
+    private RenderFragment FileRow(GitFileChange change) => __builder =>
+    {
+        var key = (change.IsStaged ? "s:" : "u:") + change.Path;
+        var isSelected = _selected != null && _selected.Path == change.Path && _selected.IsStaged == change.IsStaged;
+        <div class="git-file-row @(isSelected ? "selected" : "")" @key="key" data-testid="git-file-row" data-path="@change.Path"
+             title="@Tooltip(change)" @onclick="() => _selected = change">
+            <span class="git-file-kind kind-@change.Kind.ToString().ToLowerInvariant()" title="@change.Kind">@KindLetter(change.Kind)</span>
+            <span class="git-file-name">@change.FileName</span>
+            <span class="git-file-folder">@change.Folder</span>
+            <span class="git-file-lines">
+                @if (change.IsBinary)
+                {
+                    <span class="git-file-binary">binary</span>
+                }
+                else
+                {
+                    @if (change.LinesAdded > 0) { <span class="git-lines-added">+@change.LinesAdded</span> }
+                    @if (change.LinesDeleted > 0) { <span class="git-lines-deleted">−@change.LinesDeleted</span> }
+                }
+            </span>
+            <span class="git-row-actions" @onclick:stopPropagation="true">
+                @if (change.IsStaged)
+                {
+                    <button class="git-row-btn" title="Unstage" aria-label="Unstage" disabled="@Panel.IsBusy" @onclick="() => UnstageAsync([change])"><FaIcon Name="minus" /></button>
+                }
+                else
+                {
+                    @if (change.Kind != GitChangeKind.Conflicted)
+                    {
+                        @if (_confirmDiscard == key)
+                        {
+                            <button class="git-row-btn danger confirm" title="This cannot be undone" @onclick="() => DiscardAsync([change])">Discard?</button>
+                        }
+                        else
+                        {
+                            <button class="git-row-btn" title="@(change.Kind == GitChangeKind.Untracked ? "Delete this new file" : "Discard the changes")" aria-label="Discard"
+                                    disabled="@Panel.IsBusy" @onclick="() => _confirmDiscard = key"><FaIcon Name="rotate-left" /></button>
+                        }
+                    }
+                    <button class="git-row-btn" title="@(change.Kind == GitChangeKind.Conflicted ? "Mark as resolved (stage)" : "Stage")" aria-label="Stage"
+                            disabled="@Panel.IsBusy" @onclick="() => StageAsync([change])"><FaIcon Name="plus" /></button>
+                }
+            </span>
+        </div>
+    };
+
+    private async Task StageAsync(IReadOnlyList<GitFileChange> changes)
+    {
+        var paths = changes.Select(c => c.Path).ToList();
+        await Panel.RunAsync(() => Panel.Manager.StageAsync(Panel.Path, paths), $"{paths.Count} file(s) staged.");
+    }
+
+    private async Task UnstageAsync(IReadOnlyList<GitFileChange> changes)
+    {
+        // A staged rename is a deletion of the old path plus an addition: unstage both.
+        var paths = changes.SelectMany(c => c.OldPath != null && c.Kind == GitChangeKind.Renamed ? new[] { c.Path, c.OldPath } : new[] { c.Path }).ToList();
+        await Panel.RunAsync(() => Panel.Manager.UnstageAsync(Panel.Path, paths), $"{paths.Count} file(s) unstaged.");
+    }
+
+    private async Task DiscardAsync(IReadOnlyList<GitFileChange> changes)
+    {
+        _confirmDiscard = null;
+        if (changes.Count == 0) return;
+        await Panel.RunAsync(() => Panel.Manager.DiscardAsync(Panel.Path, changes), $"Changes of {changes.Count} file(s) discarded.");
+    }
+
+    private async Task CommitAsync()
+    {
+        if (!CanCommit) return;
+        var stageAll = !_amend && _changes.Staged.Count == 0;
+        var message = _message;
+        var amend = _amend;
+        var result = await Panel.RunAsync(
+            () => Panel.Manager.CommitAsync(Panel.Path, message, stageAll, amend),
+            amend ? "Last commit amended." : "Committed.");
+        if (result.Success)
+        {
+            Panel.ShowMessage(FirstLine(result.Output) ?? (amend ? "Last commit amended." : "Committed."), isError: false);
+            _message = string.Empty;
+            _amend = false;
+        }
+    }
+
+    private async Task OnMessageKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey) await CommitAsync();
+    }
+
+    private static string? FirstLine(string text) =>
+        text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+
+    private static string KindLetter(GitChangeKind kind) => kind switch
+    {
+        GitChangeKind.Added => "A",
+        GitChangeKind.Deleted => "D",
+        GitChangeKind.Renamed => "R",
+        GitChangeKind.Copied => "C",
+        GitChangeKind.TypeChanged => "T",
+        GitChangeKind.Untracked => "U",
+        GitChangeKind.Conflicted => "!",
+        _ => "M",
+    };
+
+    private static string Tooltip(GitFileChange change) => change.OldPath != null
+        ? $"{change.OldPath} → {change.Path}"
+        : change.Kind == GitChangeKind.Conflicted ? $"{change.Path} — merge conflict to resolve" : change.Path;
+}

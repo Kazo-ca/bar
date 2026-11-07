@@ -1,0 +1,311 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.Core.Configuration
+@using Kazo.Bar.Core.Git
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.UI.Components
+@inject ISettingsService SettingsService
+
+@*
+    Worktrees tab (US5.8): create a worktree from a source branch (optionally as a new branch),
+    open one in the toolbar, move it, delete it, and choose the folder where new worktrees go.
+*@
+@{
+    var repository = Panel.Plugin.SelectedRepository;
+}
+<div class="git-worktrees" data-testid="git-worktrees">
+    @if (repository != null)
+    {
+        <section class="git-form git-worktree-location" data-testid="git-worktree-location">
+            <h5><FaIcon Name="folder-open" /> Location of new worktrees</h5>
+            @if (_editingLocation)
+            {
+                <div class="git-form-grid">
+                    <label class="git-form-wide">Folder
+                        <input type="text" data-testid="git-worktree-location-input" @bind="_location" @bind:event="oninput"
+                               placeholder="@GitWorktreeLocations.DefaultRootFor(repository.Path)" />
+                    </label>
+                    <button class="git-primary-btn" data-testid="git-worktree-location-save" disabled="@Panel.IsBusy" @onclick="SaveLocationAsync">Save</button>
+                    <button class="git-text-btn" @onclick="() => _editingLocation = false">Cancel</button>
+                </div>
+                <p class="git-form-hint">Leave empty to use a folder next to the repository (@GitWorktreeLocations.DefaultRootFor(repository.Path)). Existing worktrees stay where they are: use Move for them.</p>
+                @if (_locationError != null)
+                {
+                    <p class="git-form-error">@_locationError</p>
+                }
+            }
+            else
+            {
+                <div class="git-location-row">
+                    <code class="git-location-path" data-testid="git-worktree-location-path">@GitWorktreeLocations.RootFor(repository)</code>
+                    @if (string.IsNullOrWhiteSpace(repository.WorktreesFolder))
+                    {
+                        <span class="git-form-hint">(default)</span>
+                    }
+                    <button class="git-text-btn" data-testid="git-worktree-location-change" @onclick="StartEditLocation">Change</button>
+                </div>
+            }
+        </section>
+
+        <form class="git-form" data-testid="git-new-worktree" @onsubmit="CreateAsync" @onsubmit:preventDefault="true">
+            <h5><FaIcon Name="folder-plus" /> New worktree</h5>
+            <div class="git-form-grid">
+                <label>Source branch
+                    <select data-testid="git-new-worktree-source" value="@_source" @onchange="OnSourceChanged">
+                        @foreach (var branch in _branches)
+                        {
+                            <option value="@branch.Name" disabled="@(!branch.IsRemote && UsedBy(branch) != null && !_createBranch)">@branch.Name@(UsedBy(branch) != null ? " (in a worktree)" : "")</option>
+                        }
+                    </select>
+                </label>
+                <label class="git-form-check">
+                    <input type="checkbox" data-testid="git-new-worktree-create-branch" checked="@_createBranch" @onchange="OnCreateBranchChanged" /> Create a new branch
+                </label>
+                @if (_createBranch)
+                {
+                    <label>New branch
+                        <input type="text" data-testid="git-new-worktree-branch" placeholder="feature/my-change" value="@_newBranch" @oninput="OnNewBranchInput" />
+                    </label>
+                }
+                <label class="git-form-wide">Folder
+                    <input type="text" data-testid="git-new-worktree-folder" value="@_folder" @oninput="OnFolderInput" />
+                </label>
+                <label class="git-form-check">
+                    <input type="checkbox" @bind="_openAfterCreate" /> Open it in the toolbar
+                </label>
+                <button type="submit" class="git-primary-btn" data-testid="git-new-worktree-create" disabled="@(!CanCreate)">Create worktree</button>
+            </div>
+            @if (_createBranch && _newBranch.Length > 0 && GitBranchNames.Validate(_newBranch) is { } nameError)
+            {
+                <p class="git-form-error">@nameError</p>
+            }
+        </form>
+
+        <section class="git-branch-section">
+            <header class="git-file-section-header"><span>Worktrees <span class="git-count">@_worktrees.Count</span></span></header>
+            @foreach (var worktree in _worktrees)
+            {
+                var isActive = Panel.Plugin.IsActive(repository, worktree);
+                <div class="git-branch-row @(isActive ? "current" : "")" @key="worktree.Path" data-testid="git-worktree-row" data-path="@worktree.Path">
+                    <span class="git-branch-icon">@if (isActive) { <FaIcon Name="check" /> } else { <FaIcon Name="folder-tree" /> }</span>
+                    <span class="git-branch-main">
+                        <span class="git-branch-title">@worktree.Name @if (worktree.IsMain) { <span class="git-badge static">main</span> }</span>
+                        <span class="git-branch-meta"><FaIcon Name="code-branch" /> @(worktree.Branch ?? $"detached {worktree.Head}") · <span title="@worktree.Path">@worktree.Path</span></span>
+                        @if (_moving == worktree.Path)
+                        {
+                            <span class="git-move-row">
+                                <input type="text" data-testid="git-worktree-move-input" aria-label="New folder" @bind="_moveTarget" @bind:event="oninput" />
+                                <button class="git-primary-btn" data-testid="git-worktree-move-confirm" disabled="@Panel.IsBusy" @onclick="() => MoveAsync(worktree)">Move</button>
+                                <button class="git-text-btn" @onclick="() => _moving = null">Cancel</button>
+                            </span>
+                        }
+                    </span>
+                    <span class="git-row-actions visible">
+                        @if (!isActive)
+                        {
+                            <button class="git-text-btn" title="Work in this worktree from the toolbar" @onclick="() => Panel.SwitchToWorktreeAsync(worktree.Path)">Open</button>
+                        }
+                        @if (!worktree.IsMain)
+                        {
+                            <button class="git-row-btn" title="Move to another folder" aria-label="Move" data-testid="git-worktree-move" disabled="@Panel.IsBusy"
+                                    @onclick="() => StartMove(worktree)"><FaIcon Name="right-left" /></button>
+                            @if (_confirmRemove == worktree.Path)
+                            {
+                                <label class="git-form-check" title="Delete even with local changes (they are lost)">
+                                    <input type="checkbox" @bind="_forceRemove" /> force
+                                </label>
+                                <button class="git-row-btn danger confirm" data-testid="git-worktree-remove-confirm" @onclick="() => RemoveAsync(worktree)">Delete folder?</button>
+                                <button class="git-row-btn" aria-label="Cancel" @onclick="() => _confirmRemove = null"><FaIcon Name="xmark" /></button>
+                            }
+                            else
+                            {
+                                <button class="git-row-btn" title="Delete this worktree and its folder (the branch is kept)" aria-label="Delete" data-testid="git-worktree-remove"
+                                        disabled="@Panel.IsBusy" @onclick="() => { _confirmRemove = worktree.Path; _forceRemove = false; }"><FaIcon Name="trash" /></button>
+                            }
+                        }
+                    </span>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public GitManagerPanel Panel { get; set; } = default!;
+
+    [Parameter] public int Version { get; set; }
+
+    private IReadOnlyList<GitBranch> _branches = Array.Empty<GitBranch>();
+    private IReadOnlyList<GitWorktree> _worktrees = Array.Empty<GitWorktree>();
+    private int? _loadedVersion;
+    private int _loadCount;
+
+    private string _source = string.Empty;
+    private bool _createBranch = true;
+    private string _newBranch = string.Empty;
+    private string _folder = string.Empty;
+    private bool _folderEdited;
+    private bool _openAfterCreate = true;
+
+    private bool _editingLocation;
+    private string _location = string.Empty;
+    private string? _locationError;
+
+    private string? _moving;
+    private string _moveTarget = string.Empty;
+    private string? _confirmRemove;
+    private bool _forceRemove;
+
+    private string RepositoryPath => Panel.Plugin.SelectedRepository?.Path ?? Panel.Path;
+
+    private bool CanCreate => !Panel.IsBusy && _source.Length > 0 && _folder.Trim().Length > 0
+                              && (!_createBranch || GitBranchNames.Validate(_newBranch) == null);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedVersion == Version) return;
+        _loadedVersion = Version;
+        // The plugin reads the worktree list again after every change made from the panel.
+        var load = ++_loadCount;
+        await Panel.Plugin.LoadWorktreesAsync();
+        var branches = await Panel.Manager.GetBranchesAsync(RepositoryPath);
+        if (load != _loadCount) return; // A newer read was started meanwhile.
+        _branches = branches;
+        _worktrees = Panel.Plugin.SelectedRepository is { } repository
+            ? Panel.Plugin.WorktreesOf(repository)
+            : Array.Empty<GitWorktree>();
+        _confirmRemove = null;
+        if (!_branches.Any(b => b.Name == _source))
+            _source = _branches.FirstOrDefault(b => b.IsCurrent)?.Name ?? _branches.FirstOrDefault()?.Name ?? string.Empty;
+        SuggestFolder();
+    }
+
+    /// <summary>Folder of the worktree where a local branch is checked out; null when none.</summary>
+    private string? UsedBy(GitBranch branch) => branch.IsRemote
+        ? null
+        : _worktrees.FirstOrDefault(w => w.Branch == branch.Name)?.Path;
+
+    private void OnSourceChanged(ChangeEventArgs e)
+    {
+        _source = e.Value?.ToString() ?? string.Empty;
+        SuggestFolder();
+    }
+
+    private void OnCreateBranchChanged(ChangeEventArgs e)
+    {
+        _createBranch = e.Value is true;
+        SuggestFolder();
+    }
+
+    private void OnNewBranchInput(ChangeEventArgs e)
+    {
+        _newBranch = e.Value?.ToString() ?? string.Empty;
+        SuggestFolder();
+    }
+
+    private void OnFolderInput(ChangeEventArgs e)
+    {
+        _folder = e.Value?.ToString() ?? string.Empty;
+        _folderEdited = _folder.Trim().Length > 0;
+    }
+
+    /// <summary>Fills the folder from the branch name until the user types their own.</summary>
+    private void SuggestFolder()
+    {
+        if (_folderEdited || Panel.Plugin.SelectedRepository is not { } repository) return;
+        var branch = _createBranch && _newBranch.Trim().Length > 0
+            ? _newBranch.Trim()
+            : new GitBranch { Name = _source, IsRemote = _branches.FirstOrDefault(b => b.Name == _source)?.IsRemote ?? false }.LocalName;
+        _folder = branch.Length == 0 ? string.Empty : GitWorktreeLocations.SuggestPath(repository, branch);
+    }
+
+    private async Task CreateAsync()
+    {
+        if (!CanCreate) return;
+        var folder = _folder.Trim();
+        var source = _source;
+        var newBranch = _createBranch ? _newBranch.Trim() : null;
+        var result = await Panel.RunAsync(
+            () => Panel.Manager.AddWorktreeAsync(RepositoryPath, folder, source, newBranch),
+            $"Worktree created in {folder}.");
+        if (!result.Success) return;
+        _newBranch = string.Empty;
+        _folderEdited = false;
+        if (_openAfterCreate)
+        {
+            var created = Panel.Plugin.SelectedRepository is { } repository
+                ? Panel.Plugin.WorktreesOf(repository).FirstOrDefault(w => RepositoryPaths.SamePath(w.Path, folder))
+                : null;
+            await Panel.SwitchToWorktreeAsync(created?.Path ?? folder);
+        }
+        SuggestFolder();
+    }
+
+    private void StartMove(GitWorktree worktree)
+    {
+        _moving = worktree.Path;
+        _moveTarget = Panel.Plugin.SelectedRepository is { } repository
+            ? GitWorktreeLocations.SuggestPath(repository, worktree.Branch ?? worktree.Name)
+            : worktree.Path;
+    }
+
+    private async Task MoveAsync(GitWorktree worktree)
+    {
+        var target = _moveTarget.Trim();
+        if (GitWorktreeLocations.ValidateFolder(target) is { } error)
+        {
+            Panel.ShowMessage(error, isError: true);
+            return;
+        }
+        var wasActive = Panel.Plugin.SelectedRepository is { } repository && Panel.Plugin.IsActive(repository, worktree);
+        var result = await Panel.RunAsync(() => Panel.Manager.MoveWorktreeAsync(RepositoryPath, worktree.Path, target), $"Worktree moved to {target}.");
+        if (!result.Success) return;
+        _moving = null;
+        if (wasActive) await Panel.SwitchToWorktreeAsync(target);
+    }
+
+    private async Task RemoveAsync(GitWorktree worktree)
+    {
+        _confirmRemove = null;
+        var force = _forceRemove;
+        await Panel.RunAsync(() => Panel.Manager.RemoveWorktreeAsync(RepositoryPath, worktree.Path, force), $"Worktree {worktree.Name} deleted.");
+    }
+
+    private void StartEditLocation()
+    {
+        _location = Panel.Plugin.SelectedRepository?.WorktreesFolder ?? string.Empty;
+        _locationError = null;
+        _editingLocation = true;
+    }
+
+    private async Task SaveLocationAsync()
+    {
+        var project = Panel.Plugin.Project;
+        if (Panel.Plugin.SelectedRepository is not { } repository) return;
+        var folder = _location.Trim();
+        if (folder.Length > 0 && GitWorktreeLocations.ValidateFolder(folder) is { } error)
+        {
+            _locationError = error;
+            return;
+        }
+        // A project without a repository list uses an implicit one: the list is created with it.
+        var repositories = GitRepositoryCatalog.Resolve(project)
+            .Select(r => GitRepositoryCatalog.SamePath(r.Path, repository.Path) ? r with { WorktreesFolder = folder } : r)
+            .ToList();
+        var previous = project.GitRepositories;
+        project.GitRepositories = repositories;
+        try
+        {
+            await SettingsService.SaveProjectAsync(project);
+        }
+        catch (Exception ex)
+        {
+            project.GitRepositories = previous;
+            _locationError = $"Could not save: {ex.Message}";
+            return;
+        }
+        _editingLocation = false;
+        _folderEdited = false;
+        SuggestFolder();
+        Panel.ShowMessage(folder.Length == 0 ? "New worktrees go next to the repository." : $"New worktrees go to {folder}.", isError: false);
+    }
+}

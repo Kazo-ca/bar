@@ -164,7 +164,9 @@ public static class Program
         services.AddSingleton<IHostSurfaceService>(sp => sp.GetRequiredService<WpfHostSurfaceService>());
 
         // Plugins.
-        services.AddSingleton<IGitService, Kazo.Bar.Infrastructure.Git.GitService>();
+        services.AddSingleton<Kazo.Bar.Infrastructure.Git.GitService>();
+        services.AddSingleton<IGitService>(sp => sp.GetRequiredService<Kazo.Bar.Infrastructure.Git.GitService>());
+        services.AddSingleton<IGitRepositoryManager>(sp => sp.GetRequiredService<Kazo.Bar.Infrastructure.Git.GitService>());
         services.AddSingleton<IPlugin, GitPlugin>();
         // Real providers (US5.2, US7.1): Azure DevOps and GitHub, configured per repository.
         services.AddSingleton(_ => new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });

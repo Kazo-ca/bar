@@ -285,4 +285,34 @@ public class ScreenshotTests : PageTest
         }
         Assert.That(File.Exists(ScreenshotPath("16-module-overflow-menu")), Is.True);
     }
+
+    [Test, Order(21)]
+    public async Task Capture_21_23_GitRepositoryManager()
+    {
+        await NavigateAndWait();
+        await Expect(Page.Locator(".toolbar-shell[data-interactive='true']")).ToHaveCountAsync(1, new() { Timeout = 30000 });
+        if ((await Page.Locator(".project-name").TextContentAsync())?.Trim() != "MyWebAPI")
+            await SwitchProject("MyWebAPI");
+        // The simulated "hotfix" worktree has local changes.
+        await Page.GetByTestId("git-selector").ClickAsync();
+        await Page.GetByTestId("git-selector-menu").Locator(".git-worktree-link", new() { HasText = "my-webapi-hotfix" }).ClickAsync();
+        await Page.GetByTestId("git-changes-counter").ClickAsync(new() { Timeout = 5000 });
+        var manager = Page.GetByTestId("git-manager");
+        await Expect(manager.GetByTestId("git-diff").Locator(".git-diff-line.added")).ToHaveCountAsync(3, new() { Timeout = 5000 });
+        await manager.GetByTestId("git-commit-message").FillAsync("Fix the login redirect");
+        await Page.ScreenshotAsync(new() { Path = ScreenshotPath("21-git-changes-and-commit"), FullPage = true });
+
+        await manager.GetByTestId("git-tab-branches").ClickAsync();
+        await Expect(manager.GetByTestId("git-branch-row").First).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await Page.ScreenshotAsync(new() { Path = ScreenshotPath("22-git-branches"), FullPage = true });
+
+        await manager.GetByTestId("git-tab-worktrees").ClickAsync();
+        await Expect(manager.GetByTestId("git-worktree-row")).ToHaveCountAsync(3, new() { Timeout = 5000 });
+        await Page.ScreenshotAsync(new() { Path = ScreenshotPath("23-git-worktrees"), FullPage = true });
+
+        await Page.Keyboard.PressAsync("Escape");
+        await Page.GetByTestId("git-selector").ClickAsync();
+        await Page.GetByTestId("git-selector-menu").Locator(".git-worktree-link", new() { HasText = "(main)" }).ClickAsync();
+        Assert.That(File.Exists(ScreenshotPath("23-git-worktrees")), Is.True);
+    }
 }

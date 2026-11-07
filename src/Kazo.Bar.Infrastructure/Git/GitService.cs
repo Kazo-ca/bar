@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// LibGit2Sharp; pull and push run the <c>git</c> CLI so the user's credential helper and
 /// Git configuration apply.
 /// </summary>
-public sealed class GitService : IGitService
+public sealed partial class GitService : IGitService, IGitRepositoryManager
 {
     /// <summary>Longest time a pull or push may take before it is stopped.</summary>
     public static readonly TimeSpan DefaultCommandTimeout = TimeSpan.FromMinutes(2);
@@ -73,10 +73,11 @@ public sealed class GitService : IGitService
             var status = repository.RetrieveStatus(new StatusOptions
             {
                 IncludeUntracked = true,
-                RecurseUntrackedDirs = false,
+                RecurseUntrackedDirs = true,
                 IncludeIgnored = false,
             });
             var tracking = head.IsTracking ? head.TrackingDetails : null;
+            var (added, deleted) = CountChangedLines(repository);
 
             return new GitStatus
             {
@@ -84,6 +85,8 @@ public sealed class GitService : IGitService
                 Branch = detached ? head.Tip?.Sha[..ShortShaLength] : head.FriendlyName,
                 IsDetached = detached,
                 ChangedFiles = status.Count(e => e.State != FileStatus.Unaltered && e.State != FileStatus.Ignored),
+                LinesAdded = added,
+                LinesDeleted = deleted,
                 Ahead = tracking?.AheadBy,
                 Behind = tracking?.BehindBy,
             };
@@ -106,6 +109,8 @@ public sealed class GitService : IGitService
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
         // ArgumentList quotes each value: no injection through the folder path.
         startInfo.ArgumentList.Add("-C");
@@ -129,7 +134,15 @@ public sealed class GitService : IGitService
             }
             catch (OperationCanceledException)
             {
-                process.Kill(entireProcessTree: true);
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The process ended on its own meanwhile.
+                }
+                _ = Task.WhenAll(output, error).ContinueWith(t => _ = t.Exception, TaskScheduler.Default);
                 var reason = cancellationToken.IsCancellationRequested ? "cancelled" : $"timed out after {_commandTimeout.TotalSeconds:0} s";
                 return new GitCommandResult(false, -1, string.Empty, $"git {string.Join(' ', arguments)} {reason}.");
             }
