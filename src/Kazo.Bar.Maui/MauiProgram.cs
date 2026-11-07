@@ -94,6 +94,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<INotificationService, NotificationService>();
         builder.Services.AddSingleton<ThemeService>();
         builder.Services.AddSingleton<EventAggregator>();
+        // Frozen host: dialogs stay in the page (overlay root component in MainPage).
+        builder.Services.AddScoped<Kazo.Bar.Core.Dialogs.IDialogService, Kazo.Bar.UI.Dialogs.InPageDialogService>();
 
         return builder.Build();
     }

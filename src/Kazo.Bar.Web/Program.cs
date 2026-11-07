@@ -47,6 +47,8 @@ builder.Services.AddSingleton<IPluginLoader, PluginLoader>();
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddSingleton<EventAggregator>();
+// No native windows in a browser: dialogs are overlays in the page (one service per circuit).
+builder.Services.AddScoped<Kazo.Bar.Core.Dialogs.IDialogService, Kazo.Bar.UI.Dialogs.InPageDialogService>();
 
 var app = builder.Build();
 

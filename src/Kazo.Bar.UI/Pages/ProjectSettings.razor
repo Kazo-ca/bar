@@ -1,6 +1,7 @@
 @page "/project-settings"
 @page "/project-settings/{ProjectId}"
 @using Kazo.Bar.UI.Components
+@using Kazo.Bar.Core.Dialogs
 @inject NavigationManager Navigation
 
 <PageTitle>Kazo Bar - Project settings</PageTitle>
@@ -9,7 +10,10 @@
 <HostSizedRegion Id="project-settings-page" Class="settings-page project-settings-page">
     <header class="settings-header">
         <h2>🎨 Project settings</h2>
-        <a href="/settings" class="settings-back" data-testid="project-settings-back">← Back to Settings</a>
+        @if (Dialog == null)
+        {
+            <a href="/settings" class="settings-back" data-testid="project-settings-back">← Back to Settings</a>
+        }
     </header>
 
     <div class="settings-content">
@@ -21,5 +25,13 @@
     /// <summary>Project to edit; the active project when absent.</summary>
     [Parameter] public string? ProjectId { get; set; }
 
-    private void BackToSettings() => Navigation.NavigateTo("/settings");
+    /// <summary>Set when shown in a dialog (its own window in the Windows host).</summary>
+    [CascadingParameter] public DialogContext? Dialog { get; set; }
+
+    private Task BackToSettings()
+    {
+        if (Dialog != null) return Dialog.CancelAsync();
+        Navigation.NavigateTo("/settings");
+        return Task.CompletedTask;
+    }
 }

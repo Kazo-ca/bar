@@ -1,6 +1,7 @@
 @using Kazo.Bar.Core.Interfaces
 @using Kazo.Bar.Core.Models
 @using Microsoft.JSInterop
+@using Kazo.Bar.Core.Dialogs
 @implements IAsyncDisposable
 @inject IServiceProvider Services
 @inject IJSRuntime JS
@@ -10,7 +11,7 @@
     The region measures its content and declares the surface it needs to the host
     (IHostSurfaceService), which grows its window as far as the screen allows;
     whatever still does not fit scrolls inside the region (class "host-sized").
-    Hosts without the service: plain CSS scrolling, no JS.
+    Hosts without the service, and dialogs (their window or overlay is sized on its own): plain CSS scrolling, no JS.
     Regions laid out from the window bottom (panels opening upward) add data-host-anchor="bottom".
 *@
 <div @ref="_outer" class="host-sized @Class" data-host-size-id="@Id" @attributes="AdditionalAttributes">
@@ -22,6 +23,8 @@
     [Parameter, EditorRequired] public string Id { get; set; } = "";
     [Parameter] public string? Class { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
+    /// <summary>Inside a dialog the toolbar window must not grow for this region.</summary>
+    [CascadingParameter] public DialogContext? Dialog { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private ElementReference _outer;
@@ -34,6 +37,7 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+        if (Dialog != null) return;
         _surface = Services.GetService(typeof(IHostSurfaceService)) as IHostSurfaceService;
         if (_surface == null || string.IsNullOrWhiteSpace(Id)) return;
 

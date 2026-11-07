@@ -1,0 +1,39 @@
+@using Kazo.Bar.Core.Dialogs
+@using Kazo.Bar.UI.Services
+@implements IDisposable
+@inject ThemeService ThemeService
+
+@*
+    Root component of a dialog window (desktop hosts that implement IDialogService with
+    native windows). Applies the active theme and cascades the DialogContext to the component.
+*@
+@if (ThemeService.GetCustomCss() is { Length: > 0 } customCss)
+{
+    <style>@((MarkupString)customCss)</style>
+}
+<div class="dialog-window" data-theme="@ThemeService.ThemeName" style="@ThemeService.GetCssVariables()">
+    <CascadingValue Value="Context" IsFixed="true">
+        <DynamicComponent Type="ComponentType" Parameters="ComponentParameters" />
+    </CascadingValue>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DialogContext Context { get; set; } = default!;
+    [Parameter, EditorRequired] public Type ComponentType { get; set; } = default!;
+    [Parameter] public IDictionary<string, object>? ComponentParameters { get; set; }
+
+    protected override void OnInitialized() => ThemeService.OnThemeChanged += OnThemeChanged;
+
+    private void OnThemeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ThemeService.OnThemeChanged -= OnThemeChanged;
+
+    /// <summary>Root component parameters for a dialog window.</summary>
+    public static IDictionary<string, object?> Parameters(DialogContext context, Type componentType, IReadOnlyDictionary<string, object?>? parameters) =>
+        new Dictionary<string, object?>
+        {
+            [nameof(Context)] = context,
+            [nameof(ComponentType)] = componentType,
+            [nameof(ComponentParameters)] = InPageDialogService.ToComponentParameters(parameters),
+        };
+}

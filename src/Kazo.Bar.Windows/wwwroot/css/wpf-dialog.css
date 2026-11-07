@@ -1,0 +1,26 @@
+/* ==========================================================================
+   Dialog windows of the WPF host (DialogWindow, wwwroot/dialog.html).
+   Normal opaque window: unlike the toolbar window, no transparency rules.
+   The component fills the window and scrolls inside .dialog-window.
+   ========================================================================== */
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #1e1e1e;
+}
+
+.dialog-window::-webkit-scrollbar {
+    width: 10px;
+}
+
+.dialog-window::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+#blazor-error-ui {
+    display: none;
+}

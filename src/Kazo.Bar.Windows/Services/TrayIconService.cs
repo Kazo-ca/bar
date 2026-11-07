@@ -1,6 +1,8 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using Kazo.Bar.Core.Dialogs;
+using Kazo.Bar.UI.Dialogs;
 using WinForms = System.Windows.Forms;
 
 namespace Kazo.Bar.Windows.Services;
@@ -19,10 +21,15 @@ public sealed class TrayIconService : IDisposable
     private const int IconSize = 32;
 
     private readonly ToolbarHost _host;
+    private readonly IDialogService _dialogs;
     private WinForms.NotifyIcon? _notifyIcon;
     private Icon? _icon;
 
-    public TrayIconService(ToolbarHost host) => _host = host;
+    public TrayIconService(ToolbarHost host, IDialogService dialogs)
+    {
+        _host = host;
+        _dialogs = dialogs;
+    }
 
     /// <summary>Creates the tray icon. Must run on the UI thread, after the window exists.</summary>
     public void Show()
@@ -67,13 +74,17 @@ public sealed class TrayIconService : IDisposable
         window.Activate();
     }
 
-    private void OpenSettings()
+    /// <summary>Settings open in their own window, even while the toolbar is hidden.</summary>
+    private async void OpenSettings()
     {
-        var window = _host.Window;
-        if (window == null) return;
-        if (!window.IsVisible) window.Show();
-        window.Activate();
-        _host.NavigateTo("/settings");
+        try
+        {
+            await _dialogs.OpenSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"Could not open the Settings window: {ex}");
+        }
     }
 
     private void Quit()

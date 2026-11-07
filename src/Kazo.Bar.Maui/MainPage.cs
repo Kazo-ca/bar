@@ -22,6 +22,11 @@ public class MainPage : ContentPage
                 {
                     Selector = "#app",
                     ComponentType = typeof(Kazo.Bar.UI.Pages.Home)
+                },
+                new RootComponent
+                {
+                    Selector = "#dialogs",
+                    ComponentType = typeof(Kazo.Bar.UI.Dialogs.DialogOutlet)
                 }
             }
         };

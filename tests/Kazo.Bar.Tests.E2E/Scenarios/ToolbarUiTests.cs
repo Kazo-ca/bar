@@ -430,12 +430,16 @@ public class ToolbarUiTests : PageTest
     }
 
     [Test]
-    public async Task SystemZone_ShouldShowSettingsLink()
+    public async Task SystemZone_SettingsButton_OpensSettingsPageInHostsWithoutWindows()
     {
         await NavigateAndWait();
-        var settingsLink = Page.Locator(".system-settings");
-        await Expect(settingsLink).ToBeVisibleAsync();
-        await Expect(settingsLink).ToHaveAttributeAsync("href", "/settings");
+        var settingsButton = Page.Locator(".system-settings");
+        await Expect(settingsButton).ToBeVisibleAsync();
+
+        // The Web host has no native windows: the Settings dialog falls back to the /settings page.
+        await settingsButton.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/settings$"));
+        await Expect(Page.Locator(".settings-page")).ToBeVisibleAsync();
     }
 
     [Test]

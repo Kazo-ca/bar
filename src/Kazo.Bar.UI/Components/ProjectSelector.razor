@@ -2,8 +2,9 @@
 @using Kazo.Bar.Core.Models
 @inject ISettingsService SettingsService
 @inject IWindowRegionService RegionService
-@inject NavigationManager Navigation
+@inject Kazo.Bar.Core.Dialogs.IDialogService Dialogs
 @using Kazo.Bar.UI.Services
+@using Kazo.Bar.UI.Dialogs
 @implements IDisposable
 
 @*
@@ -141,11 +142,12 @@
         _activeProject = project;
     }
 
-    private void EditActiveProject()
+    /// <summary>Project settings in their own window (Windows host), the /project-settings page elsewhere.</summary>
+    private async Task EditActiveProject()
     {
         CloseDropdown();
         if (_activeProject != null)
-            Navigation.NavigateTo($"/project-settings/{Uri.EscapeDataString(_activeProject.Id)}");
+            await Dialogs.OpenProjectSettingsAsync(_activeProject.Id);
     }
 
     private void OnDismissRequested(PopupDismissRequest request)
