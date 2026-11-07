@@ -1,0 +1,25 @@
+@page "/project-settings"
+@page "/project-settings/{ProjectId}"
+@using Kazo.Bar.UI.Components
+@inject NavigationManager Navigation
+
+<PageTitle>Kazo Bar - Project settings</PageTitle>
+
+@* Page host of ProjectSettingsForm; the form itself can also be shown in a dialog window. *@
+<HostSizedRegion Id="project-settings-page" Class="settings-page project-settings-page">
+    <header class="settings-header">
+        <h2>🎨 Project settings</h2>
+        <a href="/settings" class="settings-back" data-testid="project-settings-back">← Back to Settings</a>
+    </header>
+
+    <div class="settings-content">
+        <ProjectSettingsForm ProjectId="@ProjectId" OnClose="BackToSettings" />
+    </div>
+</HostSizedRegion>
+
+@code {
+    /// <summary>Project to edit; the active project when absent.</summary>
+    [Parameter] public string? ProjectId { get; set; }
+
+    private void BackToSettings() => Navigation.NavigateTo("/settings");
+}

@@ -23,7 +23,11 @@
         @if (_activeProject != null)
         {
             <section class="settings-section">
-                <h3>Active Project</h3>
+                <div class="settings-section-title-row">
+                    <h3>Active Project</h3>
+                    <a href="@($"/project-settings/{Uri.EscapeDataString(_activeProject.Id)}")" class="settings-btn settings-edit-project"
+                       data-testid="settings-edit-project">✏️ Edit project…</a>
+                </div>
                 <div class="settings-field">
                     <label>Name</label>
                     <span class="settings-value">@_activeProject.Name</span>
@@ -243,6 +247,9 @@
                             {
                                 <span class="settings-project-badge">Active</span>
                             }
+                            <a href="@($"/project-settings/{Uri.EscapeDataString(project.Id)}")" class="settings-project-edit"
+                               data-testid="settings-project-edit" title="Edit @project.Name" aria-label="Edit @project.Name"
+                               @onclick:stopPropagation="true">✏️</a>
                         </div>
                     }
                 }

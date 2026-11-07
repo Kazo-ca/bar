@@ -118,7 +118,7 @@ public class ToolbarUiTests : PageTest
         // The menu lists every project, the active one checked
         await Page.Locator(".project-selector-trigger").ClickAsync();
         await Expect(Page.Locator(".project-dropdown")).ToBeVisibleAsync(new() { Timeout = 3000 });
-        await Expect(Page.Locator(".project-dropdown-item")).ToHaveCountAsync(3);
+        await Expect(Page.Locator(".project-dropdown-item[role='menuitemradio']")).ToHaveCountAsync(3);
         await Expect(Page.Locator(".project-dropdown-item.active")).ToContainTextAsync("MyWebAPI");
     }
 

@@ -49,13 +49,13 @@ Captured from the Web host by `ScreenshotTests`, so plugin data is sample data.
 | ![Settings](doc/screenshots/06-settings-page.png) Settings | ![Settings configuration](doc/screenshots/10-settings-config-hierarchy.png) Settings, configuration section |
 | ![Theme editor](doc/screenshots/13-settings-theme-editor.png) Settings, theme editor | ![Project switch](doc/screenshots/07-project-switch-devops.png) Switching project changes plugins, actions and accent color |
 | ![Git repositories and worktrees](doc/screenshots/14-git-repository-worktree-menu.png) Git module: repositories and worktrees | ![Module menu](doc/screenshots/15-module-menu.png) Right-click menu of a module |
-| ![Module overflow](doc/screenshots/16-module-overflow-menu.png) Modules that do not fit, in the "»" menu | |
+| ![Module overflow](doc/screenshots/16-module-overflow-menu.png) Modules that do not fit, in the "»" menu | ![Project settings](doc/screenshots/20-project-settings.png) Project settings: name, folder, theme, accent color |
 
 The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-desing-exemple.png).
 
 ## Features available today
 
-- **Projects**: the left pill lists projects; switching updates plugins, actions and accent color. Settings → *New project* creates a project linked to a repository's local folder (*Browse…* opens the Windows folder dialog).
+- **Projects**: the left pill lists projects; switching updates plugins, actions and accent color. Settings → *New project* creates a project linked to a repository's local folder (*Browse…* opens the Windows folder dialog). *Project settings…* (in the pill menu, or ✏️ in Settings) edits a project's display name, folder, branch, repository URL, theme, accent color, font and custom CSS, or removes it.
 - **Git**: the module shows the repository name first, then the branch and, when the repository has worktrees, the current worktree. Clicking it opens one menu listing the project's repositories, each with its worktrees as small links underneath; picking one makes status and Pull/Push run in that folder. Number of modified files and commits to push/pull are read from the folder. Repositories are managed in the plugin configuration window.
 - **Project pill + Git**: the blue project pill shows the repository and its state, the branch and the worktree; its menu switches project, repository or worktree. The Git module glued to it holds Pull, Push and Pull & Push. Both stay on the left. Icons are Font Awesome Free SVGs (CC BY 4.0), embedded for offline use (`FaIcon`).
 - **Toolbar layout**: drag the right edge of the project pill to widen it; right-click any module to reset its width or move it left/right, or choose **✏️ Réorganiser** to drag modules within and between the main and system zones (✅ keeps the new layout, ❎ or Esc cancels; the timer always stays last). Settings → *Toolbar Modules* lists the order and resets order or widths. Plugins opt in to resizing with `IPlugin.Layout => PluginLayout.ResizableWidth(default, min, max)`.
