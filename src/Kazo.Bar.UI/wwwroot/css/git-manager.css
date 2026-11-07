@@ -60,6 +60,16 @@
 
 .git-manager-window:focus { outline: none; }
 
+/* In its own window (Windows host): fill the window, no frame. */
+.git-manager-window.in-window {
+    width: 100%;
+    height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: #1e1e1e;
+}
+
 .git-manager {
     display: flex;
     flex-direction: column;

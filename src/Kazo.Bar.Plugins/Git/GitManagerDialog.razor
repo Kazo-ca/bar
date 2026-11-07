@@ -1,0 +1,53 @@
+@namespace Kazo.Bar.Plugins.Git
+@using Kazo.Bar.Core.Dialogs
+@using Kazo.Bar.UI.Components
+
+@*
+    The repository window (US5.7) as opened by IDialogService (GitManagerDialogs). In the
+    Windows host it is its own window: the panel fills it. Hosts without windows show it as an
+    overlay above the toolbar, with its own frame (InPageFrame = false) and close button.
+*@
+@if (Dialog is { IsWindow: true })
+{
+    <div class="git-manager-window in-window" data-testid="git-manager">
+        <GitManagerPanel Plugin="Plugin" InitialTab="InitialTab" />
+    </div>
+}
+else
+{
+    <HostSizeRequest Id="git-manager-window" Width="1100" Height="720" />
+    <div class="git-manager-overlay" @onclick="CloseAsync">
+        <div class="git-manager-window" role="dialog" aria-modal="true" aria-label="Git repository" data-testid="git-manager"
+             @ref="_window" @onclick:stopPropagation="true" @onkeydown="OnKeyDown" tabindex="-1">
+            <GitManagerPanel Plugin="Plugin" InitialTab="InitialTab" OnClose="CloseAsync" />
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter] public DialogContext? Dialog { get; set; }
+
+    [Parameter, EditorRequired] public GitPlugin Plugin { get; set; } = default!;
+
+    [Parameter] public GitManagerTab InitialTab { get; set; }
+
+    private ElementReference _window;
+
+    /// <summary>Focuses the overlay when it opens so Escape closes it at once.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Dialog is { IsWindow: true }) return;
+        try
+        {
+            await _window.FocusAsync();
+        }
+        catch (Exception)
+        {
+            // Focus is a convenience: the window still works without it.
+        }
+    }
+
+    private Task CloseAsync() => Dialog?.CancelAsync() ?? Task.CompletedTask;
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+}

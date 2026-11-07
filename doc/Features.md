@@ -555,7 +555,7 @@ Référence visuelle : [`doc/Toolbar-desing-exemple.png`](Toolbar-desing-exemple
 - [x] **Branches** : branches locales et distantes (suivi, ↑/↓, dernier commit), filtre. « Switch » change la branche du dossier (`git switch`, une branche distante devient une branche locale qui la suit). Création d'une branche depuis une branche source choisie, avec ou sans bascule. Suppression avec confirmation (option « force »). Une branche ouverte dans un autre worktree propose d'ouvrir ce worktree. « Fetch » met à jour les branches distantes.
 - [x] Le nom d'une nouvelle branche est vérifié avant tout appel à Git (`GitBranchNames`). Le message d'erreur de Git est affiché tel quel quand une commande échoue.
 - [x] Service : `IGitRepositoryManager`, implémenté par `GitService` (LibGit2Sharp pour lire les branches, CLI `git` avec des pathspecs littéraux pour tout le reste). Tests sur de vrais dépôts créés par les tests.
-- [ ] Quand l'API de dialogues multi-fenêtres sera disponible, ouvrir le panneau dans sa propre fenêtre (il est déjà un composant autonome ; pour l'instant il s'affiche par-dessus la toolbar, `IPluginOverlay`).
+- [x] La fenêtre du dépôt s'ouvre avec `IDialogService` (`GitManagerDialogs.OpenGitManagerAsync`) : une vraie fenêtre dans l'hôte Windows, une superposition dans l'hôte Web. Une seule fenêtre à la fois ; la rouvrir la ramène devant, sur l'onglet demandé.
 
 ## US5.8 Gestion des worktrees et de leur emplacement
 **État :** ✅ Fait, 🔍 à recetter sur PC

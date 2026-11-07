@@ -91,6 +91,7 @@
 
     private GitManagerTab _tab;
     private GitManagerTab? _appliedInitialTab;
+    private int _appliedTabRequests;
     private GitPlugin? _subscribed;
     private string? _message;
     private bool _messageIsError;
@@ -113,6 +114,7 @@
         {
             _tab = InitialTab;
             _appliedInitialTab = InitialTab;
+            _appliedTabRequests = Plugin.TabRequests;
         }
         if (ReferenceEquals(_subscribed, Plugin)) return;
         if (_subscribed != null) _subscribed.OnStateChanged -= OnPluginStateChanged;
@@ -216,7 +218,16 @@
         _ => "folder-tree",
     };
 
-    private void OnPluginStateChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnPluginStateChanged() => _ = InvokeAsync(() =>
+    {
+        // The window was asked for again (counter, pill menu) while open: show that tab.
+        if (Plugin.TabRequests != _appliedTabRequests)
+        {
+            _appliedTabRequests = Plugin.TabRequests;
+            _tab = Plugin.RequestedTab;
+        }
+        StateHasChanged();
+    });
 
     public void Dispose()
     {

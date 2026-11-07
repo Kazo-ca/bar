@@ -1,7 +1,9 @@
 @namespace Kazo.Bar.Plugins.Git
 @using Kazo.Bar.Core.Interfaces
 @using Kazo.Bar.UI.Components
+@using Kazo.Bar.Core.Dialogs
 @implements IDisposable
+@inject IDialogService Dialogs
 
 @*
     Repositories and worktrees section of the project pill's menu (US5.6): each repository of
@@ -59,7 +61,7 @@
     private async Task OpenAsync(GitManagerTab tab)
     {
         if (CloseMenu != null) await CloseMenu();
-        Plugin.OpenManager(tab);
+        await Dialogs.OpenGitManagerAsync(Plugin, tab);
     }
 
     [Parameter, EditorRequired] public GitPlugin Plugin { get; set; } = default!;

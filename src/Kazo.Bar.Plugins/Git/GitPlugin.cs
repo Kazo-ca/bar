@@ -13,12 +13,13 @@ using Microsoft.AspNetCore.Components;
 /// in the project pill (<see cref="IProjectPillContent"/>); the Git module itself only holds
 /// Pull, Push and Pull &amp; Push, and stays glued to the pill.
 /// </summary>
-public class GitPlugin : IConfigurablePlugin, IProjectPillContent, IPluginOverlay
+public class GitPlugin : IConfigurablePlugin, IProjectPillContent
 {
     private readonly IGitService _gitService;
     private readonly INotificationService _notificationService;
     private readonly IGitRepositoryManager? _manager;
-    private GitManagerTab? _openManagerTab;
+    private GitManagerTab _requestedTab;
+    private int _tabRequests;
 
     public string UniqueId => "git-tools";
     public string Name => "Git Tools";
@@ -55,22 +56,20 @@ public class GitPlugin : IConfigurablePlugin, IProjectPillContent, IPluginOverla
     /// <summary>The active project (its repositories hold the worktree folder setting).</summary>
     public ProjectConfig Project => _project;
 
-    /// <summary>Tab of the repository manager when it is open (US5.7); null when it is closed.</summary>
-    public GitManagerTab? OpenManagerTab => _openManagerTab;
+    /// <summary>Last tab asked for by <see cref="RequestManagerTab"/> (US5.7).</summary>
+    public GitManagerTab RequestedTab => _requestedTab;
 
-    /// <summary>Opens the repository manager on a tab. Does nothing on hosts without <see cref="Manager"/>.</summary>
-    public void OpenManager(GitManagerTab tab)
-    {
-        if (_manager == null || SelectedRepository == null) return;
-        _openManagerTab = tab;
-        OnStateChanged?.Invoke();
-    }
+    /// <summary>Grows at each <see cref="RequestManagerTab"/>: an open repository window shows the tab then.</summary>
+    public int TabRequests => _tabRequests;
 
-    /// <summary>Closes the repository manager.</summary>
-    public void CloseManager()
+    /// <summary>
+    /// Asks the repository window to show a tab. Called before opening it, so a window that is
+    /// already open (single instance) switches to the tab the user just asked for.
+    /// </summary>
+    public void RequestManagerTab(GitManagerTab tab)
     {
-        if (_openManagerTab == null) return;
-        _openManagerTab = null;
+        _requestedTab = tab;
+        _tabRequests++;
         OnStateChanged?.Invoke();
     }
 
@@ -91,14 +90,6 @@ public class GitPlugin : IConfigurablePlugin, IProjectPillContent, IPluginOverla
         await RefreshStatusAsync();
     }
 
-    /// <summary>Renders the repository manager window while it is open.</summary>
-    public RenderFragment? RenderOverlay() => builder =>
-    {
-        builder.OpenComponent<GitManagerWindow>(0);
-        builder.AddComponentParameter(1, nameof(GitManagerWindow.Plugin), this);
-        builder.CloseComponent();
-    };
-
     /// <summary>Repositories available for the active project.</summary>
     public IReadOnlyList<GitRepository> Repositories => GitRepositoryCatalog.Resolve(_project);
 
@@ -115,7 +106,6 @@ public class GitPlugin : IConfigurablePlugin, IProjectPillContent, IPluginOverla
         _worktrees = new(StringComparer.OrdinalIgnoreCase);
         _status = null;
         _syncStatus = string.Empty;
-        _openManagerTab = null;
         await Task.WhenAll(RefreshStatusAsync(), LoadWorktreesAsync());
     }
 
