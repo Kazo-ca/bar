@@ -4,18 +4,22 @@
 @implements IDisposable
 
 @*
-    Git information inside the project pill (US5.6): repository name and local state on the
-    first line, branch and worktree (and commits to push / pull) smaller on the second line.
+    Git information inside the project pill (US5.6): the project's display name and the local
+    state on the first line; branch, repository (when the project has several) and worktree
+    (and commits to push / pull) smaller on the second line.
     Long names are cut with "…" and shown whole in the tooltips; the pill can be widened (US3.6).
 *@
 @{
     var selected = Plugin.SelectedRepository;
     var status = Plugin.Status;
     var worktree = Plugin.CurrentWorktree;
+    // The display name set in the project settings; the repository name only when it is empty.
+    var title = string.IsNullOrWhiteSpace(Plugin.Project.Name) ? selected?.Name ?? "No repository" : Plugin.Project.Name;
+    var showRepository = selected != null && Plugin.Repositories.Count > 1;
 }
 <span class="git-pill-info" data-testid="git-selector">
     <span class="git-repo-line">
-        <span class="git-repo-name" data-testid="git-repo-name">@(selected?.Name ?? "No repository")</span>
+        <span class="git-project-name" data-testid="git-project-name">@title</span>
         @if (status is { IsRepository: false })
         {
             <span class="git-status unavailable" title="@status.Error"><FaIcon Name="triangle-exclamation" /> @UnavailableLabel(status.Kind)</span>
@@ -30,6 +34,10 @@
     {
         <span class="git-detail-line">
             <span class="git-branch" title="@Plugin.CurrentBranch"><FaIcon Name="code-branch" /> <span class="git-branch-name">@Plugin.CurrentBranch</span></span>
+            @if (showRepository)
+            {
+                <span class="git-repo" title="@($"Repository: {selected!.Path}")"><FaIcon Name="folder-open" /> <span class="git-repo-name" data-testid="git-repo-name">@selected!.Name</span></span>
+            }
             @if (worktree != null)
             {
                 <span class="git-worktree" data-testid="git-worktree" title="@($"Worktree: {worktree.Path}")"><FaIcon Name="folder-tree" /> <span class="git-worktree-name">@worktree.Name</span></span>

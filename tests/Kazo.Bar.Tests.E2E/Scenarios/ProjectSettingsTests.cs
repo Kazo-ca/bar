@@ -127,6 +127,8 @@ public class ProjectSettingsTests : PageTest
 
         await Page.GotoAsync(BaseUrl, new() { WaitUntil = WaitUntilState.NetworkIdle });
         await Expect(Page.GetByTestId("project-selector")).ToContainTextAsync("Public API", new() { Timeout = 30000 });
+        // The visible pill text (filled by the Git plugin) is the display name, not the repository name.
+        await Expect(Page.GetByTestId("git-project-name")).ToHaveTextAsync("Public API");
         await Expect(Page.Locator(".toolbar-shell")).ToHaveAttributeAsync("data-theme", "dark");
         await Expect(Page.Locator(".toolbar-shell")).ToHaveAttributeAsync("style", new System.Text.RegularExpressions.Regex("#AA3300", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
     }
