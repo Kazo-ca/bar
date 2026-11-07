@@ -31,6 +31,12 @@ public sealed record GitStatus
     /// <summary>Files added, modified, deleted, renamed or untracked (ignored files excluded).</summary>
     public int ChangedFiles { get; init; }
 
+    /// <summary>Lines added by the local changes (staged, not staged and untracked files).</summary>
+    public int LinesAdded { get; init; }
+
+    /// <summary>Lines removed by the local changes.</summary>
+    public int LinesDeleted { get; init; }
+
     /// <summary>Commits not pushed to the tracked branch; null without upstream.</summary>
     public int? Ahead { get; init; }
 

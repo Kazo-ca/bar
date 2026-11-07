@@ -78,7 +78,9 @@ public static class MauiProgram
 #endif
 
         // Register plugins (MAUI is frozen: only what the shared plugins need to start).
-        builder.Services.AddSingleton<IGitService, Kazo.Bar.Infrastructure.Git.GitService>();
+        builder.Services.AddSingleton<Kazo.Bar.Infrastructure.Git.GitService>();
+        builder.Services.AddSingleton<IGitService>(sp => sp.GetRequiredService<Kazo.Bar.Infrastructure.Git.GitService>());
+        builder.Services.AddSingleton<IGitRepositoryManager>(sp => sp.GetRequiredService<Kazo.Bar.Infrastructure.Git.GitService>());
         builder.Services.AddSingleton<IPlugin, GitPlugin>();
         builder.Services.AddSingleton<IWorkItemProvider, MockWorkItemProvider>();
         builder.Services.AddSingleton<IPlugin, WorkItemsPlugin>();
