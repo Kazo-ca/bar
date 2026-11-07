@@ -78,17 +78,21 @@ public class GitRepositoryManagerTests
         Assert.That(stagedDiff.LinesAdded, Is.EqualTo(1));
     }
 
+    // Brackets are pathspec glob characters: the file must still be matched literally.
+    // No '*' or '?': Windows forbids them in file names.
+    private const string WeirdName = "[weird] name.txt";
+
     [Test]
     public async Task StageUnstageAndDiscard_ChangeTheWorkingCopy()
     {
         File.WriteAllText(Path.Combine(_repo, "readme.md"), "changed\n");
-        File.WriteAllText(Path.Combine(_repo, "[weird]*.txt"), "x\n");
+        File.WriteAllText(Path.Combine(_repo, WeirdName), "x\n");
 
-        var stage = await _git.StageAsync(_repo, ["readme.md", "[weird]*.txt"]);
+        var stage = await _git.StageAsync(_repo, ["readme.md", WeirdName]);
         Assert.That(stage.Success, Is.True, stage.Error);
         Assert.That((await _git.GetChangesAsync(_repo)).Staged, Has.Count.EqualTo(2));
 
-        var unstage = await _git.UnstageAsync(_repo, ["readme.md", "[weird]*.txt"]);
+        var unstage = await _git.UnstageAsync(_repo, ["readme.md", WeirdName]);
         Assert.That(unstage.Success, Is.True, unstage.Error);
         var changes = await _git.GetChangesAsync(_repo);
         Assert.That(changes.Staged, Is.Empty);
