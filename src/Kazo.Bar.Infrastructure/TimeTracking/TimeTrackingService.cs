@@ -279,13 +279,76 @@ public sealed class TimeTrackingService : ITimeTrackingService, IDisposable
         {
             var absence = _today.Absences.FirstOrDefault(a => a.Id == absenceId)
                 ?? throw new KeyNotFoundException($"No absence {absenceId} today.");
-            absence.Label = string.IsNullOrWhiteSpace(label) ? DefaultLabel(kind, absence) : label.Trim();
-            absence.Kind = kind;
-            absence.Automatic = false;
-            absence.PendingReview = false;
+            Classify(absence, kind, label);
         }
         await PersistAsync();
         OnTrackingChanged?.Invoke();
+    }
+
+    public Task ClassifyAbsenceAsync(DateOnly date, string absenceId, AbsenceKind kind, string? label = null) =>
+        UpdateDayAsync(date, createIfMissing: false, day =>
+        {
+            var absence = day.Absences.FirstOrDefault(a => a.Id == absenceId)
+                ?? throw new KeyNotFoundException($"No absence {absenceId} on {date:yyyy-MM-dd}.");
+            Classify(absence, kind, label);
+        });
+
+    public Task SetDayOffAsync(DateOnly date, DayOff? dayOff)
+    {
+        var value = dayOff?.Normalized();
+        return UpdateDayAsync(date, createIfMissing: true, day => day.DayOff = value?.Copy());
+    }
+
+    /// <summary>
+    /// Changes today in memory, or reads, changes and writes back a past day inside the write lock
+    /// (US5.9). Unlike the background writes, a failure here is thrown so the report can say so.
+    /// </summary>
+    private async Task UpdateDayAsync(DateOnly date, bool createIfMissing, Action<WorkDay> change)
+    {
+        bool isToday;
+        lock (_gate)
+        {
+            if (date > _today.Date)
+                throw new ArgumentOutOfRangeException(nameof(date), date, "Only past days and today can be changed.");
+            isToday = date == _today.Date;
+            if (isToday)
+                change(_today);
+        }
+
+        if (!isToday)
+        {
+            await _writeLock.WaitAsync();
+            try
+            {
+                var key = date.ToString(DayKeyFormat);
+                var day = await _storage.GetAsync<WorkDay>(MonthNamespace(date), key);
+                if (day == null)
+                {
+                    if (!createIfMissing)
+                        throw new KeyNotFoundException($"Nothing recorded on {key}.");
+                    day = new WorkDay { Date = date };
+                }
+                change(day);
+                await _storage.SetAsync(MonthNamespace(date), key, day);
+            }
+            finally
+            {
+                _writeLock.Release();
+            }
+        }
+        else
+        {
+            await PersistAsync();
+        }
+        OnTrackingChanged?.Invoke();
+    }
+
+    private static void Classify(Absence absence, AbsenceKind kind, string? label)
+    {
+        absence.Label = string.IsNullOrWhiteSpace(label) ? DefaultLabel(kind, absence) : label.Trim();
+        absence.Kind = kind;
+        absence.Automatic = false;
+        absence.PendingReview = false;
     }
 
     /// <summary>Closes the running entry and records the end of the day (application exit).</summary>
@@ -600,6 +663,7 @@ public sealed class TimeTrackingService : ITimeTrackingService, IDisposable
         LastLock = day.LastLock,
         Entries = day.Entries.Select(Copy).ToList(),
         Absences = day.Absences.Select(Copy).ToList(),
+        DayOff = day.DayOff?.Copy(),
     };
 
     private static TimeEntry Copy(TimeEntry e) => new()

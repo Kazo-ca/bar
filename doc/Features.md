@@ -91,6 +91,7 @@ Les nouvelles questions s'ajoutent ici avec un numéro.
 | US5.3 | Suivi du temps et inactivité | ✅ 🔍 |
 | US5.4 | Rapports de temps | ✅ 🔍 |
 | US5.5 | Journée de travail (arrivée, dîner, réunion) | ✅ 🔍 |
+| US5.9 | Heures travaillées et étiquettes d'absence après coup | ✅ 🔍 |
 | US6.1 | Tests Playwright sur l'hôte Web | ✅ |
 | US6.2 | Intégration continue | ⬜ |
 | US7.1 | Suivi GitHub en arrière-plan | 🟡 🔍 |
@@ -647,6 +648,26 @@ Règles dans `config.json` (ajout compatible avec le schéma 1, les valeurs abse
   }
 },
 "repositories": [ { "name": "alpha-api", "timeTracking": { "idleMinutes": 10, "lunch": { "start": "11:30", "end": "12:30" } } } ]
+```
+
+## US5.9 Heures travaillées et étiquettes d'absence après coup
+**État :** ✅ Fait (hôte WPF réel, hôte Web simulé avec une journée d'hier à étiqueter), 🔍 à recetter sur PC
+
+**En tant qu'** employé
+**Je veux** voir le nombre d'heures travaillées dans le rapport de temps et pouvoir étiqueter mes absences le lendemain
+**Afin de** remplir ma feuille de temps même quand je n'ai pas qualifié une absence sur le moment, ou quand j'étais malade ou en congé.
+
+**Critères d'acceptation :**
+- [x] La section « Work days » du rapport affiche les heures travaillées de chaque jour (`7h32`) et le total de la période. Heures travaillées = timer de tous les projets + absences comptées (réunion, « je travaillais », autre). Le dîner, une absence retirée ou pas encore qualifiée et une étiquette d'absence ne comptent pas.
+- [x] Nouvelle période « Yesterday » dans le rapport, pour revenir sur la veille.
+- [x] Chaque absence d'un jour passé (ou du jour) se qualifie depuis le rapport (✎) : réunion, dîner, « je travaillais », autre avec texte, retirée. Elle n'est plus « à confirmer » et le rapport se met à jour.
+- [x] Un jour peut recevoir une étiquette d'absence : malade, vacances, férié, personnel, autre, avec un texte et un nombre d'heures (vide = toute la journée). Elle se modifie ou se retire.
+- [x] « Another day » permet d'étiqueter un jour où rien n'a été enregistré (par exemple une journée de maladie sans ouvrir le PC). Seuls les jours passés et le jour même sont acceptés.
+- [x] Les étiquettes sont enregistrées dans le jour (`data\time-yyyy-MM.json`, propriété `dayOff`, ajout compatible avec le schéma 1). Si le fichier ne peut pas être écrit, le rapport l'indique.
+- [ ] Les étiquettes d'absence ne sont pas encore dans l'export CSV (suivi possible).
+
+```json
+"2026-11-12": { "date": "2026-11-12", "entries": [], "absences": [], "dayOff": { "kind": "Sick", "label": "Grippe", "hours": null } }
 ```
 
 ---

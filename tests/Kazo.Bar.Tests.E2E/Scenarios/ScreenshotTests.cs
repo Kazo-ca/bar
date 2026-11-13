@@ -315,4 +315,18 @@ public class ScreenshotTests : PageTest
         await Page.GetByTestId("git-selector-menu").Locator(".git-worktree-link", new() { HasText = "(main)" }).ClickAsync();
         Assert.That(File.Exists(ScreenshotPath("23-git-worktrees")), Is.True);
     }
+
+    [Test, Order(24)]
+    public async Task Capture_24_TimeReportYesterdayLabels()
+    {
+        await NavigateAndWait();
+        await Page.Locator(".system-btn[title='Time Report']").ClickAsync();
+        await Expect(Page.Locator(".time-report-overlay.visible")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await Page.Locator(".time-report-filter").First.SelectOptionAsync("yesterday");
+        var day = Page.GetByTestId("report-workdays").Locator(".time-report-day");
+        await day.Locator(".time-report-day-actions button").ClickAsync();
+        await day.GetByTestId("dayoff-editor").Locator("input").First.FillAsync("Dentist");
+        await Page.ScreenshotAsync(new() { Path = ScreenshotPath("24-time-report-yesterday-labels"), FullPage = true });
+        Assert.That(File.Exists(ScreenshotPath("24-time-report-yesterday-labels")), Is.True);
+    }
 }

@@ -53,6 +53,19 @@ public interface ITimeTrackingService
     /// <summary>Label an absence segment (meeting, lunch, worked, other with a text, removed).</summary>
     Task ClassifyAbsenceAsync(string absenceId, AbsenceKind kind, string? label = null) => Task.CompletedTask;
 
+    /// <summary>
+    /// Label an absence segment of any recorded day up to today, for example the next day from the
+    /// time report (US5.9). Throws <see cref="KeyNotFoundException"/> when the day has no such absence.
+    /// </summary>
+    Task ClassifyAbsenceAsync(DateOnly date, string absenceId, AbsenceKind kind, string? label = null) =>
+        ClassifyAbsenceAsync(absenceId, kind, label);
+
+    /// <summary>
+    /// Put an absence label (sick, vacation...) on a day up to today, or remove it with null (US5.9).
+    /// Throws <see cref="ArgumentOutOfRangeException"/> for a future day or invalid hours.
+    /// </summary>
+    Task SetDayOffAsync(DateOnly date, DayOff? dayOff) => Task.CompletedTask;
+
     /// <summary>Recorded work days between two dates (inclusive), for reports (US5.4).</summary>
     Task<IReadOnlyList<WorkDay>> GetWorkDaysAsync(DateOnly from, DateOnly to) =>
         Task.FromResult<IReadOnlyList<WorkDay>>([]);

@@ -18,6 +18,7 @@
         <div class="time-report-filters">
             <select class="time-report-filter" @onchange="OnPeriodChanged">
                 <option value="day" selected="@(_period == "day")">Today</option>
+                <option value="yesterday" selected="@(_period == "yesterday")">Yesterday</option>
                 <option value="week" selected="@(_period == "week")">This Week</option>
                 <option value="month" selected="@(_period == "month")">This Month</option>
             </select>
@@ -170,28 +171,7 @@
                 <div class="time-report-empty">No entries for this period.</div>
             }
 
-            @if (_workDays.Count > 0)
-            {
-                <div class="time-report-workdays" data-testid="report-workdays">
-                    <h4>Work days</h4>
-                    @foreach (var day in _workDays)
-                    {
-                        <div class="time-report-group">
-                            <div class="time-report-group-header">
-                                <span class="time-report-group-key">📅 @day.Date.ToString("ddd, MMM dd")</span>
-                                <span class="time-report-group-total">☀ @(day.FirstActivity?.ToString("HH:mm") ?? "—") · 🔒 @(day.LastLock?.ToString("HH:mm") ?? "—")</span>
-                            </div>
-                            @foreach (var absence in day.Absences.OrderBy(a => a.Start))
-                            {
-                                <div class="time-report-group-entry time-report-absence" data-kind="@absence.Kind">
-                                    <span>@absence.Start.ToString("HH:mm")–@absence.End.ToString("HH:mm") — @AbsenceText(absence)</span>
-                                    <span class="time-report-duration">@FormatDuration(absence.Duration)@(absence.CountsAsWork ? "" : " (not counted)")</span>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-            }
+            <TimeReportWorkDays Days="_workDays" OnChanged="LoadEntries" />
         </div>
     </div>
 </div>
@@ -259,8 +239,9 @@
         if (project == null) return;
 
         var cutoff = GetCutoff();
-        var allProjectEntries = await TimeTrackingService.GetEntriesAsync(cutoff);
-        _crossProjectEntries = allProjectEntries.ToList();
+        var until = GetUntil();
+        var allProjectEntries = (await TimeTrackingService.GetEntriesAsync(cutoff)).Where(e => e.StartTime < until).ToList();
+        _crossProjectEntries = allProjectEntries;
         _entries = allProjectEntries.Where(e => e.ProjectId == project.Id).OrderByDescending(e => e.StartTime).ToList();
         _totalDuration = _entries.Aggregate(TimeSpan.Zero, (sum, e) => sum + e.Duration);
 
@@ -268,19 +249,24 @@
         var projects = await SettingsService.GetProjectsAsync();
         _projectNames = projects.ToDictionary(p => p.Id, p => p.Name);
 
-        // Work days: arrival, last lock and every absence, counted or not (US5.4, US5.5)
-        _workDays = (await TimeTrackingService.GetWorkDaysAsync(DateOnly.FromDateTime(cutoff), DateOnly.FromDateTime(DateTime.Today)))
-            .Where(d => d.FirstActivity != null || d.Absences.Count > 0)
+        // Work days: arrival, last lock, hours worked, every absence and the day's absence label (US5.4, US5.5, US5.9)
+        var lastDay = DateOnly.FromDateTime(until.AddTicks(-1));
+        _workDays = (await TimeTrackingService.GetWorkDaysAsync(DateOnly.FromDateTime(cutoff), lastDay))
+            .Where(d => !d.IsEmpty)
             .OrderByDescending(d => d.Date)
             .ToList();
     }
 
     private DateTime GetCutoff() => _period switch
     {
+        "yesterday" => DateTime.Today.AddDays(-1),
         "week" => DateTime.Now.AddDays(-7),
         "month" => DateTime.Now.AddDays(-30),
         _ => DateTime.Today
     };
+
+    /// <summary>End of the period (excluded): the start of today for "yesterday", otherwise the end of today.</summary>
+    private DateTime GetUntil() => _period == "yesterday" ? DateTime.Today : DateTime.Today.AddDays(1);
 
     private async Task OnPeriodChanged(ChangeEventArgs e)
     {
@@ -325,21 +311,6 @@
         var safePeriod = _period.Replace(" ", "-").Replace("/", "-");
         var filename = $"time-report-{safePeriod}-{DateTime.Now:yyyyMMdd}.csv";
         await JSRuntime.InvokeVoidAsync("KazoBar.downloadCsv", filename, csv.ToString());
-    }
-
-    private static string AbsenceText(Absence absence)
-    {
-        var kind = absence.Kind switch
-        {
-            AbsenceKind.Meeting => "🗓 Meeting",
-            AbsenceKind.Lunch => "🍽 Lunch",
-            AbsenceKind.Worked => "💻 Worked",
-            AbsenceKind.Other => "🏷 Other",
-            AbsenceKind.Removed => "✖ Removed",
-            _ => "❔ To label",
-        };
-        var label = string.IsNullOrWhiteSpace(absence.Label) ? "" : $": {absence.Label}";
-        return $"{kind}{label}{(absence.PendingReview ? " (to confirm)" : "")}";
     }
 
     private static string EscapeCsvField(string field)
