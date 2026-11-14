@@ -3942,3 +3942,35 @@ body.dock-bottom .project-dropdown { top: auto; bottom: calc(100% + 12px); }
         grid-template-columns: 1fr;
     }
 }
+
+/* Time report: hours worked and absence labels after the fact (US5.9) */
+.time-report-workdays-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.time-report-worked-total { font-family: 'Consolas', monospace; font-weight: 700; color: var(--accent-color); }
+.time-report-day .time-report-group-header { gap: 12px; }
+.time-report-day .time-report-group-total { margin-left: auto; font-weight: normal; color: var(--text-secondary); }
+.time-report-day-worked { font-family: 'Consolas', monospace; color: var(--accent-color); min-width: 6ch; text-align: right; }
+.time-report-dayoff { color: var(--text-primary); font-weight: 600; }
+.time-report-row-actions { display: inline-flex; align-items: center; gap: 6px; }
+.time-report-icon-btn {
+    background: none; border: 1px solid transparent; border-radius: 4px; color: var(--text-secondary);
+    cursor: pointer; padding: 0 6px; font-size: 0.95em; line-height: 1.6;
+}
+.time-report-icon-btn:hover, .time-report-icon-btn:focus-visible { border-color: var(--border-color); color: var(--text-primary); outline: none; }
+.time-report-link-btn { background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 0; font-size: 0.95em; }
+.time-report-link-btn:hover:not(:disabled) { text-decoration: underline; }
+.time-report-link-btn:disabled { opacity: 0.5; cursor: default; }
+.time-report-editor { justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+.time-report-input {
+    background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color);
+    border-radius: 4px; padding: 3px 6px; font-size: 0.9em; min-width: 0;
+}
+.time-report-editor .time-report-input:not(.time-report-hours) { flex: 1 1 140px; }
+.time-report-hours { width: 12ch; }
+.time-report-save {
+    background-color: var(--accent-color); color: white; border: none; border-radius: var(--radius-pill);
+    padding: 3px 12px; cursor: pointer; font-size: 0.85em;
+}
+.time-report-save:hover { filter: brightness(1.1); }
+.time-report-other-day { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85em; color: var(--text-secondary); }
+.time-report-other-day > .time-report-group { flex-basis: 100%; }
+.time-report-error { color: #f87171; font-size: 0.85em; }

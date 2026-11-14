@@ -815,6 +815,44 @@ public class FeatureSpecTests : PageTest
     }
 
     [Test]
+    public async Task US5_9_TimeReport_ShowsHoursWorked_AndLabelsYesterdayAfterTheFact()
+    {
+        await OpenToolbar();
+        await Page.Locator(".system-btn[title='Time Report']").ClickAsync();
+        await Expect(Page.Locator(".time-report-overlay.visible")).ToBeVisibleAsync(new() { Timeout = 5000 });
+        await Page.Locator(".time-report-filter").First.SelectOptionAsync("yesterday");
+
+        // Yesterday (sample data): timer 09:00-11:00 and 13:00-15:30, absence 11:00-13:00 not labelled yet.
+        var days = Page.GetByTestId("report-workdays");
+        var day = days.Locator(".time-report-day");
+        await Expect(day).ToHaveCountAsync(1);
+        await Expect(day.GetByTestId("day-worked")).ToHaveTextAsync("💼 4h30");
+        await Expect(days.GetByTestId("report-worked-total")).ToContainTextAsync("4h30 worked");
+
+        // The absence before lunch was a meeting: label it the next day, it now counts.
+        var toLabel = day.Locator(".time-report-absence[data-kind='Unclassified']");
+        await toLabel.Locator(".time-report-icon-btn").ClickAsync();
+        var editor = day.GetByTestId("absence-editor");
+        await editor.Locator("select").SelectOptionAsync("Meeting");
+        await editor.Locator("input").FillAsync("Sprint review");
+        await editor.Locator(".time-report-save").ClickAsync();
+        await Expect(day.Locator(".time-report-absence[data-kind='Meeting']")).ToContainTextAsync("Meeting: Sprint review");
+        await Expect(day.GetByTestId("day-worked")).ToHaveTextAsync("💼 5h30");
+
+        // Left early: a personal absence label on the day.
+        await day.Locator(".time-report-day-actions button").ClickAsync();
+        var dayOff = day.GetByTestId("dayoff-editor");
+        await dayOff.Locator("select").SelectOptionAsync("Personal");
+        await dayOff.Locator("input").First.FillAsync("Dentist");
+        await dayOff.Locator("input[type='number']").FillAsync("2");
+        await dayOff.Locator(".time-report-save").ClickAsync();
+        await Expect(day.Locator(".time-report-dayoff")).ToContainTextAsync("Personal: Dentist (2 h)");
+        await Expect(days.GetByTestId("report-worked-total")).ToContainTextAsync("1 day off");
+
+        await Page.Keyboard.PressAsync("Escape");
+    }
+
+    [Test]
     public async Task US5_4_TimeReport_ClosesOnEscape()
     {
         await OpenToolbar();

@@ -1,0 +1,241 @@
+@using Kazo.Bar.Core.Interfaces
+@using Kazo.Bar.Core.Models
+@using Microsoft.Extensions.Logging
+@inject ITimeTrackingService TimeTrackingService
+@inject ILogger<TimeReportWorkDays> Logger
+
+@* Work days of the report (US5.4, US5.5, US5.9): hours worked per day and for the period, absences
+   that can be labelled after the fact (the next day), and an absence label for the whole day. *@
+<div class="time-report-workdays" data-testid="report-workdays">
+    <div class="time-report-workdays-title">
+        <h4>Work days</h4>
+        <span class="time-report-worked-total" data-testid="report-worked-total"
+              title="Timer plus absences counted as work, all projects">
+            💼 @FormatHours(TotalWorked) worked@(DaysOffCount > 0 ? $" · {DaysOffCount} day{(DaysOffCount > 1 ? "s" : "")} off" : "")
+        </span>
+    </div>
+
+    @if (_error != null)
+    {
+        <div class="time-report-error" role="alert">@_error</div>
+    }
+
+    @foreach (var day in Days)
+    {
+        var date = day.Date;
+        <div class="time-report-group time-report-day" data-date="@date.ToString("yyyy-MM-dd")">
+            <div class="time-report-group-header">
+                <span class="time-report-group-key">📅 @date.ToString("ddd, MMM dd")</span>
+                <span class="time-report-group-total">☀ @(day.FirstActivity?.ToString("HH:mm") ?? "—") · 🔒 @(day.LastLock?.ToString("HH:mm") ?? "—")</span>
+                <span class="time-report-day-worked" data-testid="day-worked" title="Hours worked this day">💼 @FormatHours(day.WorkedTime(Now))</span>
+            </div>
+
+            @if (_editingDayOff == date)
+            {
+                @DayOffEditor
+            }
+            else if (day.DayOff is { } off)
+            {
+                <div class="time-report-group-entry time-report-dayoff" data-kind="@off.Kind">
+                    <span>@DayOffText(off)</span>
+                    <span class="time-report-row-actions">
+                        <button class="time-report-icon-btn" title="Change the absence label" @onclick="() => EditDayOff(date, off)">✎</button>
+                        <button class="time-report-icon-btn" title="Remove the absence label" @onclick="() => SaveDayOff(date, null)">✖</button>
+                    </span>
+                </div>
+            }
+
+            @foreach (var absence in day.Absences.OrderBy(a => a.Start))
+            {
+                if (_editingAbsence == absence.Id)
+                {
+                    <div class="time-report-group-entry time-report-editor" data-testid="absence-editor">
+                        <span>@absence.Start.ToString("HH:mm")–@absence.End.ToString("HH:mm")</span>
+                        <select class="time-report-filter" @bind="_absenceKind" aria-label="Absence kind">
+                            @foreach (var kind in LabelKinds)
+                            {
+                                <option value="@kind">@AbsenceKindText(kind)</option>
+                            }
+                        </select>
+                        <input class="time-report-input" @bind="_absenceLabel" placeholder="Label (optional)" maxlength="100" aria-label="Label" />
+                        <button class="time-report-save" @onclick="() => SaveAbsence(date, absence.Id)">Save</button>
+                        <button class="time-report-icon-btn" title="Cancel" @onclick="CancelEdit">✕</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="time-report-group-entry time-report-absence" data-kind="@absence.Kind">
+                        <span>@absence.Start.ToString("HH:mm")–@absence.End.ToString("HH:mm") — @AbsenceText(absence)</span>
+                        <span class="time-report-row-actions">
+                            <span class="time-report-duration">@FormatDuration(absence.Duration)@(absence.CountsAsWork ? "" : " (not counted)")</span>
+                            <button class="time-report-icon-btn" title="Label this absence" @onclick="() => EditAbsence(absence)">✎</button>
+                        </span>
+                    </div>
+                }
+            }
+
+            @if (day.DayOff == null && _editingDayOff != date)
+            {
+                <div class="time-report-group-entry time-report-day-actions">
+                    <button class="time-report-link-btn" @onclick="() => EditDayOff(date, null)">🏷 Add an absence label (sick, vacation…)</button>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="time-report-other-day">
+        <label>
+            Another day:
+            <input type="date" class="time-report-input" max="@Today.ToString("yyyy-MM-dd")"
+                   value="@(_otherDay?.ToString("yyyy-MM-dd"))" @onchange="OnOtherDayChanged" aria-label="Day to label" />
+        </label>
+        <button class="time-report-link-btn" disabled="@(_otherDay == null)" @onclick="EditOtherDay">🏷 Add an absence label</button>
+        @if (_editingDayOff is { } editing && !Days.Any(d => d.Date == editing))
+        {
+            <div class="time-report-group">@DayOffEditor</div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Days to show, newest first.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<WorkDay> Days { get; set; } = [];
+
+    /// <summary>Called after a change was saved, so the report reloads.</summary>
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private static readonly AbsenceKind[] LabelKinds =
+        [AbsenceKind.Meeting, AbsenceKind.Lunch, AbsenceKind.Worked, AbsenceKind.Other, AbsenceKind.Removed];
+
+    private string? _editingAbsence;
+    private AbsenceKind _absenceKind = AbsenceKind.Other;
+    private string? _absenceLabel;
+
+    private DateOnly? _editingDayOff;
+    private DayOffKind _dayOffKind = DayOffKind.Sick;
+    private string? _dayOffLabel;
+    private double? _dayOffHours;
+
+    private DateOnly? _otherDay;
+    private string? _error;
+
+    private static DateTime Now => DateTime.Now;
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    private TimeSpan TotalWorked => Days.Aggregate(TimeSpan.Zero, (sum, d) => sum + d.WorkedTime(Now));
+    private int DaysOffCount => Days.Count(d => d.DayOff != null);
+
+    private RenderFragment DayOffEditor => __builder =>
+    {
+        <div class="time-report-group-entry time-report-editor" data-testid="dayoff-editor">
+            <select class="time-report-filter" @bind="_dayOffKind" aria-label="Absence kind">
+                @foreach (var kind in Enum.GetValues<DayOffKind>())
+                {
+                    <option value="@kind">@DayOffKindText(kind)</option>
+                }
+            </select>
+            <input class="time-report-input" @bind="_dayOffLabel" placeholder="Label (optional)" maxlength="100" aria-label="Label" />
+            <input class="time-report-input time-report-hours" type="number" min="0.25" max="24" step="0.25"
+                   @bind="_dayOffHours" placeholder="Whole day" title="Hours off; empty for the whole day" aria-label="Hours off" />
+            <button class="time-report-save" @onclick="() => SaveDayOff(_editingDayOff!.Value, new DayOff { Kind = _dayOffKind, Label = _dayOffLabel, Hours = _dayOffHours })">Save</button>
+            <button class="time-report-icon-btn" title="Cancel" @onclick="CancelEdit">✕</button>
+        </div>
+    };
+
+    private void EditAbsence(Absence absence)
+    {
+        CancelEdit();
+        _editingAbsence = absence.Id;
+        _absenceKind = absence.Kind == AbsenceKind.Unclassified ? AbsenceKind.Other : absence.Kind;
+        _absenceLabel = absence.Label;
+    }
+
+    private void EditDayOff(DateOnly date, DayOff? current)
+    {
+        CancelEdit();
+        _editingDayOff = date;
+        _dayOffKind = current?.Kind ?? DayOffKind.Sick;
+        _dayOffLabel = current?.Label;
+        _dayOffHours = current?.Hours;
+    }
+
+    private void OnOtherDayChanged(ChangeEventArgs e) =>
+        _otherDay = DateOnly.TryParse(e.Value?.ToString(), out var date) && date <= Today ? date : null;
+
+    private void EditOtherDay()
+    {
+        if (_otherDay is not { } date) return;
+        EditDayOff(date, Days.FirstOrDefault(d => d.Date == date)?.DayOff);
+    }
+
+    private void CancelEdit()
+    {
+        _editingAbsence = null;
+        _editingDayOff = null;
+        _error = null;
+    }
+
+    private Task SaveAbsence(DateOnly date, string absenceId) =>
+        SaveAsync(() => TimeTrackingService.ClassifyAbsenceAsync(date, absenceId, _absenceKind, _absenceLabel));
+
+    private Task SaveDayOff(DateOnly date, DayOff? dayOff) =>
+        SaveAsync(() => TimeTrackingService.SetDayOffAsync(date, dayOff));
+
+    private async Task SaveAsync(Func<Task> save)
+    {
+        try
+        {
+            await save();
+            CancelEdit();
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or KeyNotFoundException or IOException
+                                       or UnauthorizedAccessException or InvalidOperationException
+                                       or System.Text.Json.JsonException)
+        {
+            Logger.LogError(ex, "Could not save the absence label.");
+            _error = ex is ArgumentException ? $"Not saved: {ex.Message}" : "Not saved: the time data could not be written. See the log.";
+        }
+    }
+
+    internal static string AbsenceKindText(AbsenceKind kind) => kind switch
+    {
+        AbsenceKind.Meeting => "🗓 Meeting",
+        AbsenceKind.Lunch => "🍽 Lunch",
+        AbsenceKind.Worked => "💻 Worked",
+        AbsenceKind.Other => "🏷 Other",
+        AbsenceKind.Removed => "✖ Removed",
+        _ => "❔ To label",
+    };
+
+    private static string AbsenceText(Absence absence)
+    {
+        var label = string.IsNullOrWhiteSpace(absence.Label) ? "" : $": {absence.Label}";
+        return $"{AbsenceKindText(absence.Kind)}{label}{(absence.PendingReview ? " (to confirm)" : "")}";
+    }
+
+    internal static string DayOffKindText(DayOffKind kind) => kind switch
+    {
+        DayOffKind.Sick => "🤒 Sick",
+        DayOffKind.Vacation => "🌴 Vacation",
+        DayOffKind.Holiday => "🎉 Holiday",
+        DayOffKind.Personal => "👤 Personal",
+        _ => "🏷 Other",
+    };
+
+    internal static string DayOffText(DayOff off)
+    {
+        var label = string.IsNullOrWhiteSpace(off.Label) ? "" : $": {off.Label}";
+        var span = off.Hours is { } hours ? $"{hours:0.##} h" : "whole day";
+        return $"{DayOffKindText(off.Kind)}{label} ({span})";
+    }
+
+    /// <summary>Hours and minutes, as on a timesheet: "7h32".</summary>
+    internal static string FormatHours(TimeSpan duration) =>
+        $"{(int)duration.TotalHours}h{duration.Minutes:D2}";
+
+    private static string FormatDuration(TimeSpan duration) =>
+        $"{(int)duration.TotalHours:D2}:{duration.Minutes:D2}:{duration.Seconds:D2}";
+}

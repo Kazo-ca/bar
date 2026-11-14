@@ -51,7 +51,7 @@ Captured from the Web host by `ScreenshotTests`, so plugin data is sample data.
 | ![Git repositories and worktrees](doc/screenshots/14-git-repository-worktree-menu.png) Git module: repositories and worktrees | ![Module menu](doc/screenshots/15-module-menu.png) Right-click menu of a module |
 | ![Module overflow](doc/screenshots/16-module-overflow-menu.png) Modules that do not fit, in the "»" menu | ![Project settings](doc/screenshots/20-project-settings.png) Project settings: name, folder, theme, accent color |
 | ![Git changes and commit](doc/screenshots/21-git-changes-and-commit.png) Git: changes, diff and commit | ![Git branches](doc/screenshots/22-git-branches.png) Git: branches |
-| ![Git worktrees](doc/screenshots/23-git-worktrees.png) Git: worktrees and where they are created | |
+| ![Git worktrees](doc/screenshots/23-git-worktrees.png) Git: worktrees and where they are created | ![Time report, yesterday](doc/screenshots/24-time-report-yesterday-labels.png) Time report: hours worked, labelling yesterday's absences |
 
 The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-desing-exemple.png).
 
@@ -72,7 +72,7 @@ The visual direction for themes is [doc/Toolbar-desing-exemple.png](doc/Toolbar-
 - **Debug tools**: the 🧪 test dropdown only appears in Debug builds.
 - **Plugin indicators**: work item and CI/CD status in the system group, each with its own popover.
 - **Timer** (Windows host): Start/Stop on the active project and work item; paused while you are away, then resumed. The ⏱ panel shows when you arrived, your last lock, and the absences to label; a badge on the timer counts them. Rules in Settings → *Time tracking*.
-- **Time report**: today / 7 days / 30 days, grouped by project, work item, day or description, CSV export, plus each work day with its arrival, last lock and absences.
+- **Time report**: today / yesterday / 7 days / 30 days, grouped by project, work item, day or description, CSV export, plus each work day with its arrival, last lock, hours worked (all projects) and absences. Absences of past days can be labelled after the fact (the next day), and a day can get an absence label (sick, vacation, holiday, personal, other; whole day or a number of hours), also for a day with nothing recorded.
 - **Theme**: light, dark or green toolbar theme (from the design mockup), accent color, font and custom CSS, per project.
 - **Window placement** (Windows host): docked top, docked bottom, floating or overlay, target monitor, drag handle.
 - **Tray icon** (Windows host): left click shows or hides the toolbar; right click offers Settings (in its own window) and Quit. Closing the toolbar window quits the app.

@@ -7,11 +7,14 @@ using Kazo.Bar.Core.TimeTracking;
 /// <summary>
 /// Mock time tracking service for web testing with idle detection support (US5.3) and a sample
 /// work day (US5.5): arrival at 08:12 and an absence 11:45-13:00 waiting to be confirmed
-/// (daily meeting, then lunch), cut by the real <see cref="AbsenceClassifier"/>.
+/// (daily meeting, then lunch), cut by the real <see cref="AbsenceClassifier"/>. Yesterday has an
+/// absence still to label, to label after the fact from the time report (US5.9).
 /// </summary>
 public class MockTimeTrackingService : ITimeTrackingService
 {
     private readonly WorkDay _today = new() { Date = DateOnly.FromDateTime(DateTime.Today) };
+    /// <summary>Past days: arrival, lock, absences and day off. Their timer entries live in <see cref="_entries"/>.</summary>
+    private readonly Dictionary<DateOnly, WorkDay> _pastDays = new();
     public event Action<IReadOnlyList<Absence>>? OnAbsenceEnded { add { } remove { } }
 
     private TimeEntry? _activeEntry;
@@ -49,6 +52,23 @@ public class MockTimeTrackingService : ITimeTrackingService
             DailyMeeting = new DailyMeetingRule { Enabled = true, Label = "Daily", Start = new(11, 45), End = new(12, 0), Days = Enum.GetValues<DayOfWeek>().ToList() },
         };
         _today.Absences.AddRange(AbsenceClassifier.Split(today.AddHours(11).AddMinutes(45), today.AddHours(13), rules, AbsenceCause.Locked, "proj-webapi", "1235"));
+
+        var yesterday = today.AddDays(-1);
+        var past = new WorkDay
+        {
+            Date = DateOnly.FromDateTime(yesterday),
+            FirstActivity = yesterday.AddHours(8).AddMinutes(55),
+            LastLock = yesterday.AddHours(15).AddMinutes(35),
+        };
+        past.Absences.AddRange(AbsenceClassifier.Split(yesterday.AddHours(11), yesterday.AddHours(13), new TimeTrackingRules(), AbsenceCause.Idle, "proj-webapi", "1234"));
+        _pastDays[past.Date] = past;
+        var twoDaysAgo = today.AddDays(-2);
+        _pastDays[DateOnly.FromDateTime(twoDaysAgo)] = new WorkDay
+        {
+            Date = DateOnly.FromDateTime(twoDaysAgo),
+            FirstActivity = twoDaysAgo.AddHours(9).AddMinutes(50),
+            LastLock = twoDaysAgo.AddHours(12).AddMinutes(5),
+        };
     }
 
     public DateTime? AwaySince => null;
@@ -60,13 +80,19 @@ public class MockTimeTrackingService : ITimeTrackingService
         LastLock = _today.LastLock,
         Entries = _entries.Where(e => e.StartTime.Date == DateTime.Today).ToList(),
         Absences = _today.Absences.ToList(),
+        DayOff = _today.DayOff,
     };
 
     public IReadOnlyList<Absence> PendingAbsences => _today.Absences.Where(a => a.PendingReview).ToList();
 
-    public Task ClassifyAbsenceAsync(string absenceId, AbsenceKind kind, string? label = null)
+    public Task ClassifyAbsenceAsync(string absenceId, AbsenceKind kind, string? label = null) =>
+        ClassifyAbsenceAsync(_today.Date, absenceId, kind, label);
+
+    public Task ClassifyAbsenceAsync(DateOnly date, string absenceId, AbsenceKind kind, string? label = null)
     {
-        var absence = _today.Absences.FirstOrDefault(a => a.Id == absenceId)
+        var day = date == _today.Date ? _today : _pastDays.GetValueOrDefault(date)
+            ?? throw new KeyNotFoundException($"Nothing recorded on {date:yyyy-MM-dd}.");
+        var absence = day.Absences.FirstOrDefault(a => a.Id == absenceId)
             ?? throw new KeyNotFoundException(absenceId);
         absence.Label = !string.IsNullOrWhiteSpace(label) ? label.Trim() : kind switch
         {
@@ -81,8 +107,42 @@ public class MockTimeTrackingService : ITimeTrackingService
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<WorkDay>> GetWorkDaysAsync(DateOnly from, DateOnly to) =>
-        Task.FromResult<IReadOnlyList<WorkDay>>(_today.Date >= from && _today.Date <= to ? [Today!] : []);
+    public Task SetDayOffAsync(DateOnly date, DayOff? dayOff)
+    {
+        if (date > _today.Date)
+            throw new ArgumentOutOfRangeException(nameof(date), date, "Only past days and today can be changed.");
+        var value = dayOff?.Normalized();
+        if (date == _today.Date)
+        {
+            _today.DayOff = value;
+        }
+        else
+        {
+            if (!_pastDays.TryGetValue(date, out var day))
+                _pastDays[date] = day = new WorkDay { Date = date };
+            day.DayOff = value;
+        }
+        OnTrackingChanged?.Invoke();
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<WorkDay>> GetWorkDaysAsync(DateOnly from, DateOnly to)
+    {
+        var days = _pastDays.Values.Select(d => new WorkDay
+            {
+                Date = d.Date,
+                FirstActivity = d.FirstActivity,
+                LastLock = d.LastLock,
+                Entries = _entries.Where(e => DateOnly.FromDateTime(e.StartTime) == d.Date).ToList(),
+                Absences = d.Absences.ToList(),
+                DayOff = d.DayOff,
+            })
+            .Append(Today!)
+            .Where(d => d.Date >= from && d.Date <= to)
+            .OrderBy(d => d.Date)
+            .ToList();
+        return Task.FromResult<IReadOnlyList<WorkDay>>(days);
+    }
 
     public void ReportActivity()
     {
@@ -144,7 +204,7 @@ public class MockTimeTrackingService : ITimeTrackingService
 
     public Task<IReadOnlyList<TimeEntry>> GetEntriesAsync(DateTime from, string? projectId = null)
     {
-        var counted = _today.Absences.Where(a => a.CountsAsWork).Select(a => new TimeEntry
+        var counted = _pastDays.Values.SelectMany(d => d.Absences).Concat(_today.Absences).Where(a => a.CountsAsWork).Select(a => new TimeEntry
         {
             Id = a.Id, ProjectId = a.ProjectId ?? "", WorkItemId = a.WorkItemId, StartTime = a.Start, EndTime = a.End,
             Description = a.Label ?? a.Kind.ToString(), AbsenceKind = a.Kind,
