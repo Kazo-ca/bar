@@ -51,6 +51,22 @@ public sealed class ToolbarHost
         };
     }
 
+    /// <summary>Diagnostics: logs the scale the page renders at, to compare with the window DPI.</summary>
+    internal async void LogPageScale()
+    {
+        if (_core == null) return;
+        try
+        {
+            var result = await _core.ExecuteScriptAsync("window.devicePixelRatio + ' / ' + window.innerWidth + 'x' + window.innerHeight");
+            var dpi = NativeMethods.GetDpi(Hwnd);
+            Program.Log($"Page after DPI change: devicePixelRatio / viewport = {result} (window DPI {dpi}, scale {dpi / 96.0:0.##}).");
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"Page scale not read: {ex.Message}");
+        }
+    }
+
     /// <summary>Navigates the Blazor router (e.g. "/settings") from native code such as the tray menu.</summary>
     public void NavigateTo(string path)
     {
