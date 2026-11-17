@@ -24,11 +24,41 @@ public sealed class WpfHostSurfaceService(ToolbarHost host) : IHostSurfaceServic
     public SurfaceSize Available => _negotiator.Available;
     public event Action? Changed;
 
-    /// <summary>Called once the HWND exists: follows moves and DPI changes.</summary>
+    /// <summary>Called once the HWND exists: follows moves (DPI changes go through <see cref="ReapplyAfterDpiChange"/>).</summary>
     internal void Attach(Window window)
     {
         window.LocationChanged += (_, _) => Refresh();
-        window.DpiChanged += (_, _) => Refresh();
+        Refresh();
+    }
+
+    /// <summary>
+    /// After the window moved to a monitor with another scale: makes its physical size match
+    /// the logical surface at the new DPI (WPF does not always resize a layered window to the
+    /// suggested rectangle, which left the page clipped and the drag handle out of reach),
+    /// then recomputes the space available on the new monitor.
+    /// </summary>
+    internal void ReapplyAfterDpiChange()
+    {
+        var hwnd = host.Hwnd;
+        if (hwnd == nint.Zero || !GetWindowRect(hwnd, out var rect)) return;
+
+        var scale = GetDpi(hwnd) / 96.0;
+        var window = new PixelRect(rect.left, rect.top, rect.right, rect.bottom);
+        if (ScreenFit.NeedsResize(window, host.Surface, scale))
+        {
+            var (width, height) = ScreenFit.ToPixels(host.Surface, scale);
+            var target = ScreenFit.Resize(window, width, height, host.AnchorBottom);
+            Program.Log($"DPI {scale * 96:0}: window {window.Width}x{window.Height} px resized to {width}x{height} px.");
+            host.IsAdjustingSurface = true;
+            try
+            {
+                SetWindowPos(hwnd, nint.Zero, target.Left, target.Top, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+            finally
+            {
+                host.IsAdjustingSurface = false;
+            }
+        }
         Refresh();
     }
 
@@ -59,9 +89,7 @@ public sealed class WpfHostSurfaceService(ToolbarHost host) : IHostSurfaceServic
         var target = _negotiator.Target;
         if (target != host.Surface)
         {
-            var scale = GetDpi(hwnd) / 96.0;
-            int width = (int)Math.Round(target.Width * scale);
-            int height = (int)Math.Round(target.Height * scale);
+            var (width, height) = ScreenFit.ToPixels(target, GetDpi(hwnd) / 96.0);
             int x = rect.left + (rect.right - rect.left - width) / 2;
             int y = host.AnchorBottom ? rect.bottom - height : rect.top;
 

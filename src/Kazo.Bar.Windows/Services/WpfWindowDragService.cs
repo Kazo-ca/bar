@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using Kazo.Bar.Core.Interfaces;
+using Kazo.Bar.Core.Layout;
 using static Kazo.Bar.Windows.Services.NativeMethods;
 
 namespace Kazo.Bar.Windows.Services;
@@ -10,7 +11,16 @@ namespace Kazo.Bar.Windows.Services;
 /// </summary>
 public sealed class WpfWindowDragService(ToolbarHost host, IDockingService docking) : IWindowDragService
 {
+    /// <summary>Used until the page has reported the pill: the top strip of the surface.</summary>
+    private static readonly (double Left, double Top, double Right, double Bottom) DefaultPill =
+        (0, 0, ToolbarWindow.SurfaceWidth, 48);
+
+    private (double Left, double Top, double Right, double Bottom) _lastPill = DefaultPill;
+
     public bool CanDrag => host.Window != null && !docking.IsDocked;
+
+    /// <summary>True while the native move loop runs (the user holds the handle).</summary>
+    public bool IsDragging { get; private set; }
 
     public Task DragAsync()
     {
@@ -20,35 +30,43 @@ public sealed class WpfWindowDragService(ToolbarHost host, IDockingService docki
         {
             // The pointerdown travelled through the web page; only start if the button is still down.
             if (Mouse.LeftButton != MouseButtonState.Pressed) return;
+            IsDragging = true;
             try { window.DragMove(); }
             catch (InvalidOperationException ex) { Program.Log($"Drag not started: {ex.Message}"); }
+            finally { IsDragging = false; }
         }).Task;
     }
 
     public void KeepInWorkArea(double left, double top, double right, double bottom)
     {
+        if (right > left && bottom > top) _lastPill = (left, top, right, bottom);
         var window = host.Window;
+        if (window == null) return;
+        window.Dispatcher.Invoke(ClampLastPill);
+    }
+
+    /// <summary>
+    /// Re-applies the last known pill rectangle on the window's current monitor, e.g. after
+    /// a DPI change moved the window onto a screen with a different work area.
+    /// Skipped while dragging: the page clamps again when the button is released.
+    /// </summary>
+    internal void ClampLastPill()
+    {
         var hwnd = host.Hwnd;
-        if (window == null || hwnd == nint.Zero || docking.IsDocked) return;
-        window.Dispatcher.Invoke(() =>
-        {
-            if (!GetWindowRect(hwnd, out var rect)) return;
-            var scale = GetDpi(hwnd) / 96.0;
-            var work = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea; // physical px
+        if (hwnd == nint.Zero || docking.IsDocked || IsDragging) return;
+        if (!GetWindowRect(hwnd, out var rect)) return;
 
-            // Pill rectangle in screen physical pixels.
-            int pl = rect.left + (int)Math.Floor(left * scale);
-            int pt = rect.top + (int)Math.Floor(top * scale);
-            int pr = rect.left + (int)Math.Ceiling(right * scale);
-            int pb = rect.top + (int)Math.Ceiling(bottom * scale);
+        var scale = GetDpi(hwnd) / 96.0;
+        var window = new PixelRect(rect.left, rect.top, rect.right, rect.bottom);
+        var area = System.Windows.Forms.Screen.FromHandle(hwnd).WorkingArea; // physical px
+        var work = new PixelRect(area.Left, area.Top, area.Right, area.Bottom);
 
-            int dx = pl < work.Left ? work.Left - pl : pr > work.Right ? work.Right - pr : 0;
-            int dy = pt < work.Top ? work.Top - pt : pb > work.Bottom ? work.Bottom - pb : 0;
-            if (dx == 0 && dy == 0) return;
+        var pill = ScreenFit.ToScreen(window, _lastPill.Left, _lastPill.Top, _lastPill.Right, _lastPill.Bottom, scale);
+        var (dx, dy) = ScreenFit.OffsetIntoWorkArea(pill, work);
+        if (dx == 0 && dy == 0) return;
 
-            Program.Log($"Keeping toolbar on screen: offset ({dx}, {dy}) px.");
-            SetWindowPos(hwnd, nint.Zero, rect.left + dx, rect.top + dy, 0, 0,
-                SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER);
-        });
+        Program.Log($"Keeping toolbar on screen: offset ({dx}, {dy}) px.");
+        SetWindowPos(hwnd, nint.Zero, rect.left + dx, rect.top + dy, 0, 0,
+            SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER);
     }
 }

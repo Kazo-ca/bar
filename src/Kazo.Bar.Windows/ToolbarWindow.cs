@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Kazo.Bar.Core.Interfaces;
 using Kazo.Bar.Core.Models;
 using Kazo.Bar.Maui.Platforms.Windows.Services;
@@ -83,7 +84,6 @@ public sealed class ToolbarWindow : Window
             // Our own resize (component asked for more room) is not a user move.
             if (!_host.IsAdjustingSurface) _dismiss.RequestDismiss(PopupDismissReason.HostMoved);
         };
-        DpiChanged += (_, _) => _dismiss.RequestDismiss(PopupDismissReason.HostMoved);
         Closed += async (_, _) =>
         {
             _services.GetService<IDockingService>()?.Undock();
@@ -120,6 +120,34 @@ public sealed class ToolbarWindow : Window
         {
             Program.Log($"Docking settings not applied: {ex}");
         }
+    }
+
+    /// <summary>
+    /// The window reached a monitor with another scale (usually mid-drag). Once WPF has
+    /// applied the new DPI: fix the physical size, let the web view re-measure at the new
+    /// scale, and bring the pill back inside the new monitor's work area.
+    /// </summary>
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        Program.Log($"DPI changed {oldDpi.PixelsPerInchX:0} -> {newDpi.PixelsPerInchX:0}.");
+        _dismiss.RequestDismiss(PopupDismissReason.HostMoved);
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ReconcileAfterDpiChange);
+    }
+
+    private void ReconcileAfterDpiChange()
+    {
+        _services.GetRequiredService<WpfHostSurfaceService>().ReapplyAfterDpiChange();
+
+        // The composition web view only re-reads its scale on a layout change; a DPI change
+        // alone keeps the DIP size identical. A one-pixel nudge forces it to re-measure.
+        _webView.Margin = new Thickness(0, 0, 1, 0);
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
+        {
+            _webView.Margin = new Thickness(0);
+            (_services.GetService<IWindowDragService>() as WpfWindowDragService)?.ClampLastPill();
+            _host.LogPageScale();
+        });
     }
 
     private void OnDeactivated(object? sender, EventArgs e)
